@@ -286,9 +286,9 @@ perhaps better called ASV (anything separated values) rather than just CSV.
 
 =head1 VERSION
 
-    1.16
+    1.17
 
-This module is compatible with Text::CSV_XS B<0.70> and later.
+This module is compatible with Text::CSV_XS B<0.72> and later.
 
 =head2 Embedded newlines
 
@@ -528,7 +528,7 @@ be escaped as C<"0>.) By default this feature is off.
 If a string is marked UTF8, binary will be turned on automatically when
 binary characters other than CR or NL are encountered. Note that a simple
 string like C<"\x{00a0}"> might still be binary, but not marked UTF8, so
-setting C<{ binary => 1 }> is still a wise option.
+setting C<{ binary =E<gt> 1 }> is still a wise option.
 
 =item types
 
@@ -550,6 +550,13 @@ By default, a space in a field would trigger quotation. As no rule
 exists this to be forced in CSV, nor any for the opposite, the default
 is true for safety. You can exclude the space from this trigger by
 setting this option to 0.
+
+=item quote_null
+
+By default, a NULL byte in a field would be escaped. This attribute
+enables you to treat the NULL byte as a simple binary character in
+binary mode (the C<{ binary =E<gt> 1 }> is set). The default is true.
+You can prevent NULL escapes by setting this attribute to 0.
 
 =item keep_meta_info
 
@@ -619,6 +626,7 @@ is equivalent to
      eol                 => $\,
      always_quote        => 0,
      quote_space         => 1,
+     quote_null          => 1,
      binary              => 0,
      keep_meta_info      => 0,
      allow_loose_quotes  => 0,
