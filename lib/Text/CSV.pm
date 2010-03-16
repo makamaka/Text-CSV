@@ -25,7 +25,7 @@ my @PublicMethods = qw/
     version types quote_char escape_char sep_char eol always_quote binary allow_whitespace
     keep_meta_info allow_loose_quotes allow_loose_escapes verbatim meta_info is_quoted is_binary eof
     getline print parse combine fields string error_diag error_input status blank_is_undef empty_is_undef
-    getline_hr column_names bind_columns auto_diag quote_space
+    getline_hr column_names bind_columns auto_diag quote_space quote_null
     PV IV NV
 /;
 #

@@ -3,13 +3,13 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 107;
+use Test::More tests => 113;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
-}
+    }
 
 my $csv;
 ok ($csv = Text::CSV->new,				"new ()");
@@ -28,6 +28,8 @@ is ($csv->blank_is_undef,		0,		"blank_is_undef");
 is ($csv->empty_is_undef,		0,		"empty_is_undef");
 is ($csv->auto_diag,			0,		"auto_diag");
 is ($csv->verbatim,			0,		"verbatim");
+is ($csv->quote_space,			1,		"quote_space");
+is ($csv->quote_null,			1,		"quote_null");
 
 is ($csv->binary (1),			1,		"binary (1)");
 my @fld = ( 'txt =, "Hi!"', "Yes", "", 2, undef, "1.09", "\r", undef );
@@ -50,10 +52,15 @@ is ($csv->blank_is_undef (1),		1,		"blank_is_undef (1)");
 is ($csv->empty_is_undef (1),		1,		"empty_is_undef (1)");
 is ($csv->auto_diag (1),		1,		"auto_diag (1)");
 is ($csv->verbatim (1),			1,		"verbatim (1)");
+is ($csv->quote_space (1),		1,		"quote_space (1)");
+is ($csv->quote_null (1),		1,		"quote_null (1)");
 is ($csv->escape_char ("\\"),		"\\",		"escape_char (\\)");
 ok ($csv->combine (@fld),				"combine");
 is ($csv->string,
     qq{=txt \\=, "Hi!"=;=Yes=;==;=2=;;=1.09=;=\r=;\r},	"string");
+
+is ($csv->quote_space (0),		0,		"quote_space (1)");
+is ($csv->quote_null (0),		0,		"quote_null (1)");
 
 # Funny settings, all three translate to \0 internally
 ok ($csv = Text::CSV->new ({
@@ -94,7 +101,7 @@ eval { $csv = Text::CSV->new ({
     allow_whitespace => 1,
     }) };
 like ((Text::CSV::error_diag)[1], qr{^INI - allow_whitespace}, "Wrong combo - error message");
-is   ( (Text::CSV::error_diag)[0], 1002, "Wrong combo - numeric error");
+is   ((Text::CSV::error_diag)[0], 1002, "Wrong combo - numeric error");
 
 # Test 1003 in constructor
 foreach my $x ("\r", "\n", "\r\n", "x\n", "\rx") {
@@ -110,9 +117,7 @@ foreach my $attr (qw( sep_char quote_char escape_char )) {
     is (($csv->error_diag)[0], 1003, "not allowed");
     }
 
-
 # And test erroneous calls
-
 is (Text::CSV::new (0),		   undef,	"new () as function");
 is (Text::CSV::error_diag () . '', "usage: my \$csv = Text::CSV_PP->new ([{ option => value, ... }]);",
 							"Generic usage () message");
@@ -124,7 +129,6 @@ is (Text::CSV::error_diag () . '', "INI - Unknown attribute '_STATUS'",	"Unsuppo
 foreach my $arg (undef, 0, "", " ", 1, [], [ 0 ], *STDOUT) {
     is  (Text::CSV->new ($arg),         undef,	"Illegal type for first arg");
     is ((Text::CSV::error_diag)[0], 1000, "Should be a hashref - numeric error");
-}
-
+    }
 
 1;

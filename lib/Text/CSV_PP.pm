@@ -11,7 +11,7 @@ use strict;
 use vars qw($VERSION);
 use Carp ();
 
-$VERSION = '1.24_001';
+$VERSION = '1.25';
 
 sub PV  { 0 }
 sub IV  { 1 }
@@ -86,6 +86,7 @@ my %def_attr = (
     empty_is_undef      => 0,
     auto_diag           => 0,
     quote_space         => 1,
+    quote_null          => 1,
 
     _EOF                => 0,
     _STATUS             => undef,
@@ -285,8 +286,8 @@ sub _combine {
     $self->{_STRING}      = '';
     $self->{_STATUS}      = 0;
 
-    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space)
-            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space/};
+    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $quote_null)
+            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space quote_null/};
 
     if(!defined $quot){ $quot = ''; }
 
@@ -322,7 +323,8 @@ sub _combine {
             $must_be_quoted++ if $quote_space;
         }
 
-        if($binary){
+#        if($binary){
+        if( $binary and $quote_null ){
             use bytes;
             $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || $column =~ /[\x00-\x1f\x7f-\xa0]/ );
         }
@@ -849,7 +851,7 @@ sub _set_error_diag {
 
 BEGIN {
     for my $method ( qw/always_quote binary keep_meta_info allow_loose_quotes allow_loose_escapes
-                            verbatim blank_is_undef empty_is_undef auto_diag quote_space/ ) {
+                            verbatim blank_is_undef empty_is_undef auto_diag quote_space quote_null/ ) {
         eval qq|
             sub $method {
                 \$_[0]->{$method} = defined \$_[1] ? \$_[1] : 0 if (\@_ > 1);
