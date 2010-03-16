@@ -1,0 +1,17 @@
+blib
+inc
+cover_db
+Makefile
+META.yml
+pm_to_blib
+*.tar.gz
+*.tgz
+*.old
+Text-CSV*
+pod2htm*
+nytprof*
+tmp/*
+*.bak
+*.swp
+ex/*
+diff_*

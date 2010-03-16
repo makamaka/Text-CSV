@@ -1,0 +1,12 @@
+\.[oc]$
+\.bs$
+\.tgz$
+\.tar\.gz$
+\.git
+blib/
+Makefile
+MANIFEST\.SKIP
+pm_to_blib
+tmp/
+META.yml
+
