@@ -310,15 +310,11 @@ sub _combine {
             $must_be_quoted++ if $quote_space;
         }
 
-#        if($binary){
         if( $binary and $quote_null ){
             use bytes;
             $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || $column =~ /[\x00-\x1f\x7f-\xa0]/ );
         }
 
-        #if ( $empty_is_undef and defined $column and not length $column ) {
-        #}
-        #elsif($always_quote or $must_be_quoted){
         if($always_quote or $must_be_quoted){
             $column = $quot . $column . $quot;
         }
