@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 90;
+ use Test::More tests => 99;
 #use Test::More "no_plan";
 
 my %err;
@@ -68,6 +68,33 @@ parse_err 2037,  1, qq{\0 };
     }
 
 is (Text::CSV->new ({ ecs_char => ":" }), undef, "Unsupported option");
+
+{   my @warn;
+    local $SIG{__WARN__} = sub { push @warn, @_ };
+    Text::CSV::error_diag ();
+    ok (@warn == 1, "Error_diag in void context ::");
+    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    }
+{   my @warn;
+    local $SIG{__WARN__} = sub { push @warn, @_ };
+    Text::CSV->error_diag ();
+    ok (@warn == 1, "Error_diag in void context ->");
+    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    }
+
+{   my @warn;
+    local $SIG{__WARN__} = sub { push @warn, @_ };
+    is (Text::CSV->new ({ auto_diag => 0, ecs_char => ":" }), undef,
+       "Unsupported option");
+    ok (@warn == 0, "Error_diag in from new ({ auto_diag => 0})");
+    }
+{   my @warn;
+    local $SIG{__WARN__} = sub { push @warn, @_ };
+    is (Text::CSV->new ({ auto_diag => 1, ecs_char => ":" }), undef,
+       "Unsupported option");
+    ok (@warn == 1, "Error_diag in from new ({ auto_diag => 1})");
+    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    }
 
 is (Text::CSV::error_diag() . '', "INI - Unknown attribute 'ecs_char'",
 					"Last failure for new () - FAIL");
