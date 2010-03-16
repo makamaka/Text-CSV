@@ -177,6 +177,7 @@ sub new {
     for my $prop (keys %$attr) { # if invalid attr, return undef
         unless ($prop =~ /^[a-z]/ && exists $def_attr{$prop}) {
             $last_new_error = "INI - Unknown attribute '$prop'";
+            error_diag() if $attr->{ auto_diag };
             return;
         }
         $self->{$prop} = $attr->{$prop};
@@ -190,21 +191,6 @@ sub new {
         return;
         #$class->SetDiag ($ec);
     }
-
-
-=pod
-
-    if ( $self->{allow_whitespace} and
-           ( defined $self->{quote_char}  && $self->{quote_char}  =~ m/^[ \t]$/ ) 
-           ||
-           ( defined $self->{escape_char} && $self->{escape_char} =~ m/^[ \t]$/ )
-    ) {
-       $last_new_error = "INI - allow_whitespace with escape_char or quote_char SP or TAB";
-       $last_new_err_num = 1002;
-       return;
-    }
-
-=cut
 
     $last_new_error = '';
 
@@ -250,7 +236,8 @@ sub error_diag {
     unless (defined $context) { # Void context
         if ( $diag[0] ) {
             my $msg = "# CSV_PP ERROR: " . $diag[0] . " - $diag[1]\n";
-            $self->{auto_diag} > 1 ? die $msg : warn $msg;
+            ref $self ? ( $self->{auto_diag} > 1 ? die $msg : warn $msg )
+                      : warn $msg;
         }
         return;
     }
