@@ -2,6 +2,7 @@ Revision history for Perl extension Text::CSV.
 
 1.17  Tue Mar 16 15:20:34 2010
 	- fixed parse working when setting quote_char undef.
+	- made Text::CSV_XS compat (auto_diag)
 
 1.16  Tue Dec  8 19:02:58 2009
 	- updated the compatibility for Text::CSV_XS version 0.70
