@@ -11,7 +11,7 @@ use strict;
 use vars qw($VERSION);
 use Carp ();
 
-$VERSION = '1.24';
+$VERSION = '1.24_001';
 
 sub PV  { 0 }
 sub IV  { 1 }
@@ -293,7 +293,6 @@ sub _combine {
     return $self->_set_error_diag(1001) if ($sep eq $esc or $sep eq $quot);
 
     my $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
-#    my $re_sp  = $self->{_re_comb_sp}->{$sep}              ||= qr/[\s\Q$sep\E]/;
     my $re_sp  = $self->{_re_comb_sp}->{$sep}->{$quote_space} ||= ( $quote_space ? qr/[\s\Q$sep\E]/ : qr/[\Q$sep\E]/ );
 
     my $must_be_quoted;
@@ -361,9 +360,11 @@ sub _parse {
             qw/binary quote_char sep_char escape_char types keep_meta_info allow_whitespace eol blank_is_undef empty_is_undef/
            };
 
-    $sep  = "\0" unless (defined $sep);
+    $sep  = ',' unless (defined $sep);
     $esc  = "\0" unless (defined $esc);
-    $quot = ''   unless (defined $quot);
+    $quot = "\0" unless (defined $quot);
+
+    my $quot_is_null = $quot eq "\0"; # in this case, any fields are not interpreted as quoted data.
 
     return $self->_set_error_diag(1001) if (($sep eq $esc or $sep eq $quot) and $sep ne "\0");
 
@@ -418,7 +419,7 @@ sub _parse {
         $pos += length $col;
 
         if ( ( !$binary and !$utf8 ) and $col =~ /[^\x09\x20-\x7E]/) { # Binary character, binary off
-            if ( $col =~ $re_quoted ) {
+            if ( not $quot_is_null and $col =~ $re_quoted ) {
                 $self->_set_error_diag(
                       $col =~ /\n([^\n]*)/ ? (2021, $pos - 1 - length $1)
                     : $col =~ /\r([^\r]*)/ ? (2022, $pos - 1 - length $1)
@@ -444,16 +445,17 @@ sub _parse {
             last;
         }
 
-        if ($col =~ $re_quoted) {
+        if ( not $quot_is_null and $col =~ $re_quoted ) {
             $flag |= IS_QUOTED if ($keep_meta_info);
             $col = $1;
 
-            my $flga_in_quot_esp;
+            my $flag_in_quot_esp;
             while ( $col =~ /$re_in_quot_esp1/g ) {
                 my $str = $1;
-                $flga_in_quot_esp = 1;
+                $flag_in_quot_esp = 1;
 
                 if ($str !~ $re_in_quot_esp2) {
+
                     unless ($self->{allow_loose_escapes}) {
                         $self->_set_error_diag( 2025, $pos - 2 ); # Needless ESC in quoted field
                         $palatable = 0;
@@ -468,7 +470,7 @@ sub _parse {
 
             last unless ( $palatable );
 
-            unless ( $flga_in_quot_esp ) {
+            unless ( $flag_in_quot_esp ) {
                 if ($col =~ /(?<!\Q$esc\E)\Q$esc\E/) {
                     $self->_set_error_diag( 4002, $pos - 1 ); # No escaped ESC in quoted field
                     $palatable = 0;
@@ -490,7 +492,7 @@ sub _parse {
 
         # quoted but invalid
 
-        elsif ($col =~ $re_invalid_quot) {
+        elsif ( not $quot_is_null and $col =~ $re_invalid_quot ) {
 
             unless ($self->{allow_loose_quotes} and $col =~ /$re_quot_char/) {
                 $self->_set_error_diag(
@@ -1677,7 +1679,7 @@ Text::CSV was written by E<lt>alan[at]mfgrtl.comE<gt>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2005-2009 by Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
+Copyright 2005-2010 by Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

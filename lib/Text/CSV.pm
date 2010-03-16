@@ -5,7 +5,7 @@ use strict;
 use Carp ();
 
 BEGIN {
-    $Text::CSV::VERSION = '1.16';
+    $Text::CSV::VERSION = '1.17';
     $Text::CSV::DEBUG   = 0;
 }
 
@@ -1081,12 +1081,12 @@ Copyright (C) 2007-2009 Makamaka Hannyaharamitu.
 
 Text::CSV_PP:
 
-Copyright (C) 2005-2009 Makamaka Hannyaharamitu.
+Copyright (C) 2005-2010 Makamaka Hannyaharamitu.
 
 
 Text:CSV_XS:
 
-Copyright (C) 2007-2009 H.Merijn Brand for PROCURA B.V.
+Copyright (C) 2007-2010 H.Merijn Brand for PROCURA B.V.
 Copyright (C) 1998-2001 Jochen Wiedmann. All rights reserved.
 Portions Copyright (C) 1997 Alan Citterman. All rights reserved.
 
