@@ -12,7 +12,7 @@ BEGIN {
 # if use CSV_XS, requires version
 my $Module_XS  = 'Text::CSV_XS';
 my $Module_PP  = 'Text::CSV_PP';
-my $XS_Version = '0.70';
+my $XS_Version = '0.72';
 
 my $Is_Dynamic = 0;
 
