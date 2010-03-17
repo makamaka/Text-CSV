@@ -3,10 +3,11 @@ package Text::CSV;
 
 use strict;
 use Carp ();
+use vars qw( $VERSION $DEBUG );
 
 BEGIN {
-    $Text::CSV::VERSION = '1.17';
-    $Text::CSV::DEBUG   = 0;
+    $VERSION = '1.17';
+    $DEBUG   = 0;
 }
 
 # if use CSV_XS, requires version
