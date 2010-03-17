@@ -620,7 +620,7 @@ sub getline {
 
     my $quot = $self->{quote_char};
     my $sep  = $self->{sep_char};
-    my $re   = qr/(?:\Q$quot\E)/;
+    my $re   = defined $quot ? qr/(?:\Q$quot\E)/ : '';
 
     local $/ = "\r" if $self->{_AUTO_DETECT_CR};
 
