@@ -9,4 +9,5 @@ MANIFEST\.SKIP
 pm_to_blib
 tmp/
 META.yml
+ex/
 
