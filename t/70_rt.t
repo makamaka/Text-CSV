@@ -3,13 +3,11 @@
 use strict;
 $^W = 1;
 
-BEGIN { $ENV{PERL_TEXT_CSV} = 0; }
-
-
 #use Test::More "no_plan";
- use Test::More tests => 367;
+ use Test::More tests => 380;
 
 BEGIN {
+    $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV", ();
     plan skip_all => "Cannot load Text::CSV" if $@;
     }
@@ -19,7 +17,7 @@ END { unlink $csv_file }
 
 my ($rt, %input, %desc);
 while (<DATA>) {
-    if (s/^«(\d+)»\s*-?\s*//) {
+    if (s/^«(x?[0-9]+)»\s*-?\s*//) {
 	chomp;
 	$rt = $1;
 	$desc{$rt} = $_;
@@ -158,8 +156,8 @@ while (<DATA>) {
     my @diag = $csv->error_diag;
 #    is ($diag[0], 2023,			"Error 2023");
 #    is ($diag[2],   23,			"Position 23");
-    is ($diag[0], 2025,			"Error 2025 but 2023 in XS");
-    is ($diag[2],   24,			"Position 24 but 23 in XS");
+    is ($diag[0], 2025,                        "Error 2025 but 2023 in XS");
+    is ($diag[2],   24,                        "Position 24 but 23 in XS");
     $csv->allow_loose_escapes (1);
     ok ($csv->parse ($str),		"parse () badly escaped NULL");
     }
@@ -257,6 +255,35 @@ while (<DATA>) {
 	}
     }
 
+{   # Detlev reported an inconsistent difference between _XS and _PP
+    $rt = "x1000";
+    SKIP: {
+	open  FH, ">$csv_file";
+	print FH @{$input{$rt}};
+	close FH;
+	my ($c1, $c2);
+	ok (my $csv = Text::CSV->new ({
+	    binary      => 1, 
+	    eol         => "\n", 
+	    sep_char    => "\t",
+	    escape_char => undef,
+	    quote_char  => undef,
+	    binary => 1 }), "RT-$rt: $desc{$rt}");
+	open  FH, "<$csv_file";
+	for (1 .. 4) {
+	    ok (my $row = $csv->getline (*FH), "getline ()");
+	    is (scalar @$row, 27, "Line $_: 27 columns");
+	    }
+	for (5 .. 6) {
+	    ok (my $row = $csv->getline (*FH), "getline ()");
+	    is (scalar @$row,  1, "Line $_:  1 column");
+	    }
+	$csv->error_diag ();
+	close FH;
+	unlink $csv_file;
+	}
+    }
+
 __END__
 «24386» - \t doesn't work in _XS, works in _PP
 VIN	StockNumber	Year	Make	Model	MD	Engine	EngineSize	Transmission	DriveTrain	Trim	BodyStyle	CityFuel	HWYFuel	Mileage	Color	InteriorColor	InternetPrice	RetailPrice	Notes	ShortReview	Certified	NewUsed	Image_URLs	Equipment
@@ -292,3 +319,10 @@ code,name,price,description
 «43927» - Is bind_columns broken or am I using it wrong?
 1,2
 «44402» - Unexpected results parsing tab-separated spaces
+«x1000» - Detlev reported inconsisten behavior between XS and PP
+ï»¿B:033_02_	-drop, +drop	animal legs	@p 02-033.bmp	@p 02-033.bmp				\x{A}		1	:c/b01:!1	!	13	!6.!6			:b/b01:0						B:033_02_	R#012a	2	
+B:034_02c	diagonal, trac	-bound up	@p 02-034c.bmp	@p 02-034c.bmp			Found through e_sect2.pdf as U+F824 ( ,) and U+2E88 (âºˆ,) but won't display	\x{A}		1	:c/b01:!1	!	11	!10			:b/b01:0				2E88		B:034_02c	R#018b	2	
+B:035_02_	+drop, -drop	fission	ä¸·				Aufgrund folgender FÃ¤lle definiere ich einen neuen Baustein, der simp. mit "horns&" identisch ist.\x{A}éšŠé˜Ÿ (jap.: pinnacle, horns&sow)\x{A}æ›¾æ›¾ï€ å…Œå…‘\x{A}Ã¼ber "golden calf":\x{A}é€é€			1	:c/b01:!1	!	11	!10			:b/b01:0				4E37		B:035_02_		2	
+B:035_03_	fission, one	horns	@p 03-035.bmp	@p 03-035.bmp			obsolete Heising explanation for form without the horizontal line: Variante von "horns", die erscheint, wenn darunter keine horizontale Linie steht\x{A}\x{A}Found through e_sect2.pdf as U+F7EA (??,) but won't display	\x{A}		1	:c/b01:!1	!	11	!10			:b/b01:0						B:035_03_		3	
+
+--------------090302050909040309030109--
