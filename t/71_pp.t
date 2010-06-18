@@ -5,7 +5,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 53;
+use Test::More tests => 55;
 
 
 BEGIN { $ENV{PERL_TEXT_CSV} = $ARGV[0] || 0; }
@@ -160,4 +160,16 @@ is( $col->[4], "\0\n0", '' );
 close( FH );
 
 unlink( '__test.csv' );
+
+# 2010-06-18 reported by https://rt.cpan.org/Public/Bug/Display.html?id=58356
+
+$csv = Text::CSV->new ({ binary => 1, quote_space => 0 });
+my @list = (
+    "a a",
+    "b,b",
+    "c ,c",
+);
+
+ok( $csv->combine( @list ) );
+is( $csv->string, q{a a,"b,b","c ,c"} );
 
