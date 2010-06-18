@@ -307,7 +307,7 @@ sub _combine {
             $must_be_quoted++;
         }
         if($column =~ /$re_sp/){
-            $must_be_quoted++ if $quote_space;
+            $must_be_quoted++;
         }
 
         if( $binary and $quote_null ){
