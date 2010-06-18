@@ -38,15 +38,15 @@ for ( [  1, 1, 1, '""'				],
       ) {
     my ($tst, $validp, $validg, @arg, $row) = @$_;
 
-    open  FH, ">_test.csv" or die "_test.csv: $!";
+    open  FH, ">_20test.csv" or die "_20test.csv: $!";
     is ($csv->print (*FH, \@arg), $validp||"", "$tst - print ()");
     close FH;
 
-    open  FH, ">_test.csv" or die "_test.csv: $!";
+    open  FH, ">_20test.csv" or die "_20test.csv: $!";
     print FH join ",", @arg;
     close FH;
 
-    open  FH, "<_test.csv" or die "_test.csv: $!";
+    open  FH, "<_20test.csv" or die "_20test.csv: $!";
     $row = $csv->getline (*FH);
     unless ($validg) {
 	is ($row, undef, "$tst - false getline ()");
@@ -60,12 +60,12 @@ for ( [  1, 1, 1, '""'				],
 	}
     }
 
-unlink "_test.csv";
+unlink "_20test.csv";
 
 # This test because of a problem with DBD::CSV
 
 ok (1, "Tests for DBD::CSV");
-open  FH, ">_test.csv" or die "_test.csv: $!";
+open  FH, ">_20test.csv" or die "_20test.csv: $!";
 $csv->binary (1);
 $csv->eol    ("\r\n");
 ok ($csv->print (*FH, [ "id", "name"			]), "Bad character");
@@ -85,14 +85,14 @@ id,name\015
 5\015
 CONTENTS
 
-open  FH, "<_test.csv" or die "_test.csv: $!";
+open  FH, "<_20test.csv" or die "_20test.csv: $!";
 my $content = do { local $/; <FH> };
 close FH;
 is ($content, $expected, "Content");
-open  FH, ">_test.csv" or die "_test.csv: $!";
+open  FH, ">_20test.csv" or die "_20test.csv: $!";
 print FH $content;
 close FH;
-open  FH, "<_test.csv" or die "_test.csv: $!";
+open  FH, "<_20test.csv" or die "_20test.csv: $!";
 
 my $fields;
 print "# Retrieving data\n";
@@ -130,10 +130,10 @@ for ([  1, 1,    0, "\n"		],
      [ 22, 0, 2025, qq{"+\r\r+"\r}	],
      ) {
     my ($tst, $valid, $err, $str) = @$_;
-    open  FH, ">_test.csv" or die "_test.csv: $!";
+    open  FH, ">_20test.csv" or die "_20test.csv: $!";
     print FH $str;
     close FH;
-    open  FH, "<_test.csv" or die "_test.csv: $!";
+    open  FH, "<_20test.csv" or die "_20test.csv: $!";
     my $row = $csv->getline (*FH);
     close FH;
     my @err  = $csv->error_diag;
@@ -147,4 +147,4 @@ for ([  1, 1,    0, "\n"		],
 	}
     }
 
-unlink "_test.csv";
+unlink "_20test.csv";

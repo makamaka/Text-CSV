@@ -51,15 +51,15 @@ for ( [  1, 1, 1, '""'				],
       ) {
     my ($tst, $validp, $validg, @arg, $row) = @$_;
 
-    open  $io, ">", \$io_str or die "_test.csv: $!";
+    open  $io, ">", \$io_str or die "_22test.csv: $!";
     is ($csv->print ($io, \@arg), $validp||"", "$tst - print ()");
     close $io;
 
-    open  $io, ">", \$io_str or die "_test.csv: $!";
+    open  $io, ">", \$io_str or die "_22test.csv: $!";
     print $io join ",", @arg;
     close $io;
 
-    open  $io, "<", \$io_str or die "_test.csv: $!";
+    open  $io, "<", \$io_str or die "_22test.csv: $!";
     $row = $csv->getline ($io);
     unless ($validg) {
 	is ($row, undef, "$tst - false getline ()");
@@ -73,12 +73,12 @@ for ( [  1, 1, 1, '""'				],
 	}
     }
 
-unlink "_test.csv";
+unlink "_22test.csv";
 
 # This test because of a problem with DBD::CSV
 
 ok (1, "Tests for DBD::CSV");
-open  $io, ">", \$io_str or die "_test.csv: $!";
+open  $io, ">", \$io_str or die "_22test.csv: $!";
 $csv->binary (1);
 $csv->eol    ("\r\n");
 ok ($csv->print ($io, [ "id", "name"			]), "Bad character");
@@ -98,14 +98,14 @@ id,name\015
 5\015
 CONTENTS
 
-open  $io, "<", \$io_str or die "_test.csv: $!";
+open  $io, "<", \$io_str or die "_22test.csv: $!";
 my $content = do { local $/; <$io> };
 close $io;
 is ($content, $expected, "Content");
-open  $io, ">", \$io_str or die "_test.csv: $!";
+open  $io, ">", \$io_str or die "_22test.csv: $!";
 print $io $content;
 close $io;
-open  $io, "<", \$io_str or die "_test.csv: $!";
+open  $io, "<", \$io_str or die "_22test.csv: $!";
 
 my $fields;
 print "# Retrieving data\n";
@@ -144,7 +144,7 @@ for ([  1, 1,    0, "\n"		],
      ) {
     my ($tst, $valid, $err, $str) = @$_;
     $io_str = $str;
-    open $io, "<", \$io_str or die "_test.csv: $!";
+    open $io, "<", \$io_str or die "_22test.csv: $!";
     my $row = $csv->getline ($io);
     close $io;
     my @err  = $csv->error_diag;

@@ -26,12 +26,12 @@ SKIP: {
     }
 
 tie $foo, "Foo";
-open  FH, ">_test.csv";
+open  FH, ">_76test.csv";
 ok ($csv->print (*FH, $foo),		"print with unused magic scalar");
 close FH;
 untie $foo;
 
-open  FH, "<_test.csv";
+open  FH, "<_76test.csv";
 is_deeply ($csv->getline (*FH), \@foo,	"Content read-back");
 close FH;
 
@@ -40,7 +40,7 @@ ok ($csv->column_names ($foo),		"column_names () from magic");
 untie $foo;
 is_deeply ([$csv->column_names], \@foo,	"column_names ()");
 
-unlink "_test.csv";
+unlink "_76test.csv";
 
 package Foo;
 

@@ -12,7 +12,7 @@ BEGIN {
     plan skip_all => "Cannot load Text::CSV" if $@;
     }
 
-my $csv_file = "_test.csv";
+my $csv_file = "_70test.csv";
 END { unlink $csv_file }
 
 my ($rt, %input, %desc);
