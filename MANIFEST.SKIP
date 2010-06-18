@@ -3,8 +3,10 @@
 \.tgz$
 \.tar\.gz$
 \.git
+\.bak$
+\.old$
 blib/
-Makefile
+Makefile$
 MANIFEST\.SKIP
 pm_to_blib
 tmp/
