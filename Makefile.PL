@@ -62,11 +62,13 @@ WriteMakefile(
        AUTHOR     => 'Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>') : ()),
     ( $ExtUtils::MakeMaker::VERSION >= 6.3002 ? ('LICENSE' => 'perl', ) : () ),
 
-    'META_MERGE'      => {
-        resources => {
-            repository  =>      'http://github.com/makamaka/Text-CSV',
-        },
-    },
+    ( $ExtUtils::MakeMaker::VERSION >= 6.46 ? (
+        'META_MERGE' => {
+            resources => {
+                repository  =>      'http://github.com/makamaka/Text-CSV',
+            },
+        } ) : ()
+    ),
 
 );
 
