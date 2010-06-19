@@ -1,5 +1,9 @@
 Revision history for Perl extension Text::CSV.
 
+1.18  Sat Jun 19 10:34:07 2010
+	- fixed a combine bug with quote_space reported and patched by rt#58356
+	- updated test files compatible to CSV_XS 0.73
+
 1.17  Tue Mar 16 15:20:34 2010
 	- fixed parse working when setting quote_char undef.
 	- made Text::CSV_XS compat 0.71
