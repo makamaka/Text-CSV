@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 380;
+ use Test::More tests => 389;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -13,7 +13,7 @@ BEGIN {
     }
 
 my $csv_file = "_70test.csv";
-END { unlink $csv_file }
+#END { unlink $csv_file }
 
 my ($rt, %input, %desc);
 while (<DATA>) {
@@ -154,10 +154,13 @@ while (<DATA>) {
     $str = $input{$rt}[1];
     is ($csv->parse ($str), 0,		"parse () badly escaped NULL");
     my @diag = $csv->error_diag;
-#    is ($diag[0], 2023,			"Error 2023");
-#    is ($diag[2],   23,			"Position 23");
-    is ($diag[0], 2025,                        "Error 2025 but 2023 in XS");
-    is ($diag[2],   24,                        "Position 24 but 23 in XS");
+
+    SKIP: {
+        skip "incompatible between PP and XS", 2;
+        is ($diag[0], 2023,			"Error 2023");
+        is ($diag[2],   23,			"Position 23");
+    }
+
     $csv->allow_loose_escapes (1);
     ok ($csv->parse ($str),		"parse () badly escaped NULL");
     }
@@ -189,96 +192,125 @@ while (<DATA>) {
 {   # http://rt.cpan.org/Ticket/Display.html?id=43927
     # 43927: Is bind_columns broken or am I using it wrong?
     $rt = 43927;
-    SKIP: {
-	open  FH, ">$csv_file";
-	print FH @{$input{$rt}};
-	close FH;
-	my ($c1, $c2);
-	ok (my $csv = Text::CSV->new ({ binary => 1 }), "RT-$rt: $desc{$rt}");
-	ok ($csv->bind_columns (\$c1, \$c2), "bind columns");
-	open  FH, "<$csv_file";
-	ok (my $row = $csv->getline (*FH), "getline () with bound columns");
-	$csv->error_diag ();
-	close FH;
-	unlink $csv_file;
-	is_deeply ($row, [], "should return empty ref");
-	is_deeply ([ $c1, $c2], [ 1, 2 ], "fields ()");
-	}
+    open  FH, ">$csv_file";
+    print FH @{$input{$rt}};
+    close FH;
+    my ($c1, $c2);
+    ok (my $csv = Text::CSV->new ({ binary => 1 }), "RT-$rt: $desc{$rt}");
+    ok ($csv->bind_columns (\$c1, \$c2), "bind columns");
+    open  FH, "<$csv_file";
+    ok (my $row = $csv->getline (*FH), "getline () with bound columns");
+    $csv->error_diag ();
+    close FH;
+    unlink $csv_file;
+    is_deeply ($row, [], "should return empty ref");
+    is_deeply ([ $c1, $c2], [ 1, 2 ], "fields ()");
     }
 
 {   # http://rt.cpan.org/Ticket/Display.html?id=44402
     # 44402 - Unexpected results parsing tab-separated spaces
     $rt = 44402;
-    SKIP: {
-	open  FH, ">$csv_file";
-	my @ws = ("", " ", "  ");
-	foreach my $f1 (@ws) {
-	    foreach my $f2 (@ws) {
-		foreach my $f3 (@ws) {
-		    print FH "$f1\t$f2\t$f3\r\n";
-		    }
+    open  FH, ">$csv_file";
+    my @ws = ("", " ", "  ");
+    foreach my $f1 (@ws) {
+	foreach my $f2 (@ws) {
+	    foreach my $f3 (@ws) {
+		print FH "$f1\t$f2\t$f3\r\n";
 		}
 	    }
-	close FH;
-
-	my $csv;
-	ok ($csv = Text::CSV->new ({
-	    sep_char => "\t",
-	    }), "RT-$rt: $desc{$rt}");
-	open  FH, "<$csv_file";
-	while (my $row = $csv->getline (*FH)) {
-	    ok ($row, "getline $.");
-	    my @row = @$row;
-	    is ($#row, 2, "Got 3 fields");
-	    like ($row[$_], qr{^ *$}, "field $_ with only spaces") for 0..2;
-	    }
-	ok ($csv->eof, "read complete file");
-	close FH;
-
-	ok ($csv = Text::CSV->new ({
-	    sep_char         => "\t",
-	    allow_whitespace => 1,
-	    }), "RT-$rt: $desc{$rt}");
-	open  FH, "<$csv_file";
-	while (my $row = $csv->getline (*FH)) {
-	    ok ($row, "getline $.");
-	    my @row = @$row;
-	    is ($#row, 2, "Got 3 fields");
-	    is ($row[$_], "", "field $_ empty") for 0..2;
-	    }
-	ok ($csv->eof, "read complete file");
-	close FH;
-	unlink $csv_file;
-
-	ok ($csv->parse ("  \t  \t  "), "parse ()");
-	is_deeply ([$csv->fields],["","",""],"3 empty fields");
 	}
+    close FH;
+
+    my $csv;
+    ok ($csv = Text::CSV->new ({
+	sep_char => "\t",
+	}), "RT-$rt: $desc{$rt}");
+    open  FH, "<$csv_file";
+    while (my $row = $csv->getline (*FH)) {
+	ok ($row, "getline $.");
+	my @row = @$row;
+	is ($#row, 2, "Got 3 fields");
+	like ($row[$_], qr{^ *$}, "field $_ with only spaces") for 0..2;
+	}
+    ok ($csv->eof, "read complete file");
+    close FH;
+
+    ok ($csv = Text::CSV->new ({
+	sep_char         => "\t",
+	allow_whitespace => 1,
+	}), "RT-$rt: $desc{$rt}");
+    open  FH, "<$csv_file";
+    while (my $row = $csv->getline (*FH)) {
+	ok ($row, "getline $.");
+	my @row = @$row;
+	is ($#row, 2, "Got 3 fields");
+	is ($row[$_], "", "field $_ empty") for 0..2;
+	}
+    ok ($csv->eof, "read complete file");
+    close FH;
+    unlink $csv_file;
+
+    ok ($csv->parse ("  \t  \t  "), "parse ()");
+    is_deeply ([$csv->fields],["","",""],"3 empty fields");
     }
 
 {   # Detlev reported an inconsistent difference between _XS and _PP
     $rt = "x1000";
-    SKIP: {
-	open  FH, ">$csv_file";
-	print FH @{$input{$rt}};
-	close FH;
-	my ($c1, $c2);
+    open  FH, ">$csv_file";
+    print FH @{$input{$rt}};
+    close FH;
+    my ($c1, $c2);
+    ok (my $csv = Text::CSV->new ({
+	binary      => 1, 
+	eol         => "\n", 
+	sep_char    => "\t",
+	escape_char => undef,
+	quote_char  => undef,
+	binary      => 1 }), "RT-$rt: $desc{$rt}");
+    open  FH, "<$csv_file";
+    for (1 .. 4) {
+	ok (my $row = $csv->getline (*FH), "getline ()");
+	is (scalar @$row, 27, "Line $_: 27 columns");
+	}
+    for (5 .. 6) {
+	ok (my $row = $csv->getline (*FH), "getline ()");
+    #print join( "-\n", @$row ), "//\n";
+	is (scalar @$row,  1, "Line $_:  1 column");
+	}
+    close FH;
+#    unlink $csv_file;
+    }
+
+{   # http://rt.cpan.org/Ticket/Display.html?id=58356
+    # 58356 - Incorrect CSV generated if "quote_space => 0"
+    $rt = "58356";
+    ok (my $csv = Text::CSV->new ({
+	binary      => 1,
+	quote_space => 0 }), "RT-$rt: $desc{$rt}");
+    my @list = ("a a", "b,b", "c ,c");
+    ok ($csv->combine (@list), "combine ()");
+    is ($csv->string, q{a a,"b,b","c ,c"}, "string ()");
+    }
+
+{   # http://rt.cpan.org/Ticket/Display.html?id=61525
+    $rt = "61525";
+    foreach my $eol ("\n", "!") {
 	ok (my $csv = Text::CSV->new ({
-	    binary      => 1, 
-	    eol         => "\n", 
-	    sep_char    => "\t",
-	    escape_char => undef,
-	    quote_char  => undef,
-	    binary => 1 }), "RT-$rt: $desc{$rt}");
+	    binary      => 1,
+	    sep_char    => ":",
+	    quote_char  => '"',
+	    escape_char => '"',
+	    eol         => $eol,
+	    auto_diag   => 1,
+	    }), "RT-$rt: $desc{$rt}");
+
+	open  FH, ">$csv_file";
+	print FH join $eol => qw( "a":"b" "c":"d" );
+	close FH;
+
 	open  FH, "<$csv_file";
-	for (1 .. 4) {
-	    ok (my $row = $csv->getline (*FH), "getline ()");
-	    is (scalar @$row, 27, "Line $_: 27 columns");
-	    }
-	for (5 .. 6) {
-	    ok (my $row = $csv->getline (*FH), "getline ()");
-	    is (scalar @$row,  1, "Line $_:  1 column");
-	    }
-	$csv->error_diag ();
+	is_deeply ($csv->getline (*FH), [ "a", "b" ], "Pair 1");
+	is_deeply ($csv->getline (*FH), [ "c", "d" ], "Pair 2");
 	close FH;
 	unlink $csv_file;
 	}
@@ -326,3 +358,5 @@ B:035_02_	+drop, -drop	fission	ä¸·				Aufgrund folgender FÃ¤lle definiere ich 
 B:035_03_	fission, one	horns	@p 03-035.bmp	@p 03-035.bmp			obsolete Heising explanation for form without the horizontal line: Variante von "horns", die erscheint, wenn darunter keine horizontale Linie steht\x{A}\x{A}Found through e_sect2.pdf as U+F7EA (??,) but won't display	\x{A}		1	:c/b01:!1	!	11	!10			:b/b01:0						B:035_03_		3	
 
 --------------090302050909040309030109--
+«58356» - Incorrect CSV generated if "quote_space => 0"
+«61525» - eol not working for values other than "\n"?

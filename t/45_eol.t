@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 278;
+use Test::More tests => 546;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -167,6 +167,32 @@ ok (1, "EOL undef");
     is (scalar @$row, 5,		"# fields");
     is_deeply ($row, [ 1, 2, 34, 5, 6],	"fields 1");
     close FH;
+    unlink "_eol.csv";
+    }
+$/ = $def_rs;
+
+foreach my $eol ("!", "!!", "!\n", "!\n!") {
+    (my $s_eol = $eol) =~ s/\n/\\n/g;
+    ok (1, "EOL $s_eol");
+    ok (my $csv = Text::CSV->new ({ eol => $eol }), "new csv with eol => $s_eol");
+    open  FH, ">_eol.csv";
+    ok ($csv->print (*FH, [1, 2, 3]), "print");
+    ok ($csv->print (*FH, [4, 5, 6]), "print");
+    close FH;
+
+    foreach my $rs (undef, "", "\n", $eol, "!", "!\n", "\n!", "!\n!", "\n!\n") {
+	local $/ = $rs;
+	(my $s_rs = defined $rs ? $rs : "-- undef --") =~ s/\n/\\n/g;
+	ok (1, "with RS $s_rs");
+	open FH, "<_eol.csv";
+	ok (my $row = $csv->getline (*FH),	"getline 1");
+	is (scalar @$row, 3,			"# fields");
+	is_deeply ($row, [ 1, 2, 3],		"fields 1");
+	ok (   $row = $csv->getline (*FH),	"getline 2");
+	is (scalar @$row, 3,			"# fields");
+	is_deeply ($row, [ 4, 5, 6],		"fields 2");
+	close FH;
+	}
     unlink "_eol.csv";
     }
 $/ = $def_rs;
