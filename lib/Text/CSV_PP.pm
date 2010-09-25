@@ -621,10 +621,11 @@ sub getline {
     my $sep  = $self->{sep_char};
     my $re   = defined $quot ? qr/(?:\Q$quot\E)/ : '';
 
-    local $/ = "\r" if $self->{_AUTO_DETECT_CR};
+    my $eol  = $self->{eol};
+
+    local $/ = $eol if ( defined $eol and $eol ne '' );
 
     my $line = $io->getline();
-    my $eol  = $self->{eol};
 
     # AUTO DETECTION EOL CR
     if ( defined $line and defined $eol and $eol eq '' and $line =~ /[^\r]\r[^\r\n]/ and eof ) {
@@ -649,9 +650,7 @@ sub getline {
 
     $line .= $io->getline() while ( defined $line and scalar(my @list = $line =~ /$re/g) % 2 and !eof($io) );
 
-    if ( $self->{verbatim} and defined $eol and defined $line ) { # VERBATIM MODE
-        $line =~ s/\Q$eol\E$//;
-    }
+    $line =~ s/\Q$eol\E$// if ( defined $line and defined $eol and $eol ne '' );
 
     $self->_parse($line);
 
