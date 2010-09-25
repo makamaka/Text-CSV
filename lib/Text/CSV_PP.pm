@@ -361,7 +361,6 @@ sub _parse {
     my $re_quot_char    = $self->{_re_quot_char}->{$quot}            ||= qr/\Q$quot\E/;
     my $re_esc          = $self->{_re_esc}->{$quot}->{$esc}          ||= qr/\Q$esc\E(\Q$quot\E|\Q$esc\E|0)/;
     my $re_invalid_quot = $self->{_re_invalid_quot}->{$quot}->{$esc} ||= qr/^$re_quot_char|[^\Q$re_esc\E]$re_quot_char/;
-    my $re_rs           = $self->{_re_rs}->{$/} ||= qr{\Q$/\E?$}; # $/ .. input record separator
 
     if ($allow_whitespace) {
         $re_split = $self->{_re_split_allow_sp}->{$quot}->{$esc}->{$sep}
