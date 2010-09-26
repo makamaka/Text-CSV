@@ -5,7 +5,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 55;
+use Test::More tests => 58;
 
 
 BEGIN { $ENV{PERL_TEXT_CSV} = $ARGV[0] || 0; }
@@ -173,3 +173,25 @@ my @list = (
 ok( $csv->combine( @list ) );
 is( $csv->string, q{a a,"b,b","c ,c"} );
 
+
+# 2010-06-22 reported
+{
+    $csv = Text::CSV->new ({ binary => 1, sep_char => ';', always_quote => 1 });
+
+    open( FH, '>__test.csv' ) or die $!;
+    binmode FH;
+
+    ok( $csv->print( *FH, [ 0, qq{t"t"\n} ] ) );
+    close( FH );
+
+    open( FH, "__test.csv" ) or die $!;
+    binmode FH;
+
+    my $col = $csv->getline( *FH );
+
+    is( $col->[0], "0" );
+    is( $col->[1], qq{t"t"\n} );
+    close( FH );
+
+    unlink( '__test.csv' );
+}
