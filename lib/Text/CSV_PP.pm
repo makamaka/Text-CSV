@@ -619,7 +619,7 @@ sub getline {
 
     my $quot = $self->{quote_char};
     my $sep  = $self->{sep_char};
-    my $re   = defined $quot ? qr/(?:\Q$quot\E)/ : '';
+    my $re   =  defined $quot ? qr/(?:\Q$quot\E)/ : undef;
 
     my $eol  = $self->{eol};
 
@@ -635,20 +635,20 @@ sub getline {
         return $self->getline( $io );
     }
 
-    if ( defined $line and $line =~ /${re}0/ ) { # null containing line
-        my $auto_diag = $self->auto_diag;
-        $self->auto_diag( 0 ) if ( $auto_diag ); # stop auto error diag
+    if ( $re and defined $line ) {
+        LOOP: {
+            my $is_continued   = scalar(my @list = $line =~ /$re/g) % 2; # if line is valid, quot is even
 
-        while ( not $self->_parse($line) and !eof($io) ) {
-            $line .= $io->getline();
+            if ( $line =~ /${re}0/ ) { # null suspicion case
+                $is_continued = $line =~ /^($re(?:$re$re|${re}0|[^$re])+$re[^0])+$/  ? 0 : 1;
+            }
+
+            if ( $is_continued and !eof($io) ) {
+                $line .= $io->getline();
+                goto LOOP;
+            }
         }
-
-        $self->auto_diag( $auto_diag ) if ( $auto_diag ); # restore
-
-        return $self->_return_getline_result;
     }
-
-    $line .= $io->getline() while ( defined $line and scalar(my @list = $line =~ /$re/g) % 2 and !eof($io) );
 
     $line =~ s/\Q$eol\E$// if ( defined $line and defined $eol and $eol ne '' );
 
