@@ -6,14 +6,14 @@ use Carp ();
 use vars qw( $VERSION $DEBUG );
 
 BEGIN {
-    $VERSION = '1.18';
+    $VERSION = '1.19';
     $DEBUG   = 0;
 }
 
 # if use CSV_XS, requires version
 my $Module_XS  = 'Text::CSV_XS';
 my $Module_PP  = 'Text::CSV_PP';
-my $XS_Version = '0.72';
+my $XS_Version = '0.74';
 
 my $Is_Dynamic = 0;
 
@@ -287,13 +287,13 @@ perhaps better called ASV (anything separated values) rather than just CSV.
 
 =head1 VERSION
 
-    1.17
+    1.19
 
-This module is compatible with Text::CSV_XS B<0.72> and later.
+This module is compatible with Text::CSV_XS B<0.74> and later.
 
 =head2 Embedded newlines
 
-B<Important Note>: The default behavior is to only accept ascii characters.
+B<Important Note>: The default behavior is to only accept ASCII characters.
 This means that fields can not contain newlines. If your data contains
 newlines embedded in fields, or characters above 0x7e (tilde), or binary data,
 you *must* set C<< binary => 1 >> in the call to C<new ()>.  To cover the widest

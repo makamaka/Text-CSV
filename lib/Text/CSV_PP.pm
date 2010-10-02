@@ -11,7 +11,7 @@ use strict;
 use vars qw($VERSION);
 use Carp ();
 
-$VERSION = '1.26';
+$VERSION = '1.27';
 
 sub PV  { 0 }
 sub IV  { 1 }

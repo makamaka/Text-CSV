@@ -1,5 +1,13 @@
 Revision history for Perl extension Text::CSV.
 
+1.19  Sat Oct  2 14:15:59 2010
+	- getline didn't work correctly with 0 or null containing lines
+	    (pointed by Bernhard Prott)
+	- updated the compatibility for Text::CSV_XS version 0.74
+	    * real eol support for parsing streams (beyond \n, \r and \r\n)
+	    * clarify doc for always_quote to not quote undef fields
+	       and XS and PP incompatibility of UTF8 process for print and combine
+
 1.18  Sat Jun 19 10:34:07 2010
 	- fixed a combine bug with quote_space reported and patched by rt#58356
 	- updated test files compatible to CSV_XS 0.73
