@@ -18,6 +18,7 @@ t/30_types.t		Tests for the "types" attribute.
 t/40_misc.t		Binary mode tests
 t/41_null.t		NULL test in combination with line endings
 t/45_eol.t		Embedded EOL
+t/46_eol_si.t		Embedded EOL using scalar io (perlio)
 t/50_utf8.t		Unicode stress tests
 t/55_combi.t		Different CSV character combinations
 t/60_samples.t		Miscellaneous problems from the modules history.
