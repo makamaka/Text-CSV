@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 389;
+ use Test::More tests => 397;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -13,7 +13,7 @@ BEGIN {
     }
 
 my $csv_file = "_70test.csv";
-#END { unlink $csv_file }
+END { unlink $csv_file }
 
 my ($rt, %input, %desc);
 while (<DATA>) {
@@ -157,10 +157,9 @@ while (<DATA>) {
 
     SKIP: {
         skip "incompatible between PP and XS", 2;
-        is ($diag[0], 2023,			"Error 2023");
-        is ($diag[2],   23,			"Position 23");
+        is ($diag[0], 2023,                   "Error 2023");
+        is ($diag[2],   23,                   "Position 23");
     }
-
     $csv->allow_loose_escapes (1);
     ok ($csv->parse ($str),		"parse () badly escaped NULL");
     }
@@ -274,11 +273,11 @@ while (<DATA>) {
 	}
     for (5 .. 6) {
 	ok (my $row = $csv->getline (*FH), "getline ()");
-    #print join( "-\n", @$row ), "//\n";
 	is (scalar @$row,  1, "Line $_:  1 column");
 	}
+    $csv->error_diag ();
     close FH;
-#    unlink $csv_file;
+    unlink $csv_file;
     }
 
 {   # http://rt.cpan.org/Ticket/Display.html?id=58356
@@ -305,12 +304,16 @@ while (<DATA>) {
 	    }), "RT-$rt: $desc{$rt}");
 
 	open  FH, ">$csv_file";
-	print FH join $eol => qw( "a":"b" "c":"d" );
+	print FH join $eol => qw( "a":"b" "c":"d" "e":"x!y" "!!":"z" );
 	close FH;
 
 	open  FH, "<$csv_file";
-	is_deeply ($csv->getline (*FH), [ "a", "b" ], "Pair 1");
-	is_deeply ($csv->getline (*FH), [ "c", "d" ], "Pair 2");
+	is_deeply ($csv->getline (*FH), [ "a",  "b"   ], "Pair 1");
+	is_deeply ($csv->getline (*FH), [ "c",  "d"   ], "Pair 2");
+	is_deeply ($csv->getline (*FH), [ "e",  "x!y" ], "Pair 3");
+	is_deeply ($csv->getline (*FH), [ "!!", "z"   ], "Pair 4");
+	is ($csv->getline (*FH), undef, "no more pairs");
+	ok ($csv->eof, "EOF");
 	close FH;
 	unlink $csv_file;
 	}

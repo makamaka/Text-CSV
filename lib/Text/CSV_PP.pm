@@ -58,7 +58,7 @@ my $ERRORS = {
         3003 => "EHR - bind_columns () and column_names () fields count mismatch",
         3004 => "EHR - bind_columns () only accepts refs to scalars",
         3006 => "EHR - bind_columns () did not pass enough refs for parsed fields",
-        3007 => "EHR - bind_columns needs refs to writeable scalars",
+        3007 => "EHR - bind_columns needs refs to writable scalars",
         3008 => "EHR - unexpected error in bound fields",
 
         0    => "",
@@ -979,9 +979,9 @@ is a XS module and Text::CSV_PP is a Puer Perl one.
 
 =head1 VERSION
 
-    1.24
+    1.27
 
-This module is compatible with Text::CSV_XS B<0.68> and later.
+This module is compatible with Text::CSV_XS B<0.74> and later.
 
 =head2 Unicode (UTF8)
 
@@ -1184,8 +1184,8 @@ of the I<types> method below.
 
 By default the generated fields are quoted only, if they need to, for
 example, if they contain the separator. If you set this attribute to
-a TRUE value, then all fields will be quoted. This is typically easier
-to handle in external applications.
+a TRUE value, then all defined fields will be quoted. This is typically
+easier to handle in external applications.
 
 =item quote_space
 
@@ -1652,7 +1652,7 @@ C<escape_char> is not allowed.
 
 =item 3006 "EHR - bind_columns () did not pass enough refs for parsed fields"
 
-=item 3007 "EHR - bind_columns needs refs to writeable scalars"
+=item 3007 "EHR - bind_columns needs refs to writable scalars"
 
 =item 3008 "EHR - unexpected error in bound fields"
 
