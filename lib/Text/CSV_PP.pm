@@ -640,7 +640,7 @@ sub getline {
             my $is_continued   = scalar(my @list = $line =~ /$re/g) % 2; # if line is valid, quot is even
 
             if ( $line =~ /${re}0/ ) { # null suspicion case
-                $is_continued = $line =~ /^($re(?:$re$re|${re}0|[^$re])+$re[^0])+$/  ? 0 : 1;
+                $is_continued = $line =~ /^($re(?:$re$re|${re}0|[^$quot])+$re[^0$quot])+$/  ? 0 : 1;
             }
 
             if ( $is_continued and !eof($io) ) {
