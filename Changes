@@ -1,5 +1,12 @@
 Revision history for Perl extension Text::CSV.
 
+1.20  Wed Oct 20 13:53:59 2010
+	- couldn't parse the csv containing the column starting with '0'. (hiratara)
+	    * patched by hiratara
+	    * enhanced getline regexp (makamaka)
+	    * resolved a bug in bleadperl-fb85c04
+	- added tests into t/71_pp.t (hiratara)
+
 1.19  Sat Oct  2 14:15:59 2010
 	- getline didn't work correctly with 0 or null containing lines
 	    (pointed by Bernhard Prott)
