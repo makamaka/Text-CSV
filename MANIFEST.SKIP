@@ -5,6 +5,7 @@
 \.git
 \.bak$
 \.old$
+\.shipit$
 blib/
 Makefile$
 MANIFEST\.SKIP
