@@ -705,7 +705,17 @@ sub _return_getline_result {
     return [];
 }
 
-
+################################################################################
+# getline_all
+################################################################################
+sub getline_all {
+    my ( $self, $io) = @_;
+    my @list;
+    while ( my $row = $self->getline($io) ) {
+        push @list, $row;
+    }
+    return \@list;
+}
 ################################################################################
 # getline_hr
 ################################################################################
@@ -722,6 +732,21 @@ sub getline_hr {
     @hr{ @{ $self->{_COLUMN_NAMES} } } = @$fr;
 
     \%hr;
+}
+################################################################################
+# getline_hr_all
+################################################################################
+sub getline_hr_all {
+    my ( $self, $io ) = @_;
+    my %hr;
+
+    unless ( $self->{_COLUMN_NAMES} ) {
+        $self->SetDiag( 3002 );
+    }
+
+    my @cn = @{$self->{_COLUMN_NAMES}};
+
+    return [ map { my %h; @h{ @cn } = @$_; \%h } @{ $self->getline_all( $io ) } ];
 }
 ################################################################################
 # column_names
@@ -1377,6 +1402,13 @@ reference to an empty list.
 The I<$csv-E<gt>string ()>, I<$csv-E<gt>fields ()> and I<$csv-E<gt>status ()>
 methods are meaningless, again.
 
+=head2 getline_all
+
+ $arrayref = $csv->getline_all ($io);
+
+This will return a reference to a list of C<getline ($io)> results.
+In this call, C<keep_meta_info> is disabled.
+
 =head2 parse
 
  $status = $csv->parse ($line);
@@ -1402,6 +1434,13 @@ first to declare your column names.
  print "Price for $hr->{name} is $hr->{price} EUR\n";
 
 C<getline_hr ()> will croak if called before C<column_names ()>.
+
+=head2 getline_hr_all
+
+ $arrayref = $csv->getline_hr_all ($io);
+
+This will return a reference to a list of C<getline_hr ($io)> results.
+In this call, C<keep_meta_info> is disabled.
 
 =head2 column_names
 
