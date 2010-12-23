@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 397;
+ use Test::More tests => 410;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -280,6 +280,24 @@ while (<DATA>) {
     unlink $csv_file;
     }
 
+{   # Ruslan reported a case where only Text::CSV_PP misbehaved (regression test)
+    $rt = "x1001";
+    open  FH, ">$csv_file";
+    print FH @{$input{$rt}};
+    close FH;
+    my ($c1, $c2);
+    ok (my $csv = Text::CSV->new (), "RT-$rt: $desc{$rt}");
+    open  FH, "<$csv_file";
+    for (1 .. 4) {
+	ok (my $row = $csv->getline (*FH), "getline ($_)");
+	is (scalar @$row, 2, "Line $_: 2 columns");
+	my @exp = $_ <= 2 ? ("0", "A") : ("A", "0");
+	is_deeply ($row, \@exp, "@exp");
+	}
+    close FH;
+    unlink $csv_file;
+    }
+
 {   # http://rt.cpan.org/Ticket/Display.html?id=58356
     # 58356 - Incorrect CSV generated if "quote_space => 0"
     $rt = "58356";
@@ -363,3 +381,8 @@ B:035_03_	fission, one	horns	@p 03-035.bmp	@p 03-035.bmp			obsolete Heising ex
 --------------090302050909040309030109--
 «58356» - Incorrect CSV generated if "quote_space => 0"
 «61525» - eol not working for values other than "\n"?
+«x1001» - Lines starting with "0" (Ruslan Dautkhanov)
+"0","A"
+"0","A"
+"A","0"
+"A","0"

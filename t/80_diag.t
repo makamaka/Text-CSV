@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 99;
+ use Test::More tests => 124;
 #use Test::More "no_plan";
 
 my %err;
@@ -118,5 +118,30 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     eval { $csv->parse ('"","') };
     like ($@, qr '^# CSV_PP ERROR: 2027 -', "2 - error message");
     }
+
+SKIP: {
+    skip "incompatible between PP and XS", 25;
+{   my @warn;
+    local $SIG{__WARN__} = sub { push @warn, @_ };
+    Text::CSV->new ()->_cache_diag ();
+    ok (@warn == 1, "Got warn");
+    is ($warn[0], "CACHE: invalid\n", "Uninitialized cache");
+    }
+
+my $diag_file = "_$$.out";
+open  EH,     ">&STDERR";
+open  STDERR, ">$diag_file";
+ok ($csv->_cache_diag,	"Cache debugging output");
+close STDERR;
+open  STDERR, ">&EH";
+open  EH,     "<$diag_file";
+is (scalar <EH>, "CACHE:\n",	"Title");
+while (<EH>) {
+    like ($_, qr{^  \w+\s+[0-9a-f]+:(?:".*"|\s*[0-9]+)$}, "Content");
+    }
+close EH;
+unlink $diag_file;
+
+}
 
 1;
