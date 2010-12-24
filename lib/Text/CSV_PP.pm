@@ -709,11 +709,32 @@ sub _return_getline_result {
 # getline_all
 ################################################################################
 sub getline_all {
-    my ( $self, $io) = @_;
+    my ( $self, $io, $offset, $len ) = @_;
     my @list;
-    while ( my $row = $self->getline($io) ) {
-        push @list, $row;
+    my $tail;
+    my $n = 0;
+
+    $offset ||= 0;
+
+    if ( $offset < 0 ) {
+        $tail = -$offset;
+        $offset = 0;
     }
+
+    while ( my $row = $self->getline($io) ) {
+        next if $offset && $offset-- > 0;               # skip
+        last if defined $len && !$tail && $n >= $len;   # exceedes limit size
+        push @list, $row;
+        ++$n;
+        if ( $tail && $n > $tail ) {
+            shift @list;
+        }
+    }
+
+    if ( $tail && defined $len && $n > $len ) {
+        @list = splice( @list, 0, $len);
+    }
+
     return \@list;
 }
 ################################################################################
@@ -737,7 +758,7 @@ sub getline_hr {
 # getline_hr_all
 ################################################################################
 sub getline_hr_all {
-    my ( $self, $io ) = @_;
+    my ( $self, $io, @args ) = @_;
     my %hr;
 
     unless ( $self->{_COLUMN_NAMES} ) {
@@ -746,7 +767,7 @@ sub getline_hr_all {
 
     my @cn = @{$self->{_COLUMN_NAMES}};
 
-    return [ map { my %h; @h{ @cn } = @$_; \%h } @{ $self->getline_all( $io ) } ];
+    return [ map { my %h; @h{ @cn } = @$_; \%h } @{ $self->getline_all( $io, @args ) } ];
 }
 ################################################################################
 # column_names
