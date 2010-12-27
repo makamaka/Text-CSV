@@ -11,7 +11,7 @@ use strict;
 use vars qw($VERSION);
 use Carp ();
 
-$VERSION = '1.28';
+$VERSION = '1.29';
 
 sub PV  { 0 }
 sub IV  { 1 }
@@ -1042,9 +1042,9 @@ is a XS module and Text::CSV_PP is a Puer Perl one.
 
 =head1 VERSION
 
-    1.28
+    1.29
 
-This module is compatible with Text::CSV_XS B<0.74> and later.
+This module is compatible with Text::CSV_XS B<0.80> and later.
 
 =head2 Unicode (UTF8)
 
@@ -1426,9 +1426,26 @@ methods are meaningless, again.
 =head2 getline_all
 
  $arrayref = $csv->getline_all ($io);
+ $arrayref = $csv->getline_all ($io, $offset);
+ $arrayref = $csv->getline_all ($io, $offset, $length);
 
 This will return a reference to a list of C<getline ($io)> results.
-In this call, C<keep_meta_info> is disabled.
+In this call, C<keep_meta_info> is disabled. If C<$offset> is negative,
+as with C<splice ()>, only the last C<abs ($offset)> records of C<$io>
+are taken into consideration.
+
+Given a CSV file with 10 lines:
+
+ lines call
+ ----- ---------------------------------------------------------
+ 0..9  $csv->getline_all ($io)         # all
+ 0..9  $csv->getline_all ($io,  0)     # all
+ 8..9  $csv->getline_all ($io,  8)     # start at 8
+ -     $csv->getline_all ($io,  0,  0) # start at 0 first 0 rows
+ 0..4  $csv->getline_all ($io,  0,  5) # start at 0 first 5 rows
+ 4..5  $csv->getline_all ($io,  4,  2) # start at 4 first 2 rows
+ 8..9  $csv->getline_all ($io, -2)     # last 2 rows
+ 6..7  $csv->getline_all ($io, -4,  2) # first 2 of last  4 rows
 
 =head2 parse
 
