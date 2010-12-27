@@ -20,6 +20,7 @@ t/41_null.t		NULL test in combination with line endings
 t/45_eol.t		Embedded EOL
 t/46_eol_si.t		Embedded EOL using scalar io (perlio)
 t/50_utf8.t		Unicode stress tests
+t/51_utf8.t		Unicode IO encoding tests
 t/55_combi.t		Different CSV character combinations
 t/60_samples.t		Miscellaneous problems from the modules history.
 t/65_allow.t		Allow bad formats
@@ -27,9 +28,11 @@ t/70_rt.t		Tests based on RT reports (for Text::CSV_XS)
 t/71_pp.t		Tests for bug report fixes or patches (for Text::CSV_PP)
 t/75_hashref.t          getline_hr related tests
 t/76_magic.t            array_ref from magig (useless for Text::CSV_PP)
+t/77_getall.t		gat all rows at once
 t/80_diag.t		Error diagnostics
 t/81_subclass.t		Subclassed
 
+files/macosx.csv	A CSV files exported on MacOSX
 files/utf8.csv		A UTF-8 encode test file
 
 t/util.pl		Extra test utilities
