@@ -4,12 +4,13 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 410;
+ use Test::More tests => 438;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV", ();
     plan skip_all => "Cannot load Text::CSV" if $@;
+    require "t/util.pl";
     }
 
 my $csv_file = "_70test.csv";
@@ -311,7 +312,10 @@ while (<DATA>) {
 
 {   # http://rt.cpan.org/Ticket/Display.html?id=61525
     $rt = "61525";
-    foreach my $eol ("\n", "!") {
+    # First try with eol in constructor
+    foreach my $eol ("\n", "\r", "!") {
+	$/ = "\n";
+	my $s_eol = _readable ($eol);
 	ok (my $csv = Text::CSV->new ({
 	    binary      => 1,
 	    sep_char    => ":",
@@ -319,12 +323,39 @@ while (<DATA>) {
 	    escape_char => '"',
 	    eol         => $eol,
 	    auto_diag   => 1,
-	    }), "RT-$rt: $desc{$rt}");
+	    }), "RT-$rt: $desc{$rt} - eol = $s_eol (1)");
 
 	open  FH, ">$csv_file";
 	print FH join $eol => qw( "a":"b" "c":"d" "e":"x!y" "!!":"z" );
 	close FH;
 
+	open  FH, "<$csv_file";
+	is_deeply ($csv->getline (*FH), [ "a",  "b"   ], "Pair 1");
+	is_deeply ($csv->getline (*FH), [ "c",  "d"   ], "Pair 2");
+	is_deeply ($csv->getline (*FH), [ "e",  "x!y" ], "Pair 3");
+	is_deeply ($csv->getline (*FH), [ "!!", "z"   ], "Pair 4");
+	is ($csv->getline (*FH), undef, "no more pairs");
+	ok ($csv->eof, "EOF");
+	close FH;
+	unlink $csv_file;
+	}
+
+    # And secondly with eol as method only if not one of the defaults
+    foreach my $eol ("\n", "\r", "!") {
+	$/ = "\n";
+	my $s_eol = _readable ($eol);
+	ok (my $csv = Text::CSV->new ({
+	    binary      => 1,
+	    sep_char    => ":",
+	    quote_char  => '"',
+	    escape_char => '"',
+	    auto_diag   => 1,
+	    }), "RT-$rt: $desc{$rt} - eol = $s_eol (2)");
+	$eol eq "!" and $csv->eol ($eol);
+
+	open  FH, ">$csv_file";
+	print FH join $eol => qw( "a":"b" "c":"d" "e":"x!y" "!!":"z" );
+	close FH;
 	open  FH, "<$csv_file";
 	is_deeply ($csv->getline (*FH), [ "a",  "b"   ], "Pair 1");
 	is_deeply ($csv->getline (*FH), [ "c",  "d"   ], "Pair 2");

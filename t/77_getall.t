@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 28;
+use Test::More tests => 29;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -27,49 +27,44 @@ my @list = (
     close FH;
     }
 
+sub do_tests
+{
+    my $sub = shift;
+
+    $sub->(\@list);
+    $sub->(\@list,         0);
+    $sub->([@list[2,3]],   2);
+    $sub->([],             0,  0);
+    $sub->(\@list,         0, 10);
+    $sub->([@list[0,1]],   0,  2);
+    $sub->([@list[1,2]],   1,  2);
+    $sub->([@list[1..3]], -3);
+    $sub->([@list[1,2]],  -3,  2);
+    $sub->([@list[1..3]], -3,  3);
+    } # do_tests
+
 {   ok (my $csv = Text::CSV->new ({ binary => 1 }), "csv in");
 
-    my $try = sub {
+    do_tests (sub {
 	my ($expect, @args) = @_;
 	open  FH, "<_77test.csv" or die "_77test.csv: $!";
 	my $s_args = join ", " => @args;
 	is_deeply ($csv->getline_all (*FH, @args), $expect, "getline_all ($s_args)");
 	close FH;
-	};
-
-    $try->(\@list);
-    $try->(\@list,         0);
-    $try->([@list[2,3]],   2);
-    $try->([],             0,  0);
-    $try->(\@list,         0, 10);
-    $try->([@list[0,1]],   0,  2);
-    $try->([@list[1,2]],   1,  2);
-    $try->([@list[1..3]], -3);
-    $try->([@list[1,2]],  -3,  2);
-    $try->([@list[1..3]], -3,  3);
+	});
     }
 
 {   ok (my $csv = Text::CSV->new ({ binary => 1 }), "csv in");
     ok ($csv->column_names (my @cn = qw( foo bar bin baz )));
     @list = map { my %h; @h{@cn} = @$_; \%h } @list;
 
-    my $try = sub {
+    do_tests (sub {
 	my ($expect, @args) = @_;
 	open  FH, "<_77test.csv" or die "_77test.csv: $!";
 	my $s_args = join ", " => @args;
 	is_deeply ($csv->getline_hr_all (*FH, @args), $expect, "getline_hr_all ($s_args)");
 	close FH;
-	};
-
-    $try->(\@list);
-    $try->(\@list,         0);
-    $try->([@list[2,3]],   2);
-    $try->([],             0,  0);
-    $try->(\@list,         0, 10);
-    $try->([@list[0,1]],   0,  2);
-    $try->([@list[1,2]],   1,  2);
-    $try->([@list[1..3]], -3);
-    $try->([@list[1,2]],  -3,  2);
+	});
     }
 
 unlink "_77test.csv";
