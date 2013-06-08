@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 68;
+ use Test::More tests => 75;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -121,6 +121,19 @@ is (ref $hr, "HASH",				"returned a hashref");
 is_deeply ($hr, { "\cAUNDEF\cA" => "code", "" => "name", "name" => "description" },
     "Discarded 3rd field");
 
+close FH;
+
+open FH, ">_75test.csv";
+$hr = { c_foo => 1, foo => "poison", zebra => "Of course" };
+is ($csv->column_names (undef), undef,      "reset column headers");
+ok ($csv->column_names (sort keys %$hr),    "set column names");
+ok ($csv->eol ("\n"),               "set eol for output");
+ok ($csv->print (*FH, [ $csv->column_names ]),  "print header");
+ok ($csv->print_hr (*FH, $hr),          "print_hr");
+close FH;
+open FH, "<_75test.csv";
+ok ($csv->column_names ($csv->getline (*FH)),   "get column names");
+is_deeply ($csv->getline_hr (*FH), $hr,     "compare to written hr");
 close FH;
 
 unlink "_75test.csv";
