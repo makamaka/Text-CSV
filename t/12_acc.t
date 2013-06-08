@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 113;
+use Test::More tests => 115;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -23,6 +23,7 @@ is ($csv->binary,			0,		"binary");
 is ($csv->keep_meta_info,		0,		"keep_meta_info");
 is ($csv->allow_loose_quotes,		0,		"allow_loose_quotes");
 is ($csv->allow_loose_escapes,		0,		"allow_loose_escapes");
+#is ($csv->allow_unquoted_escape,    0, "allow_unquoted_escape");
 is ($csv->allow_whitespace,		0,		"allow_whitespace");
 is ($csv->blank_is_undef,		0,		"blank_is_undef");
 is ($csv->empty_is_undef,		0,		"empty_is_undef");
@@ -30,6 +31,7 @@ is ($csv->auto_diag,			0,		"auto_diag");
 is ($csv->verbatim,			0,		"verbatim");
 is ($csv->quote_space,			1,		"quote_space");
 is ($csv->quote_null,			1,		"quote_null");
+is ($csv->quote_binary,         1,      "quote_binary");
 
 is ($csv->binary (1),			1,		"binary (1)");
 my @fld = ( 'txt =, "Hi!"', "Yes", "", 2, undef, "1.09", "\r", undef );
@@ -47,6 +49,7 @@ is ($csv->always_quote (undef),		0,		"always_quote (undef)");
 is ($csv->always_quote (1),		1,		"always_quote (1)");
 is ($csv->allow_loose_quotes (1),	1,		"allow_loose_quotes (1)");
 is ($csv->allow_loose_escapes (1),	1,		"allow_loose_escapes (1)");
+#is ($csv->allow_unquoted_escape (1),    1,      "allow_unquoted_escape (1)");
 is ($csv->allow_whitespace (1),		1,		"allow_whitespace (1)");
 is ($csv->blank_is_undef (1),		1,		"blank_is_undef (1)");
 is ($csv->empty_is_undef (1),		1,		"empty_is_undef (1)");
@@ -59,8 +62,9 @@ ok ($csv->combine (@fld),				"combine");
 is ($csv->string,
     qq{=txt \\=, "Hi!"=;=Yes=;==;=2=;;=1.09=;=\r=;\r},	"string");
 
-is ($csv->quote_space (0),		0,		"quote_space (1)");
-is ($csv->quote_null (0),		0,		"quote_null (1)");
+is ($csv->quote_space (0),		0,		"quote_space (0)");
+is ($csv->quote_null (0),		0,		"quote_null (0)");
+is ($csv->quote_binary (0),     0,      "quote_binary (0)");
 
 # Funny settings, all three translate to \0 internally
 ok ($csv = Text::CSV->new ({

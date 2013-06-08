@@ -10,7 +10,7 @@ BEGIN {
 	plan skip_all => "UTF8 tests useless in this ancient perl version";
 	}
     else {
-	plan tests => 67;
+	plan tests => 71;
 	}
     }
 
@@ -67,6 +67,16 @@ foreach my $test (
 is ($csv->parse (qq{"\x{0123}\n\x{20ac}"}), 0, "\\n still needs binary");
 is ($csv->binary, 0, "bin flag still unset");
 is ($csv->error_diag + 0, 2021, "Error 2021");
+
+# Test quote_binary
+$csv->always_quote (0);
+$csv->quote_space  (0);
+$csv->quote_binary (0);
+ok ($csv->combine (" ", 1, "\x{20ac} "),    "Combine");
+is ($csv->string, qq{ ,1,\x{20ac} },        "String 0-0");
+$csv->quote_binary (1);
+ok ($csv->combine (" ", 1, "\x{20ac} "),    "Combine");
+is ($csv->string, qq{ ,1,"\x{20ac} "},      "String 0-1");
 
 # As all utf tests are skipped for older pers, It's safe to use 3-arg open this way
 my $file = "files/utf8.csv";

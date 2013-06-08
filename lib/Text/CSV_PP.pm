@@ -88,6 +88,7 @@ my %def_attr = (
     auto_diag           => 0,
     quote_space         => 1,
     quote_null          => 1,
+    quote_binary        => 1,
 
     _EOF                => 0,
     _STATUS             => undef,
@@ -274,8 +275,8 @@ sub _combine {
     $self->{_STRING}      = '';
     $self->{_STATUS}      = 0;
 
-    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $quote_null)
-            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space quote_null/};
+    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $quote_null, $quote_binary )
+            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space quote_null quote_binary/};
 
     if(!defined $quot){ $quot = ''; }
 
@@ -313,7 +314,7 @@ sub _combine {
 
         if( $binary and $quote_null ){
             use bytes;
-            $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || $column =~ /[\x00-\x1f\x7f-\xa0]/ );
+            $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($quote_binary && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
         }
 
         if($always_quote or $must_be_quoted){
@@ -907,7 +908,8 @@ sub _set_error_diag {
 
 BEGIN {
     for my $method ( qw/always_quote binary keep_meta_info allow_loose_quotes allow_loose_escapes
-                            verbatim blank_is_undef empty_is_undef auto_diag quote_space quote_null/ ) {
+                            verbatim blank_is_undef empty_is_undef auto_diag quote_space quote_null
+                            quote_binary/ ) {
         eval qq|
             sub $method {
                 \$_[0]->{$method} = defined \$_[1] ? \$_[1] : 0 if (\@_ > 1);
