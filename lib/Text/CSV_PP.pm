@@ -19,6 +19,7 @@ sub NV  { 2 }
 
 sub IS_QUOTED () { 0x0001; }
 sub IS_BINARY () { 0x0002; }
+sub IS_MISSING () { 0x0010; }
 
 
 my $ERRORS = {
@@ -750,6 +751,10 @@ sub getline_hr {
 
     my $fr = $self->getline( $io ) or return undef;
 
+    if ( ref $self->{_FFLAGS} ) {
+        $self->{_FFLAGS}[$_] = IS_MISSING for ($#{$fr} + 1) .. $#{$self->{_COLUMN_NAMES}};
+    }
+
     @hr{ @{ $self->{_COLUMN_NAMES} } } = @$fr;
 
     \%hr;
@@ -856,6 +861,13 @@ sub is_binary {
     return unless (defined $_[0]->{_FFLAGS});
     return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
     $_[0]->{_FFLAGS}->[$_[1]] & IS_BINARY ? 1 : 0;
+}
+
+sub is_missing {
+    my ($self, $idx, $val) = @_;
+    ref $self->{_FFLAGS} &&
+            $idx >= 0 && $idx < @{$self->{_FFLAGS}} or return;
+    $self->{_FFLAGS}[$idx] & IS_MISSING ? 1 : 0;
 }
 ################################################################################
 # _check_type
