@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 61;
+use Test::More tests => 64;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -79,6 +79,10 @@ is (($csv->fields ())[0], "",				"Hi! - fields () - field 1");
 is (($csv->fields ())[1], qq(I said,\t"Hi!"),		"Hi! - fields () - field 2");
 is (($csv->fields ())[2], "",				"Hi! - fields () - field 3");
 ok ( $csv->status (),					"status ()");
+
+ok ( $csv->parse (""),                  "Empty line");
+is ( scalar $csv->fields (), 1,             "Empty - count");
+is (($csv->fields ())[0], "",               "One empty field");
 
 # Are Integers and Reals quoted?
 #
