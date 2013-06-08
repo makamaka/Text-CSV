@@ -91,6 +91,7 @@ my %def_attr = (
     quote_binary        => 1,
 
     _EOF                => 0,
+    _RECNO              => 0,
     _STATUS             => undef,
     _FIELDS             => undef,
     _FFLAGS             => undef,
@@ -246,6 +247,11 @@ sub error_diag {
 
     return $context ? @diag : $diagobj;
 }
+
+sub record_number {
+    return shift->{_RECNO};
+} 
+
 ################################################################################
 # string
 ################################################################################
@@ -528,6 +534,7 @@ sub _parse {
 
         push @part,$col;
         push @{$meta_flag}, $flag if ($keep_meta_info);
+        $self->{ _RECNO }++;
 
         $i++;
     }

@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 115;
+use Test::More tests => 118;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -77,6 +77,9 @@ is ($csv->quote_char,		undef,		"quote_char undef");
 is ($csv->escape_char,		undef,		"escape_char undef");
 ok ($csv->parse ("foo"),			"parse (foo)");
 $csv->sep_char (",");
+is ($csv->record_number,    1,      "record_number");
+ok ($csv->parse ("foo"),            "parse (foo)");
+is ($csv->record_number,    2,      "record_number");
 ok ($csv->parse ("foo"),			"parse (foo)");
 ok (!$csv->parse ("foo,foo\0bar"),		"parse (foo)");
 $csv->escape_char ("\\");
