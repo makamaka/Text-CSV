@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 118;
+use Test::More tests => 124; # 133 for XS
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;

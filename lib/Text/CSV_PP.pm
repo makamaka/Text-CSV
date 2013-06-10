@@ -950,7 +950,7 @@ sub _set_error_diag {
 
 BEGIN {
     for my $method ( qw/always_quote binary keep_meta_info allow_loose_quotes allow_loose_escapes
-                            verbatim blank_is_undef empty_is_undef auto_diag quote_space quote_null
+                            verbatim blank_is_undef empty_is_undef quote_space quote_null
                             quote_binary/ ) {
         eval qq|
             sub $method {
@@ -1025,6 +1025,17 @@ sub SetDiag {
 
     $_[0]->_set_error_diag( $_[1] );
     Carp::croak( $_[0]->error_diag . '' );
+}
+
+sub auto_diag {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        !defined $v || $v eq "" and $v = 0;
+        $v =~ m/^[0-9]/ or $v = $v ? 1 : 0; # default for true/false
+        $self->{auto_diag} = $v;
+    }
+    $self->{auto_diag};
 }
 
 ################################################################################
