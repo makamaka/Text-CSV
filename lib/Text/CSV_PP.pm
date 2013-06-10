@@ -11,7 +11,7 @@ use strict;
 use vars qw($VERSION);
 use Carp ();
 
-$VERSION = '1.29';
+$VERSION = '1.30';
 
 sub PV  { 0 }
 sub IV  { 1 }
@@ -1109,9 +1109,10 @@ is a XS module and Text::CSV_PP is a Puer Perl one.
 
 =head1 VERSION
 
-    1.29
+    1.30
 
-This module is compatible with Text::CSV_XS B<0.80> and later.
+This module is compatible with Text::CSV_XS B<0.99>.
+(except for diag_verbose and allow_unquoted_escape)
 
 =head2 Unicode (UTF8)
 
@@ -1831,7 +1832,7 @@ Text::CSV was written by E<lt>alan[at]mfgrtl.comE<gt>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2005-2010 by Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
+Copyright 2005-2013 by Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

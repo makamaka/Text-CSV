@@ -1,5 +1,9 @@
 Revision history for Perl extension Text::CSV.
 
+1.30
+    - catch up Text::CSV_XS 0.99
+    (except for diag_verbose and allow_unquoted_escape)
+
 1.21  Mon Dec 27 12:35:35 2010
 	- updated the compatibility for Text::CSV_XS version 0.80
 	    * added getline_all() and getaline_hr_all()

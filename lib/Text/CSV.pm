@@ -6,14 +6,14 @@ use Carp ();
 use vars qw( $VERSION $DEBUG );
 
 BEGIN {
-    $VERSION = '1.21';
+    $VERSION = '1.30';
     $DEBUG   = 0;
 }
 
 # if use CSV_XS, requires version
 my $Module_XS  = 'Text::CSV_XS';
 my $Module_PP  = 'Text::CSV_PP';
-my $XS_Version = '0.80';
+my $XS_Version = '0.99';
 
 my $Is_Dynamic = 0;
 
@@ -287,9 +287,10 @@ perhaps better called ASV (anything separated values) rather than just CSV.
 
 =head1 VERSION
 
-    1.21
+    1.30
 
-This module is compatible with Text::CSV_XS B<0.80> and later.
+This module is compatible with Text::CSV_XS B<0.99> and later.
+(except for diag_verbose and allow_unquoted_escape)
 
 =head2 Embedded newlines
 
@@ -1133,12 +1134,12 @@ Copyright (C) 2007-2009 Makamaka Hannyaharamitu.
 
 Text::CSV_PP:
 
-Copyright (C) 2005-2010 Makamaka Hannyaharamitu.
+Copyright (C) 2005-2013 Makamaka Hannyaharamitu.
 
 
 Text:CSV_XS:
 
-Copyright (C) 2007-2010 H.Merijn Brand for PROCURA B.V.
+Copyright (C) 2007-2013 H.Merijn Brand for PROCURA B.V.
 Copyright (C) 1998-2001 Jochen Wiedmann. All rights reserved.
 Portions Copyright (C) 1997 Alan Citterman. All rights reserved.
 
