@@ -534,6 +534,10 @@ sub _parse {
 
         }
 
+        if ( $binary && defined $col ) {
+            utf8::decode($col) if  is_valid_utf8($col);
+        }
+
         push @part,$col;
         push @{$meta_flag}, $flag if ($keep_meta_info);
         $self->{ _RECNO }++;
@@ -718,10 +722,32 @@ sub _return_getline_result {
             return;
         }
         $$bind = $vals[ $i ];
+
+#my $hoge = Encode::decode_utf8($$bind);
+#my $hoge = is_valid_utf8($$bind);
+#my $hoge = utf8::is_utf8($foo);
+#print $hoge," - ", $$bind, "!?\n";
+#utf8::decode($$bind) if $hoge;
     }
 
     return [];
 }
+
+    sub is_valid_utf8 {
+
+        return ( $_[0] =~ /^(?:
+             [\x00-\x7F]
+            |[\xC2-\xDF][\x80-\xBF]
+            |[\xE0][\xA0-\xBF][\x80-\xBF]
+            |[\xE1-\xEC][\x80-\xBF][\x80-\xBF]
+            |[\xED][\x80-\x9F][\x80-\xBF]
+            |[\xEE-\xEF][\x80-\xBF][\x80-\xBF]
+            |[\xF0][\x90-\xBF][\x80-\xBF][\x80-\xBF]
+            |[\xF1-\xF3][\x80-\xBF][\x80-\xBF][\x80-\xBF]
+            |[\xF4][\x80-\x8F][\x80-\xBF][\x80-\xBF]
+        )+$/x )  ? 1 : 0;
+    }
+
 
 ################################################################################
 # getline_all
