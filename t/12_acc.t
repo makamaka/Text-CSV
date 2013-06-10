@@ -23,15 +23,17 @@ is ($csv->binary,			0,		"binary");
 is ($csv->keep_meta_info,		0,		"keep_meta_info");
 is ($csv->allow_loose_quotes,		0,		"allow_loose_quotes");
 is ($csv->allow_loose_escapes,		0,		"allow_loose_escapes");
-#is ($csv->allow_unquoted_escape,    0, "allow_unquoted_escape");
+#is ($csv->allow_unquoted_escape,	0,		"allow_unquoted_escape");
 is ($csv->allow_whitespace,		0,		"allow_whitespace");
 is ($csv->blank_is_undef,		0,		"blank_is_undef");
 is ($csv->empty_is_undef,		0,		"empty_is_undef");
 is ($csv->auto_diag,			0,		"auto_diag");
+#is ($csv->diag_verbose,			0,		"diag_verbose");
 is ($csv->verbatim,			0,		"verbatim");
 is ($csv->quote_space,			1,		"quote_space");
 is ($csv->quote_null,			1,		"quote_null");
-is ($csv->quote_binary,         1,      "quote_binary");
+is ($csv->quote_binary,			1,		"quote_binary");
+is ($csv->record_number,		0,		"record_number");
 
 is ($csv->binary (1),			1,		"binary (1)");
 my @fld = ( 'txt =, "Hi!"', "Yes", "", 2, undef, "1.09", "\r", undef );
@@ -49,14 +51,26 @@ is ($csv->always_quote (undef),		0,		"always_quote (undef)");
 is ($csv->always_quote (1),		1,		"always_quote (1)");
 is ($csv->allow_loose_quotes (1),	1,		"allow_loose_quotes (1)");
 is ($csv->allow_loose_escapes (1),	1,		"allow_loose_escapes (1)");
-#is ($csv->allow_unquoted_escape (1),    1,      "allow_unquoted_escape (1)");
+#is ($csv->allow_unquoted_escape (1),	1,		"allow_unquoted_escape (1)");
 is ($csv->allow_whitespace (1),		1,		"allow_whitespace (1)");
 is ($csv->blank_is_undef (1),		1,		"blank_is_undef (1)");
 is ($csv->empty_is_undef (1),		1,		"empty_is_undef (1)");
 is ($csv->auto_diag (1),		1,		"auto_diag (1)");
+is ($csv->auto_diag (2),		2,		"auto_diag (2)");
+is ($csv->auto_diag (9),		9,		"auto_diag (9)");
+is ($csv->auto_diag ("true"),		1,		"auto_diag (\"true\")");
+is ($csv->auto_diag (undef),		0,		"auto_diag (undef)");
+is ($csv->auto_diag (""),		0,		"auto_diag (\"\")");
+#is ($csv->diag_verbose (1),		1,		"diag_verbose (1)");
+#is ($csv->diag_verbose (2),		2,		"diag_verbose (2)");
+#is ($csv->diag_verbose (9),		9,		"diag_verbose (9)");
+#is ($csv->diag_verbose ("true"),	1,		"diag_verbose (\"true\")");
+#is ($csv->diag_verbose (undef),		0,		"diag_verbose (undef)");
+#is ($csv->diag_verbose (""),		0,		"diag_verbose (\"\")");
 is ($csv->verbatim (1),			1,		"verbatim (1)");
 is ($csv->quote_space (1),		1,		"quote_space (1)");
 is ($csv->quote_null (1),		1,		"quote_null (1)");
+is ($csv->quote_binary (1),		1,		"quote_binary (1)");
 is ($csv->escape_char ("\\"),		"\\",		"escape_char (\\)");
 ok ($csv->combine (@fld),				"combine");
 is ($csv->string,
@@ -64,7 +78,7 @@ is ($csv->string,
 
 is ($csv->quote_space (0),		0,		"quote_space (0)");
 is ($csv->quote_null (0),		0,		"quote_null (0)");
-is ($csv->quote_binary (0),     0,      "quote_binary (0)");
+is ($csv->quote_binary (0),		0,		"quote_binary (0)");
 
 # Funny settings, all three translate to \0 internally
 ok ($csv = Text::CSV->new ({
@@ -77,10 +91,9 @@ is ($csv->quote_char,		undef,		"quote_char undef");
 is ($csv->escape_char,		undef,		"escape_char undef");
 ok ($csv->parse ("foo"),			"parse (foo)");
 $csv->sep_char (",");
-is ($csv->record_number,    1,      "record_number");
-ok ($csv->parse ("foo"),            "parse (foo)");
-is ($csv->record_number,    2,      "record_number");
+is ($csv->record_number,	1,		"record_number");
 ok ($csv->parse ("foo"),			"parse (foo)");
+is ($csv->record_number,	2,		"record_number");
 ok (!$csv->parse ("foo,foo\0bar"),		"parse (foo)");
 $csv->escape_char ("\\");
 ok (!$csv->parse ("foo,foo\0bar"),		"parse (foo)");
