@@ -111,10 +111,12 @@ BEGIN {
         $INC{'bytes.pm'} = 1 unless $INC{'bytes.pm'}; # dummy
         no strict 'refs';
         *{"utf8::is_utf8"} = sub { 0; };
+        *{"utf8::decode"}  = sub { };
     }
     elsif ( $] < 5.008 ) {
         no strict 'refs';
         *{"utf8::is_utf8"} = sub { 0; };
+        *{"utf8::decode"}  = sub { };
     }
     elsif ( !defined &utf8::is_utf8 ) {
        require Encode;
