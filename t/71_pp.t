@@ -5,7 +5,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 88;
+use Test::More tests => 97;
 
 
 BEGIN { $ENV{PERL_TEXT_CSV} = $ARGV[0] || 0; }
@@ -302,3 +302,40 @@ is( $csv->string, q{a a,"b,b","c ,c"} );
     unlink( '__test.csv' );
 }
 
+
+{ # https://rt.cpan.org/Ticket/Display.html?id=83705
+
+my $csv_dump = q{"6RE";"EINKAUF";"5";"";"2,5" HD"
+"LIDL";"-2"};
+
+my $csv = Text::CSV->new(
+    {
+        binary              => 1,
+        allow_loose_escapes => 1,
+        allow_loose_quotes  => 1,
+        sep_char            => q{;},
+        escape_char         => q{"},
+        quote_char          => q{"}
+    }
+);
+open my $fh, "<:encoding(utf8)", \$csv_dump;
+
+$csv->parse(q{"6RE";"EINKAUF";"5";"";"2,5" HD"});
+is_deeply([$csv->fields], ["6RE","EINKAUF","5","",'2,5" HD']);
+
+}
+
+{
+my $csv = Text::CSV->new ({ escape_char => "\\", auto_diag => 1 });
+
+ok( $csv->parse(q{1,"\,",3}) );
+is_deeply ([ $csv->fields ], [ 1, ",", 3 ], "escaped sep in quoted field");
+ok( $csv->parse(q{1,"2\,4",3}) );
+is_deeply ([ $csv->fields ], [ 1, "2,4", 3 ], "escaped sep in quoted field");
+
+$csv->allow_unquoted_escape(1);
+ok( $csv->parse(q{1,\,,3}) );
+is_deeply ([ $csv->fields ], [ 1, ",", 3 ], "escaped sep in quoted field");
+ok( $csv->parse(q{1,2\,4,3}) );
+is_deeply ([ $csv->fields ], [ 1, "2,4", 3 ], "escaped sep in quoted field");
+}
