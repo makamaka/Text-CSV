@@ -457,7 +457,8 @@ sub _parse {
                         $palatable = 0;
                         last;
                     }
-                    else {
+
+                    unless ($self->{allow_loose_quotes}) {
                         $col =~ s/\Q$esc\E(.)/$1/g;
                     }
                 }
