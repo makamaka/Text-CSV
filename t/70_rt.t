@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 438;
+ use Test::More tests => 453;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -368,6 +368,110 @@ while (<DATA>) {
 	}
     }
 
+{   # http://rt.cpan.org/Ticket/Display.html?id=74216
+    $rt = "74216"; # setting 'eol' affects global input record separator
+
+    open FH, ">$csv_file";
+    print FH @{$input{$rt}};
+    close FH;
+
+    my $slurp_check = sub {
+	open FH, "<$csv_file";
+	is (scalar @{[<FH>]}, 4);
+	close FH;
+	};
+
+    $slurp_check->();
+
+    my $crlf = "\015\012";
+    open FH, ">_$csv_file";
+    print FH "a,b,c" . $crlf . "1,2,3" . $crlf;
+    close FH;
+    open  FH, "<_$csv_file";
+    my $csv = Text::CSV->new ({ eol => $crlf });
+    is_deeply ($csv->getline (*FH), [qw( a b c )]);
+    close FH;
+    unlink "_$csv_file";
+
+    $slurp_check->();
+
+    {	local $/ = "\n";
+	$slurp_check->();
+	}
+    }
+
+SKIP: {	# http://rt.cpan.org/Ticket/Display.html?id=74220
+    $] < 5.008002 and skip "UTF8 unreliable in perl $]", 7;
+
+    $rt = "74220"; # Text::CSV can be made to produce bad strings
+    my $csv = Text::CSV->new ({ binary => 1 });
+
+    my $ax = chr (0xfa);
+    my $bx = "foo";
+
+    # We set the UTF-8 flag on a string with no funny characters
+    utf8::upgrade ($bx);
+    is ($bx, "foo", "no funny characters in the string");
+
+    ok (utf8::valid ($ax), "first string correct in Perl");
+    ok (utf8::valid ($bx), "second string correct in Perl");
+
+    ok ($csv->combine ($ax, $bx),	"combine ()");
+    ok (my $foo = $csv->string (),	"string ()");
+
+    ok (utf8::valid ($foo), "is combined string correct inside Perl?");
+    is ($foo, qq{\xfa,foo}, "expected result");
+    }
+
+=pod
+
+SKIP: {	# http://rt.cpan.org/Ticket/Display.html?id=80680
+    skip "skip tests for XS, this tests too long to PP", 20000;
+
+    (eval { require Encode; $Encode::VERSION } || "0.00") =~ m{^([0-9.]+)};
+    $1 < 2.47     and skip "Encode is too old for these tests", 20000;
+    $] < 5.008008 and skip "UTF8+Encode unreliable in perl $]", 20000;
+
+    $rt = "80680"; # Text::CSV produces garbage on some data
+
+    my $csv = Text::CSV->new ({ binary => 1 });
+    my $txt = "\x{415}\x{43a}\x{438}\x{43d}\x{431}\x{443}\x{440}\x{433}\x{2116}";
+    BIG_LOOP: foreach my $n (1 .. 5000) {
+	foreach my $e (0 .. 3) {
+
+	    my $data = ("a" x $e) . ($txt x $n);
+	    my $enc  = Encode::encode ("UTF-8", $data);
+	    my $exp  = qq{1,"$enc"};
+	    my $out  = "";
+	    open my $fh, ">:encoding(utf-8)", \$out;
+	    $csv->print ($fh, [ 1, $data ]);
+	    close $fh;
+
+	    my $l = length ($out);
+	    if ($out eq $exp) {
+		ok (1, "Buffer boundary check $n/$e ($l)");
+		next;
+		}
+
+	    is ($out, $exp, "Data $n/$e ($l)");
+	    last BIG_LOOP;
+	    }
+	}
+    }
+
+=cut
+
+{   # http://rt.cpan.org/Ticket/Display.html?id=81295
+    $rt = 81295; # escaped sep_char discarded when only item in unquoted field
+    my $csv = Text::CSV->new ({ escape_char => "\\", auto_diag => 1 });
+    ok ($csv->parse ($input{$rt}[0]),		"parse without allow_unquoted_escape");
+    is_deeply ([ $csv->fields ], [ 1, ",", 3 ], "escaped sep in quoted field");
+    $csv->allow_unquoted_escape (1);
+    ok ($csv->parse ($input{$rt}[1]),		"parse with allow_unquoted_escape");
+    is_deeply ([ $csv->fields ], [ 1, ",", 3 ], "escaped sep in unquoted field");
+    }
+
+
 __END__
 «24386» - \t doesn't work in _XS, works in _PP
 VIN	StockNumber	Year	Make	Model	MD	Engine	EngineSize	Transmission	DriveTrain	Trim	BodyStyle	CityFuel	HWYFuel	Mileage	Color	InteriorColor	InternetPrice	RetailPrice	Notes	ShortReview	Certified	NewUsed	Image_URLs	Equipment
@@ -412,6 +516,16 @@ B:035_03_	fission, one	horns	@p 03-035.bmp	@p 03-035.bmp			obsolete Heising ex
 --------------090302050909040309030109--
 «58356» - Incorrect CSV generated if "quote_space => 0"
 «61525» - eol not working for values other than "\n"?
+«74216» - setting 'eol' affects global input record separator
+1,2
+3,4
+5,6
+7,8
+«74330» - Text::CSV can be made to produce bad strings
+«80680» - Text::CSV produces garbage on some data
+«81295» - escaped sep_char discarded when only item in unquoted field
+1,"\,",3
+1,\,,3
 «x1001» - Lines starting with "0" (Ruslan Dautkhanov)
 "0","A"
 "0","A"
