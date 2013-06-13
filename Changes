@@ -1,9 +1,16 @@
 Revision history for Perl extension Text::CSV.
 
+1.31  Thu Jun 13 14:06:49 2013
+	- fix handling UTF8 in parse method.
+	- fix getline with allow_loose_quotes (rt#83705)
+	- add allow_unquoted_escape
+	- fix parsing escapted sep char (found in Text::CSV_XS rt#81295)
+
+	* TODO: Updating documents and adding diag_verbose in the next version
+
 1.30  Tue Jun 11 00:06:02 2013
-    - catch up Text::CSV_XS 0.99
-    (except for diag_verbose and allow_unquoted_escape)
-    * TODO: Documents and tests in the next version
+	- catch up Text::CSV_XS 0.99
+	    (except for diag_verbose and allow_unquoted_escape)
 
 1.21  Mon Dec 27 12:35:35 2010
 	- updated the compatibility for Text::CSV_XS version 0.80

@@ -325,17 +325,3 @@ is_deeply([$csv->fields], ["6RE","EINKAUF","5","",'2,5" HD']);
 
 }
 
-{
-my $csv = Text::CSV->new ({ escape_char => "\\", auto_diag => 1 });
-
-ok( $csv->parse(q{1,"\,",3}) );
-is_deeply ([ $csv->fields ], [ 1, ",", 3 ], "escaped sep in quoted field");
-ok( $csv->parse(q{1,"2\,4",3}) );
-is_deeply ([ $csv->fields ], [ 1, "2,4", 3 ], "escaped sep in quoted field");
-
-$csv->allow_unquoted_escape(1);
-ok( $csv->parse(q{1,\,,3}) );
-is_deeply ([ $csv->fields ], [ 1, ",", 3 ], "escaped sep in quoted field");
-ok( $csv->parse(q{1,2\,4,3}) );
-is_deeply ([ $csv->fields ], [ 1, "2,4", 3 ], "escaped sep in quoted field");
-}
