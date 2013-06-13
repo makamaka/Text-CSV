@@ -81,6 +81,7 @@ my %def_attr = (
     keep_meta_info      => 0,
     allow_loose_quotes  => 0,
     allow_loose_escapes => 0,
+    allow_unquoted_escape => 0,
     allow_whitespace    => 0,
     chomp_verbatim      => 0,
     types               => undef,
