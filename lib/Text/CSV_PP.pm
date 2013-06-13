@@ -92,6 +92,7 @@ my %def_attr = (
     quote_space         => 1,
     quote_null          => 1,
     quote_binary        => 1,
+    diag_verbose        => 0,
 
     _EOF                => 0,
     _RECNO              => 0,
@@ -1054,6 +1055,17 @@ sub auto_diag {
         $self->{auto_diag} = $v;
     }
     $self->{auto_diag};
+}
+
+sub diag_verbose {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        !defined $v || $v eq "" and $v = 0;
+        $v =~ m/^[0-9]/ or $v = $v ? 1 : 0; # default for true/false
+        $self->{diag_verbose} = $v;
+    }
+    $self->{diag_verbose};
 }
 
 sub _is_valid_utf8 {
