@@ -545,7 +545,8 @@ sub _parse {
 
         }
 
-        if ( $binary && defined $col && _is_valid_utf8($col) ) {
+        utf8::encode($col) if $utf8;
+        if ( defined $col && _is_valid_utf8($col) ) {
             utf8::decode($col);
         }
 
