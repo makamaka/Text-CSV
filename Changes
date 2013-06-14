@@ -1,5 +1,8 @@
 Revision history for Perl extension Text::CSV.
 
+1.32
+	- fix t/rt71_pp.t
+
 1.31  Thu Jun 13 14:06:49 2013
 	- fix handling UTF8 in parse method.
 	- fix getline with allow_loose_quotes (rt#83705)

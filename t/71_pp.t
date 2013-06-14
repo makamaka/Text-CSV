@@ -5,7 +5,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 97;
+use Test::More tests => 99;
 
 
 BEGIN { $ENV{PERL_TEXT_CSV} = $ARGV[0] || 0; }
@@ -305,9 +305,6 @@ is( $csv->string, q{a a,"b,b","c ,c"} );
 
 { # https://rt.cpan.org/Ticket/Display.html?id=83705
 
-my $csv_dump = q{"6RE";"EINKAUF";"5";"";"2,5" HD"
-"LIDL";"-2"};
-
 my $csv = Text::CSV->new(
     {
         binary              => 1,
@@ -318,10 +315,25 @@ my $csv = Text::CSV->new(
         quote_char          => q{"}
     }
 );
-open my $fh, "<:encoding(utf8)", \$csv_dump;
 
 $csv->parse(q{"6RE";"EINKAUF";"5";"";"2,5" HD"});
 is_deeply([$csv->fields], ["6RE","EINKAUF","5","",'2,5" HD']);
+
+my $csv_dump = q{"6RE";"EINKAUF";"5";"";"2,5" HD"
+"LIDL";"-2"};
+
+open( FH, '>__test.csv' ) or die $!;
+print FH $csv_dump;
+close FH;
+
+open FH, '<__test.csv';
+
+is_deeply( $csv->getline(*FH), ["6RE","EINKAUF","5","",'2,5" HD'] );
+is_deeply( $csv->getline(*FH), ['LIDL','-2'] );
+
+close FH;
+
+unlink( '__test.csv' );
 
 }
 
