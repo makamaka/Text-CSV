@@ -676,7 +676,7 @@ sub getline {
 
     require IO::Handle;
 
-    $self->{_EOF} = eof($io) ? 1 : '';
+    $self->{_EOF} = $io->eof ? 1 : '';
 
     my $quot = $self->{quote_char};
     my $sep  = $self->{sep_char};
@@ -724,7 +724,7 @@ sub getline {
                 /x ? 0 : 1;
             }
 
-            if ( $is_continued and !eof($io) ) {
+            if ( $is_continued and !$io->eof) {
                 $line .= $io->getline();
                 goto LOOP;
             }

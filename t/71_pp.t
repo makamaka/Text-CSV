@@ -5,7 +5,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 99;
+use Test::More tests => 103;
 
 
 BEGIN { $ENV{PERL_TEXT_CSV} = $ARGV[0] || 0; }
@@ -350,4 +350,30 @@ ok( $csv->parse(q{1,\,,3}) );
 is_deeply ([ $csv->fields ], [ 1, ",", 3 ], "escaped sep in quoted field");
 ok( $csv->parse(q{1,2\,4,3}) );
 is_deeply ([ $csv->fields ], [ 1, "2,4", 3 ], "escaped sep in quoted field");
+}
+
+{ # https://github.com/makamaka/Text-CSV/pull/3
+
+    {
+        package FakeFileHandleForEOF;
+
+        sub new { return bless { line => "foo,bar,baz\n" }, shift }
+
+        sub getline {
+            my $self = shift;
+            return delete $self->{line};
+        }
+
+        sub eof {
+            my $self = shift;
+            return not exists $self->{line};
+        }
+    }
+
+    my $csv = Text::CSV->new({binary => 1});
+    my $fh  = FakeFileHandleForEOF->new;
+    ok(!$fh->eof);
+    eval { is_deeply( $csv->getline($fh), [qw[ foo bar baz ]]) };
+    is($@, '', "no exception thrown");
+    ok($fh->eof);
 }
