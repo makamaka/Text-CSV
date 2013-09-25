@@ -366,7 +366,7 @@ See to L<Text::CSV_XS/SPECIFICATION>.
 
 =head1 FUNCTIONS
 
-These methods are common between XS and puer Perl version.
+These methods are common between XS and pure Perl version.
 Most of the document was shamelessly copied and replaced from Text::CSV_XS.
 
 =head2 version ()
@@ -607,7 +607,7 @@ Imagine a file format like
 where, the line ending is a very specific "#\r\n", and the sep_char
 is a ^ (caret). None of the fields is quoted, but embedded binary
 data is likely to be present. With the specific line ending, that
-shouldn not be too hard to detect.
+should not be too hard to detect.
 
 By default, Text::CSV' parse function however is instructed to only
 know about "\n" and "\r" to be legal line endings, and so has to deal
@@ -976,7 +976,7 @@ C<combine ()> or C<parse ()>, whichever was called more recently.
  $error_str    = "" . $csv->error_diag ();
  ($cde, $str, $pos) = $csv->error_diag ();
 
-If (and only if) an error occured, this function returns the diagnostics
+If (and only if) an error occurred, this function returns the diagnostics
 of that error.
 
 If called in void context, it will print the internal error code and the
@@ -995,7 +995,7 @@ If called in scalar context, it will return the diagnostics in a single
 scalar, a-la $!. It will contain the error code in numeric context, and
 the diagnostics message in string context.
 
-Depending on the used worker module, returned diagnostics is diffferent.
+Depending on the used worker module, returned diagnostics is different.
 
 Text::CSV_XS parses csv strings by dividing one character while Text::CSV_PP
 by using the regular expressions. That difference makes the different cause
@@ -1042,10 +1042,10 @@ Returns true value if Text::CSV or the object uses pure-Perl module as worker.
 
 =head1 DIAGNOSTICS
 
-If an error occured, $csv->error_diag () can be used to get more information
+If an error occurred, $csv->error_diag () can be used to get more information
 on the cause of the failure. Note that for speed reasons, the internal value
 is never cleared on success, so using the value returned by error_diag () in
-normal cases - when no error occured - may cause unexpected results.
+normal cases - when no error occurred - may cause unexpected results.
 
 This function changes depending on the used module (XS or PurePerl).
 
@@ -1069,7 +1069,7 @@ If this call is fail, Text::CSV uses L<Text::CSV_PP>.
 
 The required Text::CSV_XS version is I<0.41> in Text::CSV version 1.03.
 
-If you set an enviornment variable C<PERL_TEXT_CSV>, The calling action will be changed.
+If you set an environment variable C<PERL_TEXT_CSV>, The calling action will be changed.
 
 =over
 
