@@ -366,7 +366,7 @@ See to L<Text::CSV_XS/SPECIFICATION>.
 
 =head1 FUNCTIONS
 
-These methods are common between XS and puer Perl version.
+These methods are common between the XS and the pure Perl versions.
 Most of the document was shamelessly copied and replaced from Text::CSV_XS.
 
 =head2 version ()
