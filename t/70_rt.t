@@ -225,8 +225,9 @@ while (<DATA>) {
     ok ($csv = Text::CSV->new ({
 	sep_char => "\t",
 	}), "RT-$rt: $desc{$rt}");
-    open  FH, "<$csv_file";
-    while (my $row = $csv->getline (*FH)) {
+    my $FH;
+    open  $FH, "<$csv_file";
+    while (my $row = $csv->getline ($FH)) {
 	ok ($row, "getline $.");
 	my @row = @$row;
 	is ($#row, 2, "Got 3 fields");
@@ -239,8 +240,8 @@ while (<DATA>) {
 	sep_char         => "\t",
 	allow_whitespace => 1,
 	}), "RT-$rt: $desc{$rt}");
-    open  FH, "<$csv_file";
-    while (my $row = $csv->getline (*FH)) {
+    open  $FH, "<$csv_file";
+    while (my $row = $csv->getline ($FH)) {
 	ok ($row, "getline $.");
 	my @row = @$row;
 	is ($#row, 2, "Got 3 fields");
