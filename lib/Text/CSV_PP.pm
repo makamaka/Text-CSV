@@ -93,6 +93,7 @@ my %def_attr = (
     quote_null          => 1,
     quote_binary        => 1,
     diag_verbose        => 0,
+    decode_utf8         => 1,
 
     _EOF                => 0,
     _RECNO              => 0,
@@ -354,9 +355,9 @@ sub _parse {
 
     return 0 if(!defined $line);
 
-    my ($binary, $quot, $sep, $esc, $types, $keep_meta_info, $allow_whitespace, $eol, $blank_is_undef, $empty_is_undef, $unquot_esc)
+    my ($binary, $quot, $sep, $esc, $types, $keep_meta_info, $allow_whitespace, $eol, $blank_is_undef, $empty_is_undef, $unquot_esc, $decode_utf8)
          = @{$self}{
-            qw/binary quote_char sep_char escape_char types keep_meta_info allow_whitespace eol blank_is_undef empty_is_undef allow_unquoted_escape/
+            qw/binary quote_char sep_char escape_char types keep_meta_info allow_whitespace eol blank_is_undef empty_is_undef allow_unquoted_escape decode_utf8/
            };
 
     $sep  = ',' unless (defined $sep);
@@ -409,7 +410,7 @@ sub _parse {
 
     my $pos = 0;
 
-    my $utf8 = 1 if utf8::is_utf8( $line ); # if UTF8 marked, flag on.
+    my $utf8 = 1 if $decode_utf8 and utf8::is_utf8( $line ); # if decode_utf8 is true(default) and UTF8 marked, flag on.
 
     for my $col ( $line =~ /$re_split/g ) {
 
@@ -548,7 +549,7 @@ sub _parse {
         }
 
         utf8::encode($col) if $utf8;
-        if ( defined $col && _is_valid_utf8($col) ) {
+        if ( $decode_utf8 && defined $col && _is_valid_utf8($col) ) {
             utf8::decode($col);
         }
 
@@ -992,6 +993,15 @@ sub sep_char {
     $self->{sep_char};
 }
 
+sub decode_utf8 {
+    my $self = shift;
+    if ( @_ ) {
+        $self->{decode_utf8} = $_[0];
+        my $ec = _check_sanity( $self );
+        $ec and Carp::croak( $self->SetDiag( $ec ) );
+    }
+    $self->{decode_utf8};
+}
 
 sub quote_char {
     my $self = shift;

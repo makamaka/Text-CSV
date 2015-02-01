@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 133;
+use Test::More tests => 135;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -34,6 +34,7 @@ is ($csv->quote_space,			1,		"quote_space");
 is ($csv->quote_null,			1,		"quote_null");
 is ($csv->quote_binary,			1,		"quote_binary");
 is ($csv->record_number,		0,		"record_number");
+is ($csv->decode_utf8,			1,		"decode_utf8");
 
 is ($csv->binary (1),			1,		"binary (1)");
 my @fld = ( 'txt =, "Hi!"', "Yes", "", 2, undef, "1.09", "\r", undef );
@@ -79,6 +80,7 @@ is ($csv->string,
 is ($csv->quote_space (0),		0,		"quote_space (0)");
 is ($csv->quote_null (0),		0,		"quote_null (0)");
 is ($csv->quote_binary (0),		0,		"quote_binary (0)");
+is ($csv->decode_utf8 (0),		0,		"decode_utf8 (0)");
 
 # Funny settings, all three translate to \0 internally
 ok ($csv = Text::CSV->new ({
