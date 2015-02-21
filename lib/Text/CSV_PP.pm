@@ -11,7 +11,7 @@ use strict;
 use vars qw($VERSION);
 use Carp ();
 
-$VERSION = '1.31';
+$VERSION = '1.32';
 
 sub PV  { 0 }
 sub IV  { 1 }
@@ -54,15 +54,15 @@ my $ERRORS = {
         4004 => "EUF - ",
 
         # Hash-Ref errors
-        3001 => "EHR - Unsupported syntax for column_names ()",
-        3002 => "EHR - getline_hr () called before column_names ()",
-        3003 => "EHR - bind_columns () and column_names () fields count mismatch",
-        3004 => "EHR - bind_columns () only accepts refs to scalars",
-        3006 => "EHR - bind_columns () did not pass enough refs for parsed fields",
-        3007 => "EHR - bind_columns needs refs to writable scalars",
+        3001 => "EHR - Unsupported syntax for column_names()",
+        3002 => "EHR - getline_hr() called before column_names()",
+        3003 => "EHR - bind_columns() and column_names() fields count mismatch",
+        3004 => "EHR - bind_columns() only accepts refs to scalars",
+        3006 => "EHR - bind_columns() did not pass enough refs for parsed fields",
+        3007 => "EHR - bind_columns() needs refs to writable scalars",
         3008 => "EHR - unexpected error in bound fields",
-        3009 => "EHR - print_hr () called before column_names ()",
-        3010 => "EHR - print_hr () called with invalid arguments",
+        3009 => "EHR - print_hr() called before column_names()",
+        3010 => "EHR - print_hr() called with invalid arguments",
 
         0    => "",
 };
@@ -110,7 +110,7 @@ my %def_attr = (
 
 BEGIN {
     if ( $] < 5.006 ) {
-        $INC{'bytes.pm'} = 1 unless $INC{'bytes.pm'}; # dummy
+        $INC{'bytes.pm'} = 1 unless ( $INC{'bytes.pm'} ); # dummy
         no strict 'refs';
         *{"utf8::is_utf8"} = sub { 0; };
         *{"utf8::decode"}  = sub { };
@@ -133,7 +133,7 @@ BEGIN {
         }
         else {
             *Scalar::Util::readonly = sub (\$) {
-                my $b = B::svref_2object( $_[0] );
+                my $b = B::svref_2object($_[0]);
                 $b->FLAGS & 0x00800000; # SVf_READONLY?
             }
         }
@@ -151,7 +151,7 @@ sub version {
 ################################################################################
 
 sub _check_sanity {
-    my ( $self ) = @_;
+    my ($self) = @_;
 
     for ( qw( sep_char quote_char escape_char ) ) {
         ( exists $self->{$_} && defined $self->{$_} && $self->{$_} =~ m/[\r\n]/ ) and return 1003;
@@ -175,7 +175,7 @@ sub new {
     my $proto = shift;
     my $attr  = @_ > 0 ? shift : {};
 
-    $last_new_error   = 'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);';
+    $last_new_error   = 'usage: my $csv = Text::CSV_PP->new([{ option => value, ... }]);';
     $last_new_err_num = 1000;
 
     return unless ( defined $attr and ref($attr) eq 'HASH' );
@@ -183,22 +183,22 @@ sub new {
     my $class = ref($proto) || $proto or return;
     my $self  = { %def_attr };
 
-    for my $prop (keys %$attr) { # if invalid attr, return undef
-        unless ($prop =~ /^[a-z]/ && exists $def_attr{$prop}) {
+    for my $prop ( keys %$attr ) { # if invalid attr, return undef
+        unless ( $prop =~ /^[a-z]/ && exists $def_attr{$prop} ) {
             $last_new_error = "INI - Unknown attribute '$prop'";
-            error_diag() if $attr->{ auto_diag };
+            error_diag() if ( $attr->{auto_diag} );
             return;
         }
         $self->{$prop} = $attr->{$prop};
     }
 
-    my $ec = _check_sanity( $self );
+    my $ec = _check_sanity($self);
 
     if ( $ec ) {
-        $last_new_error   = $ERRORS->{ $ec };
+        $last_new_error   = $ERRORS->{$ec};
         $last_new_err_num = $ec;
         return;
-        #$class->SetDiag ($ec);
+        #$class->SetDiag($ec);
     }
 
     $last_new_error = '';
@@ -207,7 +207,7 @@ sub new {
 
     bless $self, $class;
 
-    $self->types( $self->{types} ) if( exists( $self->{types} ) );
+    $self->types($self->{types}) if ( exists $self->{types} );
 
     return $self;
 }
@@ -230,11 +230,11 @@ sub error_diag {
     my $self = shift;
     my @diag = (0, $last_new_error, 0);
 
-    unless ($self and ref $self) {	# Class method or direct call
+    unless ( $self and ref($self) ) {	# Class method or direct call
         $last_new_error and $diag[0] = defined $last_new_err_num ? $last_new_err_num : 1000;
     }
-    elsif ( $self->isa (__PACKAGE__) and defined $self->{_ERROR_DIAG} ) {
-        @diag = ( 0 + $self->{_ERROR_DIAG}, $ERRORS->{ $self->{_ERROR_DIAG} } );
+    elsif ( $self->isa(__PACKAGE__) and defined $self->{_ERROR_DIAG} ) {
+        @diag = ( 0 + $self->{_ERROR_DIAG}, $ERRORS->{$self->{_ERROR_DIAG}} );
         exists $self->{_ERROR_POS} and $diag[2] = 1 + $self->{_ERROR_POS};
     }
 
@@ -242,10 +242,10 @@ sub error_diag {
 
     my $diagobj = bless \@diag, 'Text::CSV::ErrorDiag';
 
-    unless (defined $context) { # Void context
+    unless ( defined $context ) { # Void context
         if ( $diag[0] ) {
             my $msg = "# CSV_PP ERROR: " . $diag[0] . " - $diag[1]\n";
-            ref $self ? ( $self->{auto_diag} > 1 ? die $msg : warn $msg )
+            ref($self) ? ( $self->{auto_diag} > 1 ? die $msg : warn $msg )
                       : warn $msg;
         }
         return;
@@ -263,7 +263,7 @@ sub record_number {
 ################################################################################
 *string = \&_string;
 sub _string {
-    defined $_[0]->{_STRING} ? ${ $_[0]->{_STRING} } : undef;
+    defined $_[0]->{_STRING} ? ${$_[0]->{_STRING}} : undef;
 }
 ################################################################################
 # fields
@@ -280,35 +280,35 @@ sub _combine {
     my ($self, @part) = @_;
 
     # at least one argument was given for "combining"...
-    return $self->{_STATUS} = 0 unless(@part);
+    return $self->{_STATUS} = 0 unless ( @part );
 
     $self->{_FIELDS}      = \@part;
     $self->{_ERROR_INPUT} = undef;
     $self->{_STRING}      = '';
     $self->{_STATUS}      = 0;
 
-    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $quote_null, $quote_binary )
+    my ( $always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $quote_null, $quote_binary )
             = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space quote_null quote_binary/};
 
-    if(!defined $quot){ $quot = ''; }
+    if ( !defined $quot ) { $quot = ''; }
 
-    return $self->_set_error_diag(1001) if ($sep eq $esc or $sep eq $quot);
+    return $self->_set_error_diag(1001) if ( $sep eq $esc or $sep eq $quot );
 
     my $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
     my $re_sp  = $self->{_re_comb_sp}->{$sep}->{$quote_space} ||= ( $quote_space ? qr/[\s\Q$sep\E]/ : qr/[\Q$sep\E]/ );
 
     my $must_be_quoted;
-    for my $column (@part) {
+    for my $column ( @part ) {
 
-        unless (defined $column) {
+        unless ( defined $column ) {
             $column = '';
             next;
         }
         elsif ( !$binary ) {
-            $binary = 1 if utf8::is_utf8 $column;
+            $binary = 1 if ( utf8::is_utf8($column) );
         }
 
-        if (!$binary and $column =~ /[^\x09\x20-\x7E]/) {
+        if ( !$binary and $column =~ /[^\x09\x20-\x7E]/ ) {
             # an argument contained an invalid character...
             $self->{_ERROR_INPUT} = $column;
             $self->_set_error_diag(2110);
@@ -317,19 +317,19 @@ sub _combine {
 
         $must_be_quoted = 0;
 
-        if($quot ne '' and $column =~ s/$re_esc/$esc$1/g){
+        if ( $quot ne '' and $column =~ s/$re_esc/$esc$1/g ) {
             $must_be_quoted++;
         }
-        if($column =~ /$re_sp/){
+        if ( $column =~ /$re_sp/ ) {
             $must_be_quoted++;
         }
 
-        if( $binary and $quote_null ){
+        if ( $binary and $quote_null ) {
             use bytes;
             $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($quote_binary && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
         }
 
-        if($always_quote or $must_be_quoted){
+        if ( $always_quote or $must_be_quoted ) {
             $column = $quot . $column . $quot;
         }
 
@@ -350,25 +350,25 @@ my %allow_eol = ("\r" => 1, "\r\n" => 1, "\n" => 1, "" => 1);
 sub _parse {
     my ($self, $line) = @_;
 
-    @{$self}{qw/_STRING _FIELDS _STATUS _ERROR_INPUT/} = ( \do{ defined $line ? "$line" : undef }, undef, 0, $line );
+    @{$self}{qw/_STRING _FIELDS _STATUS _ERROR_INPUT/} = ( \do { defined $line ? "$line" : undef }, undef, 0, $line );
 
-    return 0 if(!defined $line);
+    return 0 if ( !defined $line );
 
     my ($binary, $quot, $sep, $esc, $types, $keep_meta_info, $allow_whitespace, $eol, $blank_is_undef, $empty_is_undef, $unquot_esc)
          = @{$self}{
             qw/binary quote_char sep_char escape_char types keep_meta_info allow_whitespace eol blank_is_undef empty_is_undef allow_unquoted_escape/
            };
 
-    $sep  = ',' unless (defined $sep);
-    $esc  = "\0" unless (defined $esc);
-    $quot = "\0" unless (defined $quot);
+    $sep  = ',' unless ( defined $sep );
+    $esc  = "\0" unless ( defined $esc );
+    $quot = "\0" unless ( defined $quot );
 
     my $quot_is_null = $quot eq "\0"; # in this case, any fields are not interpreted as quoted data.
 
-    return $self->_set_error_diag(1001) if (($sep eq $esc or $sep eq $quot) and $sep ne "\0");
+    return $self->_set_error_diag(1001) if ( ($sep eq $esc or $sep eq $quot) and $sep ne "\0" );
 
-    my $meta_flag      = $keep_meta_info ? [] : undef;
-    my $re_split       = $self->{_re_split}->{$quot}->{$esc}->{$sep} ||= _make_regexp_split_column($esc, $quot, $sep);
+    my $meta_flag       = $keep_meta_info ? [] : undef;
+    my $re_split        = $self->{_re_split}->{$quot}->{$esc}->{$sep} ||= _make_regexp_split_column($esc, $quot, $sep);
     my $re_quoted       = $self->{_re_quoted}->{$quot}               ||= qr/^\Q$quot\E(.*)\Q$quot\E$/s;
     my $re_in_quot_esp1 = $self->{_re_in_quot_esp1}->{$esc}          ||= qr/\Q$esc\E(.)/;
     my $re_in_quot_esp2 = $self->{_re_in_quot_esp2}->{$quot}->{$esc} ||= qr/[\Q$quot$esc$sep\E0]/;
@@ -376,11 +376,11 @@ sub _parse {
     my $re_esc          = $self->{_re_esc}->{$quot}->{$esc}          ||= qr/\Q$esc\E(\Q$quot\E|\Q$esc\E|\Q$sep\E|0)/;
     my $re_invalid_quot = $self->{_re_invalid_quot}->{$quot}->{$esc} ||= qr/^$re_quot_char|[^\Q$re_esc\E]$re_quot_char/;
 
-    if ($allow_whitespace) {
+    if ( $allow_whitespace ) {
         $re_split = $self->{_re_split_allow_sp}->{$quot}->{$esc}->{$sep}
                      ||= _make_regexp_split_column_allow_sp($esc, $quot, $sep);
     }
-    if ($unquot_esc) {
+    if ( $unquot_esc ) {
         $re_split = $self->{_re_split_allow_unqout_esc}->{$quot}->{$esc}->{$sep}
                      ||= _make_regexp_split_column_allow_unqout_esc($esc, $quot, $sep);
     }
@@ -391,15 +391,15 @@ sub _parse {
     my $i = 0;
     my $flag;
 
-    if (defined $eol and $eol eq "\r") {
+    if ( defined $eol and $eol eq "\r" ) {
         $line =~ s/[\r ]*\r[ ]*$//;
     }
 
-    if ($self->{verbatim}) {
+    if ( $self->{verbatim} ) {
         $line .= $sep;
     }
     else {
-        if (defined $eol and !$allow_eol{$eol}) {
+        if ( defined $eol and !$allow_eol{$eol} ) {
             $line .= $sep;
         }
         else {
@@ -409,18 +409,18 @@ sub _parse {
 
     my $pos = 0;
 
-    my $utf8 = 1 if utf8::is_utf8( $line ); # if UTF8 marked, flag on.
+    my $utf8 = 1 if ( utf8::is_utf8($line) ); # if UTF8 marked, flag on.
 
     for my $col ( $line =~ /$re_split/g ) {
 
-        if ($keep_meta_info) {
+        if ( $keep_meta_info ) {
             $flag = 0x0000;
-            $flag |= IS_BINARY if ($col =~ /[^\x09\x20-\x7E]/);
+            $flag |= IS_BINARY if ( $col =~ /[^\x09\x20-\x7E]/ );
         }
 
         $pos += length $col;
 
-        if ( ( !$binary and !$utf8 ) and $col =~ /[^\x09\x20-\x7E]/) { # Binary character, binary off
+        if ( (!$binary and !$utf8) and $col =~ /[^\x09\x20-\x7E]/) { # Binary character, binary off
             if ( not $quot_is_null and $col =~ $re_quoted ) {
                 $self->_set_error_diag(
                       $col =~ /\n([^\n]*)/ ? (2021, $pos - 1 - length $1)
@@ -448,7 +448,7 @@ sub _parse {
         }
 
         if ( not $quot_is_null and $col =~ $re_quoted ) {
-            $flag |= IS_QUOTED if ($keep_meta_info);
+            $flag |= IS_QUOTED if ( $keep_meta_info );
             $col = $1;
 
             my $flag_in_quot_esp;
@@ -456,15 +456,15 @@ sub _parse {
                 my $str = $1;
                 $flag_in_quot_esp = 1;
 
-                if ($str !~ $re_in_quot_esp2) {
+                if ( $str !~ $re_in_quot_esp2 ) {
 
-                    unless ($self->{allow_loose_escapes}) {
-                        $self->_set_error_diag( 2025, $pos - 2 ); # Needless ESC in quoted field
+                    unless ( $self->{allow_loose_escapes} ) {
+                        $self->_set_error_diag(2025, $pos - 2); # Needless ESC in quoted field
                         $palatable = 0;
                         last;
                     }
 
-                    unless ($self->{allow_loose_quotes}) {
+                    unless ( $self->{allow_loose_quotes} ) {
                         $col =~ s/\Q$esc\E(.)/$1/g;
                     }
                 }
@@ -474,8 +474,8 @@ sub _parse {
             last unless ( $palatable );
 
             unless ( $flag_in_quot_esp ) {
-                if ($col =~ /(?<!\Q$esc\E)\Q$esc\E/) {
-                    $self->_set_error_diag( 4002, $pos - 1 ); # No escaped ESC in quoted field
+                if ( $col =~ /(?<!\Q$esc\E)\Q$esc\E/ ) {
+                    $self->_set_error_diag(4002, $pos - 1); # No escaped ESC in quoted field
                     $palatable = 0;
                     last;
                 }
@@ -487,7 +487,7 @@ sub _parse {
                 $col = undef;
             }
 
-            if ($types and $types->[$i]) { # IV or NV
+            if ( $types and $types->[$i] ) { # IV or NV
                 _check_type(\$col, $types->[$i]);
             }
 
@@ -497,7 +497,7 @@ sub _parse {
 
         elsif ( not $quot_is_null and $col =~ $re_invalid_quot ) {
 
-            unless ($self->{allow_loose_quotes} and $col =~ /$re_quot_char/) {
+            unless ( $self->{allow_loose_quotes} and $col =~ /$re_quot_char/ ) {
                 $self->_set_error_diag(
                       $col =~ /^\Q$quot\E(.*)\Q$quot\E.$/s  ? (2011, $pos - 2)
                     : $col =~ /^$re_quot_char/              ? (2027, $pos - 1)
@@ -509,7 +509,7 @@ sub _parse {
 
         }
 
-        elsif ($types and $types->[$i]) { # IV or NV
+        elsif ( $types and $types->[$i] ) { # IV or NV
             _check_type(\$col, $types->[$i]);
         }
 
@@ -517,18 +517,18 @@ sub _parse {
 
         else {
 
-            if (!$self->{verbatim} and $col =~ /\r\n|\n/) {
+            if ( !$self->{verbatim} and $col =~ /\r\n|\n/ ) {
                 $col =~ s/(?:\r\n|\n).*$//sm;
             }
 
-            if ($col =~ /\Q$esc\E\r$/) { # for t/15_flags : test 165 'ESC CR' at line 203
-                $self->_set_error_diag( 4003, $pos );
+            if ( $col =~ /\Q$esc\E\r$/ ) { # for t/15_flags : test 165 'ESC CR' at line 203
+                $self->_set_error_diag(4003, $pos);
                 $palatable = 0;
                 last;
             }
 
-            if ($col =~ /.\Q$esc\E$/) { # for t/65_allow : test 53-54 parse('foo\') at line 62, 65
-                $self->_set_error_diag( 4004, $pos );
+            if ( $col =~ /.\Q$esc\E$/ ) { # for t/65_allow : test 53-54 parse('foo\') at line 62, 65
+                $self->_set_error_diag(4004, $pos);
                 $palatable = 0;
                 last;
             }
@@ -547,23 +547,23 @@ sub _parse {
 
         }
 
-        utf8::encode($col) if $utf8;
+        utf8::encode($col) if ( $utf8) ;
         if ( defined $col && _is_valid_utf8($col) ) {
             utf8::decode($col);
         }
 
         push @part,$col;
-        push @{$meta_flag}, $flag if ($keep_meta_info);
-        $self->{ _RECNO }++;
+        push @{$meta_flag}, $flag if ( $keep_meta_info );
+        $self->{_RECNO}++;
 
         $i++;
     }
 
-    if ($palatable and ! @part) {
+    if ( $palatable and !@part ) {
         $palatable = 0;
     }
 
-    if ($palatable) {
+    if ( $palatable ) {
         $self->{_ERROR_INPUT} = undef;
         $self->{_FIELDS}      = \@part;
     }
@@ -651,7 +651,7 @@ sub print {
 
     require IO::Handle;
 
-    if(ref($cols) ne 'ARRAY'){
+    if ( ref($cols) ne 'ARRAY' ) {
         Carp::croak("Expected fields to be an array ref");
     }
 
@@ -659,14 +659,14 @@ sub print {
 
     local $\ = '';
 
-    $io->print( $self->_string ) or $self->_set_error_diag(2200);
+    $io->print($self->_string) or $self->_set_error_diag(2200);
 }
 
 sub print_hr {
     my ($self, $io, $hr) = @_;
     $self->{_COLUMN_NAMES} or $self->_set_error_diag(3009);
-    ref $hr eq "HASH"      or $self->_set_error_diag(3010);
-    $self->print ($io, [ map { $hr->{$_} } $self->column_names ]);
+    ref($hr) eq "HASH"     or $self->_set_error_diag(3010);
+    $self->print($io, [ map { $hr->{$_} } $self->column_names ]);
 }
 ################################################################################
 # getline
@@ -692,15 +692,15 @@ sub getline {
     if ( defined $line and defined $eol and $eol eq '' and $line =~ /[^\r]\r[^\r\n]/ and eof ) {
         $self->{_AUTO_DETECT_CR} = 1;
         $self->{eol} = "\r";
-        seek( $io, 0, 0 ); # restart
-        return $self->getline( $io );
+        seek($io, 0, 0); # restart
+        return $self->getline($io);
     }
 
     if ( $re and defined $line ) {
         LOOP: {
-            my $is_continued   = scalar(my @list = $line =~ /$re/g) % 2; # if line is valid, quot is even
+            my $is_continued = scalar(my @list = $line =~ /$re/g) % 2; # if line is valid, quot is even
 
-            if ( $self->{allow_loose_quotes } ) {
+            if ( $self->{allow_loose_quotes} ) {
                 $is_continued = 0;
             }
             elsif ( $line =~ /${re}0/ ) { # null suspicion case
@@ -724,7 +724,7 @@ sub getline {
                 /x ? 0 : 1;
             }
 
-            if ( $is_continued and !$io->eof) {
+            if ( $is_continued and !$io->eof ) {
                 $line .= $io->getline();
                 goto LOOP;
             }
@@ -741,13 +741,13 @@ sub getline {
 
 sub _return_getline_result {
 
-    if ( eof ) {
+    if ( eof() ) {
         $_[0]->{_AUTO_DETECT_CR} = 0;
     }
 
-    return unless $_[0]->{_STATUS};
+    return unless ( $_[0]->{_STATUS} );
 
-    return [ $_[0]->_fields() ] unless $_[0]->{_BOUND_COLUMNS};
+    return [ $_[0]->_fields() ] unless ( $_[0]->{_BOUND_COLUMNS} );
 
     my @vals  = $_[0]->_fields();
     my ( $max, $count ) = ( scalar @vals, 0 );
@@ -758,12 +758,12 @@ sub _return_getline_result {
     }
 
     for ( my $i = 0; $i < $max; $i++ ) {
-        my $bind = $_[0]->{_BOUND_COLUMNS}->[ $i ];
-        if ( Scalar::Util::readonly( $$bind ) ) {
+        my $bind = $_[0]->{_BOUND_COLUMNS}->[$i];
+        if ( Scalar::Util::readonly($$bind) ) {
             $_[0]->_set_error_diag(3008);
             return;
         }
-        $$bind = $vals[ $i ];
+        $$bind = $vals[$i];
     }
 
     return [];
@@ -772,7 +772,7 @@ sub _return_getline_result {
 # getline_all
 ################################################################################
 sub getline_all {
-    my ( $self, $io, $offset, $len ) = @_;
+    my ($self, $io, $offset, $len) = @_;
     my @list;
     my $tail;
     my $n = 0;
@@ -785,8 +785,8 @@ sub getline_all {
     }
 
     while ( my $row = $self->getline($io) ) {
-        next if $offset && $offset-- > 0;               # skip
-        last if defined $len && !$tail && $n >= $len;   # exceedes limit size
+        next if ( $offset && $offset-- > 0 );               # skip
+        last if ( defined $len && !$tail && $n >= $len );   # exceedes limit size
         push @list, $row;
         ++$n;
         if ( $tail && $n > $tail ) {
@@ -795,7 +795,7 @@ sub getline_all {
     }
 
     if ( $tail && defined $len && $n > $len ) {
-        @list = splice( @list, 0, $len);
+        @list = splice(@list, 0, $len);
     }
 
     return \@list;
@@ -804,20 +804,20 @@ sub getline_all {
 # getline_hr
 ################################################################################
 sub getline_hr {
-    my ( $self, $io) = @_;
+    my ($self, $io) = @_;
     my %hr;
 
     unless ( $self->{_COLUMN_NAMES} ) {
-        $self->SetDiag( 3002 );
+        $self->SetDiag(3002);
     }
 
-    my $fr = $self->getline( $io ) or return undef;
+    my $fr = $self->getline($io) or return undef;
 
-    if ( ref $self->{_FFLAGS} ) {
-        $self->{_FFLAGS}[$_] = IS_MISSING for ($#{$fr} + 1) .. $#{$self->{_COLUMN_NAMES}};
+    if ( ref($self->{_FFLAGS}) ) {
+        $self->{_FFLAGS}[$_] = IS_MISSING for ( $#{$fr} + 1 ) .. $#{$self->{_COLUMN_NAMES}};
     }
 
-    @hr{ @{ $self->{_COLUMN_NAMES} } } = @$fr;
+    @hr{@{$self->{_COLUMN_NAMES}}} = @$fr;
 
     \%hr;
 }
@@ -825,7 +825,7 @@ sub getline_hr {
 # getline_hr_all
 ################################################################################
 sub getline_hr_all {
-    my ( $self, $io, @args ) = @_;
+    my ($self, $io, @args) = @_;
     my %hr;
 
     unless ( $self->{_COLUMN_NAMES} ) {
@@ -834,46 +834,46 @@ sub getline_hr_all {
 
     my @cn = @{$self->{_COLUMN_NAMES}};
 
-    return [ map { my %h; @h{ @cn } = @$_; \%h } @{ $self->getline_all( $io, @args ) } ];
+    return [ map { my %h; @h{ @cn } = @$_; \%h } @{$self->getline_all($io, @args)} ];
 }
 ################################################################################
 # column_names
 ################################################################################
 sub column_names {
-    my ( $self, @columns ) = @_;
+    my ($self, @columns) = @_;
 
     @columns or return defined $self->{_COLUMN_NAMES} ? @{$self->{_COLUMN_NAMES}} : undef;
     @columns == 1 && ! defined $columns[0] and return $self->{_COLUMN_NAMES} = undef;
 
-    if ( @columns == 1 && ref $columns[0] eq "ARRAY" ) {
-        @columns = @{ $columns[0] };
+    if ( @columns == 1 && ref($columns[0]) eq "ARRAY" ) {
+        @columns = @{$columns[0]};
     }
-    elsif ( join "", map { defined $_ ? ref $_ : "" } @columns ) {
-        $self->SetDiag( 3001 );
+    elsif ( join("", map { defined $_ ? ref($_) : "" } @columns) ) {
+        $self->SetDiag(3001);
     }
 
     if ( $self->{_BOUND_COLUMNS} && @columns != @{$self->{_BOUND_COLUMNS}} ) {
-        $self->SetDiag( 3003 );
+        $self->SetDiag(3003);
     }
 
     $self->{_COLUMN_NAMES} = [ map { defined $_ ? $_ : "\cAUNDEF\cA" } @columns ];
-    @{ $self->{_COLUMN_NAMES} };
+    @{$self->{_COLUMN_NAMES}};
 }
 ################################################################################
 # bind_columns
 ################################################################################
 sub bind_columns {
-    my ( $self, @refs ) = @_;
+    my ($self, @refs) = @_;
 
     @refs or return defined $self->{_BOUND_COLUMNS} ? @{$self->{_BOUND_COLUMNS}} : undef;
     @refs == 1 && ! defined $refs[0] and return $self->{_BOUND_COLUMNS} = undef;
 
     if ( $self->{_COLUMN_NAMES} && @refs != @{$self->{_COLUMN_NAMES}} ) {
-        $self->SetDiag( 3003 );
+        $self->SetDiag(3003);
     }
 
-    if ( grep { ref $_ ne "SCALAR" } @refs ) { # why don't use grep?
-        $self->SetDiag( 3004 );
+    if ( grep { ref($_) ne "SCALAR" } @refs ) { # why don't use grep?
+        $self->SetDiag(3004);
     }
 
     $self->{_is_bound} = scalar @refs; #pack("C", scalar @refs);
@@ -892,8 +892,8 @@ sub eof {
 sub types {
     my $self = shift;
 
-    if (@_) {
-        if (my $types = shift) {
+    if ( @_ ) {
+        if ( my $types = shift ) {
             $self->{'_types'} = join("", map{ chr($_) } @$types);
             $self->{'types'} = $types;
         }
@@ -909,25 +909,25 @@ sub types {
 }
 ################################################################################
 sub meta_info {
-    $_[0]->{_FFLAGS} ? @{ $_[0]->{_FFLAGS} } : undef;
+    $_[0]->{_FFLAGS} ? @{$_[0]->{_FFLAGS}} : undef;
 }
 
 sub is_quoted {
-    return unless (defined $_[0]->{_FFLAGS});
-    return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
+    return unless ( defined $_[0]->{_FFLAGS} );
+    return if ( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{$_[0]->{_FFLAGS}} );
 
     $_[0]->{_FFLAGS}->[$_[1]] & IS_QUOTED ? 1 : 0;
 }
 
 sub is_binary {
-    return unless (defined $_[0]->{_FFLAGS});
-    return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
+    return unless ( defined $_[0]->{_FFLAGS} );
+    return if ( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{$_[0]->{_FFLAGS}} );
     $_[0]->{_FFLAGS}->[$_[1]] & IS_BINARY ? 1 : 0;
 }
 
 sub is_missing {
     my ($self, $idx, $val) = @_;
-    ref $self->{_FFLAGS} &&
+    ref($self->{_FFLAGS}) &&
             $idx >= 0 && $idx < @{$self->{_FFLAGS}} or return;
     $self->{_FFLAGS}[$idx] & IS_MISSING ? 1 : 0;
 }
@@ -938,26 +938,26 @@ sub is_missing {
 ################################################################################
 sub _check_type {
     my ($col_ref, $type) = @_;
-    unless ($$col_ref =~ /^[+-]?(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/) {
-        Carp::carp sprintf("Argument \"%s\" isn't numeric in subroutine entry",$$col_ref);
+    unless ( $$col_ref =~ /^[+-]?(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/ ) {
+        Carp::carp(sprintf("Argument \"%s\" isn't numeric in subroutine entry", $$col_ref));
         $$col_ref = 0;
     }
-    elsif ($type == NV) {
-        $$col_ref = sprintf("%G",$$col_ref);
+    elsif ( $type == NV ) {
+        $$col_ref = sprintf("%G", $$col_ref);
     }
     else {
-        $$col_ref = sprintf("%d",$$col_ref);
+        $$col_ref = sprintf("%d", $$col_ref);
     }
 }
 ################################################################################
 # _set_error_diag
 ################################################################################
 sub _set_error_diag {
-    my ( $self, $error, $pos ) = @_;
+    my ($self, $error, $pos) = @_;
 
     $self->{_ERROR_DIAG} = $error;
 
-    if (defined $pos) {
+    if ( defined $pos ) {
         $_[0]->{_ERROR_POS} = $pos;
     }
 
@@ -986,8 +986,8 @@ sub sep_char {
     my $self = shift;
     if ( @_ ) {
         $self->{sep_char} = $_[0];
-        my $ec = _check_sanity( $self );
-        $ec and Carp::croak( $self->SetDiag( $ec ) );
+        my $ec = _check_sanity($self);
+        $ec and Carp::croak($self->SetDiag($ec));
     }
     $self->{sep_char};
 }
@@ -997,8 +997,8 @@ sub quote_char {
     my $self = shift;
     if ( @_ ) {
         $self->{quote_char} = $_[0];
-        my $ec = _check_sanity( $self );
-        $ec and Carp::croak( $self->SetDiag( $ec ) );
+        my $ec = _check_sanity($self);
+        $ec and Carp::croak($self->SetDiag($ec));
     }
     $self->{quote_char};
 }
@@ -1008,8 +1008,8 @@ sub escape_char {
     my $self = shift;
     if ( @_ ) {
         $self->{escape_char} = $_[0];
-        my $ec = _check_sanity( $self );
-        $ec and Carp::croak( $self->SetDiag( $ec ) );
+        my $ec = _check_sanity($self);
+        $ec and Carp::croak($self->SetDiag($ec));
     }
     $self->{escape_char};
 }
@@ -1022,7 +1022,7 @@ sub allow_whitespace {
         $aw and
             (defined $self->{quote_char}  && $self->{quote_char}  =~ m/^[ \t]$/) ||
             (defined $self->{escape_char} && $self->{escape_char} =~ m/^[ \t]$/)
-                and Carp::croak ($self->SetDiag (1002));
+                and Carp::croak($self->SetDiag(1002));
         $self->{allow_whitespace} = $aw;
     }
     $self->{allow_whitespace};
@@ -1043,12 +1043,12 @@ sub SetDiag {
     }
 
     $_[0]->_set_error_diag( $_[1] );
-    Carp::croak( $_[0]->error_diag . '' );
+    Carp::croak($_[0]->error_diag . '');
 }
 
 sub auto_diag {
     my $self = shift;
-    if (@_) {
+    if ( @_ ) {
         my $v = shift;
         !defined $v || $v eq "" and $v = 0;
         $v =~ m/^[0-9]/ or $v = $v ? 1 : 0; # default for true/false
@@ -1059,7 +1059,7 @@ sub auto_diag {
 
 sub diag_verbose {
     my $self = shift;
-    if (@_) {
+    if ( @_ ) {
         my $v = shift;
         !defined $v || $v eq "" and $v = 0;
         $v =~ m/^[0-9]/ or $v = $v ? 1 : 0; # default for true/false
@@ -1096,7 +1096,7 @@ use overload (
 
 sub numeric {
     my ($left, $right) = @_;
-    return ref $left ? $left->[0] : $right->[0];
+    return ref($left) ? $left->[0] : $right->[0];
 }
 
 
@@ -1126,19 +1126,19 @@ Text::CSV_PP - Text::CSV_XS compatible pure-Perl module
  $status  = $csv->parse($line);        # parse a CSV string into fields
  @columns = $csv->fields();            # get the parsed fields
  
- $status       = $csv->status ();      # get the most recent status
- $bad_argument = $csv->error_input (); # get the most recent bad argument
- $diag         = $csv->error_diag ();  # if an error occured, explains WHY
+ $status       = $csv->status();       # get the most recent status
+ $bad_argument = $csv->error_input();  # get the most recent bad argument
+ $diag         = $csv->error_diag();   # if an error occured, explains WHY
  
- $status = $csv->print ($io, $colref); # Write an array of fields
+ $status = $csv->print($io, $colref);  # Write an array of fields
                                        # immediately to a file $io
- $colref = $csv->getline ($io);        # Read a line from file $io,
+ $colref = $csv->getline($io);         # Read a line from file $io,
                                        # parse it and return an array
                                        # ref of fields
- $csv->column_names (@names);          # Set column names for getline_hr ()
- $ref = $csv->getline_hr ($io);        # getline (), but returns a hashref
- $eof = $csv->eof ();                  # Indicate if last parse or
-                                       # getline () hit End Of File
+ $csv->column_names(@names);           # Set column names for getline_hr()
+ $ref = $csv->getline_hr($io);         # getline(), but returns a hashref
+ $eof = $csv->eof();                   # Indicate if last parse or
+                                       # getline() hit End Of File
  
  $csv->types(\@t_array);               # Set column types
 
@@ -1159,11 +1159,11 @@ This module is compatible with Text::CSV_XS B<0.99>.
 
 =head2 Unicode (UTF8)
 
-On parsing (both for C<getline ()> and C<parse ()>), if the source is
+On parsing (both for C<getline()> and C<parse()>), if the source is
 marked being UTF8, then parsing that source will mark all fields that
 are marked binary will also be marked UTF8.
 
-On combining (C<print ()> and C<combine ()>), if any of the combining
+On combining (C<print()> and C<combine()>), if any of the combining
 fields was marked UTF8, the resulting string will be marked UTF8.
 
 =head1 FUNCTIONS
@@ -1173,7 +1173,7 @@ Most of the documentation was shamelessly copied and replaced from Text::CSV_XS.
 
 See to L<Text::CSV_XS>.
 
-=head2 version ()
+=head2 version()
 
 (Class method) Returns the current backend module version.
 If you want the module version, you can use the C<VERSION> method,
@@ -1182,7 +1182,7 @@ If you want the module version, you can use the C<VERSION> method,
  print Text::CSV->version;      # The version of the worker module
                                 # same as Text::CSV->backend->version
 
-=head2 new (\%attr)
+=head2 new(\%attr)
 
 (Class method) Returns a new instance of Text::CSV_XS. The objects
 attributes are described by the (optional) hash ref C<\%attr>.
@@ -1329,8 +1329,8 @@ The escape character can not be equal to the separation character.
 By default, parsing fields that have C<escape_char> characters that
 escape characters that do not need to be escaped, like:
 
- my $csv = Text::CSV->new ({ escape_char => "\\" });
- $csv->parse (qq{1,"my bar\'s",baz,42});
+ my $csv = Text::CSV->new({ escape_char => "\\" });
+ $csv->parse(qq{1,"my bar\'s",baz,42});
 
 would result in a parse error. Though it is still bad practice to
 allow this format, this option enables you to treat all escape character
@@ -1381,7 +1381,7 @@ By default, the parsing of input lines is as simple and fast as
 possible. However, some parsing information - like quotation of
 the original field - is lost in that process. Set this flag to
 true to be able to retrieve that information after parsing with
-the methods C<meta_info ()>, C<is_quoted ()>, and C<is_binary ()>
+the methods C<meta_info()>, C<is_quoted()>, and C<is_binary()>
 described below.  Default is false.
 
 =item verbatim
@@ -1395,7 +1395,7 @@ special when this flag is set, and be dealt with as being ordinary
 binary characters. This will ease working with data with embedded
 newlines.
 
-When C<verbatim> is used with C<getline ()>, C<getline ()>
+When C<verbatim> is used with C<getline()>, C<getline()>
 auto-chomp's every line.
 
 Imagine a file format like
@@ -1411,15 +1411,15 @@ By default, Text::CSV' parse function however is instructed to only
 know about "\n" and "\r" to be legal line endings, and so has to deal
 with the embedded newline as a real end-of-line, so it can scan the next
 line if binary is true, and the newline is inside a quoted field.
-With this attribute however, we can tell parse () to parse the line
+With this attribute however, we can tell parse() to parse the line
 as if \n is just nothing more than a binary character.
 
-For parse () this means that the parser has no idea about line ending
-anymore, and getline () chomps line endings on reading.
+For parse() this means that the parser has no idea about line ending
+anymore, and getline() chomps line endings on reading.
 
 =item auto_diag
 
-Set to true will cause C<error_diag ()> to be automatically be called
+Set to true will cause C<error_diag()> to be automatically be called
 in void context upon errors.
 
 If set to a value greater than 1, it will die on errors instead of
@@ -1432,11 +1432,11 @@ please see to L<Text::CSV_XS/auto_diag>.
 
 To sum it up,
 
- $csv = Text::CSV_PP->new ();
+ $csv = Text::CSV_PP->new();
 
 is equivalent to
 
- $csv = Text::CSV_PP->new ({
+ $csv = Text::CSV_PP->new({
      quote_char          => '"',
      escape_char         => '"',
      sep_char            => ',',
@@ -1461,34 +1461,34 @@ available where you can inquire for the current value, or change
 the value
 
  my $quote = $csv->quote_char;
- $csv->binary (1);
+ $csv->binary(1);
 
 It is unwise to change these settings halfway through writing CSV
 data to a stream. If however, you want to create a new stream using
 the available CSV object, there is no harm in changing them.
 
-If the C<new ()> constructor call fails, it returns C<undef>, and makes
-the fail reason available through the C<error_diag ()> method.
+If the C<new()> constructor call fails, it returns C<undef>, and makes
+the fail reason available through the C<error_diag()> method.
 
- $csv = Text::CSV->new ({ ecs_char => 1 }) or
-     die "" . Text::CSV->error_diag ();
+ $csv = Text::CSV->new({ ecs_char => 1 }) or
+     die "" . Text::CSV->error_diag();
 
-C<error_diag ()> will return a string like
+C<error_diag()> will return a string like
 
  "INI - Unknown attribute 'ecs_char'"
 
 =head2 print
 
- $status = $csv->print ($io, $colref);
+ $status = $csv->print($io, $colref);
 
-Similar to C<combine () + string () + print>, but more efficient. It
+Similar to C<combine() + string() + print>, but more efficient. It
 expects an array ref as input (not an array!) and the resulting string is
 not really created (XS version), but immediately written to the I<$io> object, typically
 an IO handle or any other object that offers a I<print> method. Note, this
 implies that the following is wrong in perl 5.005_xx and older:
 
  open FILE, ">", "whatever";
- $status = $csv->print (\*FILE, $colref);
+ $status = $csv->print(\*FILE, $colref);
 
 as in perl 5.005 and older, the glob C<\*FILE> is not an object, thus it
 doesn't have a print method. The solution is to use an IO::File object or
@@ -1498,165 +1498,165 @@ for details.
 For performance reasons the print method doesn't create a result string.
 (If its backend is PP version, result strings are created internally.)
 In particular the I<$csv-E<gt>string ()>, I<$csv-E<gt>status ()>,
-I<$csv->fields ()> and I<$csv-E<gt>error_input ()> methods are meaningless
+I<$csv->fields()> and I<$csv-E<gt>error_input()> methods are meaningless
 after executing this method.
 
 =head2 combine
 
- $status = $csv->combine (@columns);
+ $status = $csv->combine(@columns);
 
 This object function constructs a CSV string from the arguments, returning
 success or failure.  Failure can result from lack of arguments or an argument
-containing an invalid character.  Upon success, C<string ()> can be called to
+containing an invalid character.  Upon success, C<string()> can be called to
 retrieve the resultant CSV string.  Upon failure, the value returned by
-C<string ()> is undefined and C<error_input ()> can be called to retrieve an
+C<string()> is undefined and C<error_input()> can be called to retrieve an
 invalid argument.
 
 =head2 string
 
- $line = $csv->string ();
+ $line = $csv->string();
 
-This object function returns the input to C<parse ()> or the resultant CSV
-string of C<combine ()>, whichever was called more recently.
+This object function returns the input to C<parse()> or the resultant CSV
+string of C<combine()>, whichever was called more recently.
 
 =head2 getline
 
- $colref = $csv->getline ($io);
+ $colref = $csv->getline($io);
 
 This is the counterpart to print, like parse is the counterpart to
-combine: It reads a row from the IO object $io using $io->getline ()
+combine: It reads a row from the IO object $io using $io->getline()
 and parses this row into an array ref. This array ref is returned
 by the function or undef for failure.
 
-When fields are bound with C<bind_columns ()>, the return value is a
+When fields are bound with C<bind_columns()>, the return value is a
 reference to an empty list.
 
-The I<$csv-E<gt>string ()>, I<$csv-E<gt>fields ()> and I<$csv-E<gt>status ()>
+The I<$csv-E<gt>string()>, I<$csv-E<gt>fields()> and I<$csv-E<gt>status()>
 methods are meaningless, again.
 
 =head2 getline_all
 
- $arrayref = $csv->getline_all ($io);
- $arrayref = $csv->getline_all ($io, $offset);
- $arrayref = $csv->getline_all ($io, $offset, $length);
+ $arrayref = $csv->getline_all($io);
+ $arrayref = $csv->getline_all($io, $offset);
+ $arrayref = $csv->getline_all($io, $offset, $length);
 
-This will return a reference to a list of C<getline ($io)> results.
+This will return a reference to a list of C<getline($io)> results.
 In this call, C<keep_meta_info> is disabled. If C<$offset> is negative,
-as with C<splice ()>, only the last C<abs ($offset)> records of C<$io>
+as with C<splice()>, only the last C<abs($offset)> records of C<$io>
 are taken into consideration.
 
 Given a CSV file with 10 lines:
 
  lines call
  ----- ---------------------------------------------------------
- 0..9  $csv->getline_all ($io)         # all
- 0..9  $csv->getline_all ($io,  0)     # all
- 8..9  $csv->getline_all ($io,  8)     # start at 8
- -     $csv->getline_all ($io,  0,  0) # start at 0 first 0 rows
- 0..4  $csv->getline_all ($io,  0,  5) # start at 0 first 5 rows
- 4..5  $csv->getline_all ($io,  4,  2) # start at 4 first 2 rows
- 8..9  $csv->getline_all ($io, -2)     # last 2 rows
- 6..7  $csv->getline_all ($io, -4,  2) # first 2 of last  4 rows
+ 0..9  $csv->getline_all($io)         # all
+ 0..9  $csv->getline_all($io,  0)     # all
+ 8..9  $csv->getline_all($io,  8)     # start at 8
+ -     $csv->getline_all($io,  0,  0) # start at 0 first 0 rows
+ 0..4  $csv->getline_all($io,  0,  5) # start at 0 first 5 rows
+ 4..5  $csv->getline_all($io,  4,  2) # start at 4 first 2 rows
+ 8..9  $csv->getline_all($io, -2)     # last 2 rows
+ 6..7  $csv->getline_all($io, -4,  2) # first 2 of last  4 rows
 
 =head2 parse
 
- $status = $csv->parse ($line);
+ $status = $csv->parse($line);
 
 This object function decomposes a CSV string into fields, returning
 success or failure.  Failure can result from a lack of argument or the
-given CSV string is improperly formatted.  Upon success, C<fields ()> can
+given CSV string is improperly formatted.  Upon success, C<fields()> can
 be called to retrieve the decomposed fields .  Upon failure, the value
-returned by C<fields ()> is undefined and C<error_input ()> can be called
+returned by C<fields()> is undefined and C<error_input()> can be called
 to retrieve the invalid argument.
 
-You may use the I<types ()> method for setting column types. See the
+You may use the I<types()> method for setting column types. See the
 description below.
 
 =head2 getline_hr
 
-The C<getline_hr ()> and C<column_names ()> methods work together to allow
-you to have rows returned as hashrefs. You must call C<column_names ()>
+The C<getline_hr()> and C<column_names()> methods work together to allow
+you to have rows returned as hashrefs. You must call C<column_names()>
 first to declare your column names.
 
- $csv->column_names (qw( code name price description ));
- $hr = $csv->getline_hr ($io);
+ $csv->column_names(qw( code name price description ));
+ $hr = $csv->getline_hr($io);
  print "Price for $hr->{name} is $hr->{price} EUR\n";
 
-C<getline_hr ()> will croak if called before C<column_names ()>.
+C<getline_hr()> will croak if called before C<column_names()>.
 
 =head2 getline_hr_all
 
- $arrayref = $csv->getline_hr_all ($io);
+ $arrayref = $csv->getline_hr_all($io);
 
-This will return a reference to a list of C<getline_hr ($io)> results.
+This will return a reference to a list of C<getline_hr($io)> results.
 In this call, C<keep_meta_info> is disabled.
 
 =head2 column_names
 
-Set the keys that will be used in the C<getline_hr ()> calls. If no keys
+Set the keys that will be used in the C<getline_hr()> calls. If no keys
 (column names) are passed, it'll return the current setting.
 
-C<column_names ()> accepts a list of scalars (the column names) or a
-single array_ref, so you can pass C<getline ()>
+C<column_names()> accepts a list of scalars (the column names) or a
+single array_ref, so you can pass C<getline()>
 
-  $csv->column_names ($csv->getline ($io));
+  $csv->column_names($csv->getline($io));
 
-C<column_names ()> does B<no> checking on duplicates at all, which might
+C<column_names()> does B<no> checking on duplicates at all, which might
 lead to unwanted results. Undefined entries will be replaced with the
 string C<"\cAUNDEF\cA">, so
 
-  $csv->column_names (undef, "", "name", "name");
-  $hr = $csv->getline_hr ($io);
+  $csv->column_names(undef, "", "name", "name");
+  $hr = $csv->getline_hr($io);
 
 Will set C<$hr->{"\cAUNDEF\cA"}> to the 1st field, C<$hr->{""}> to the
 2nd field, and C<$hr->{name}> to the 4th field, discarding the 3rd field.
 
-C<column_names ()> croaks on invalid arguments.
+C<column_names()> croaks on invalid arguments.
 
 =head2 bind_columns
 
 Takes a list of references to scalars to store the fields fetched
-C<getline ()> in. When you don't pass enough references to store the
-fetched fields in, C<getline ()> will fail. If you pass more than there are
+C<getline()> in. When you don't pass enough references to store the
+fetched fields in, C<getline()> will fail. If you pass more than there are
 fields to return, the remaining references are left untouched.
 
-  $csv->bind_columns (\$code, \$name, \$price, \$description);
-  while ($csv->getline ($io)) {
+  $csv->bind_columns(\$code, \$name, \$price, \$description);
+  while ($csv->getline($io)) {
       print "The price of a $name is \x{20ac} $price\n";
       }
 
 =head2 eof
 
- $eof = $csv->eof ();
+ $eof = $csv->eof();
 
-If C<parse ()> or C<getline ()> was used with an IO stream, this
+If C<parse()> or C<getline()> was used with an IO stream, this
 method will return true (1) if the last call hit end of file, otherwise
 it will return false (''). This is useful to see the difference between
 a failure and end of file.
 
 =head2 types
 
- $csv->types (\@tref);
+ $csv->types(\@tref);
 
 This method is used to force that columns are of a given type. For
 example, if you have an integer column, two double columns and a
 string column, then you might do a
 
- $csv->types ([Text::CSV_PP::IV (),
-               Text::CSV_PP::NV (),
-               Text::CSV_PP::NV (),
-               Text::CSV_PP::PV ()]);
+ $csv->types([Text::CSV_PP::IV(),
+              Text::CSV_PP::NV(),
+              Text::CSV_PP::NV(),
+              Text::CSV_PP::PV()]);
 
 Column types are used only for decoding columns, in other words
-by the I<parse ()> and I<getline ()> methods.
+by the I<parse()> and I<getline()> methods.
 
 You can unset column types by doing a
 
- $csv->types (undef);
+ $csv->types(undef);
 
 or fetch the current type settings with
 
- $types = $csv->types ();
+ $types = $csv->types();
 
 =over 4
 
@@ -1676,25 +1676,25 @@ Set field type to string.
 
 =head2 fields
 
- @columns = $csv->fields ();
+ @columns = $csv->fields();
 
-This object function returns the input to C<combine ()> or the resultant
-decomposed fields of C successful <parse ()>, whichever was called more
+This object function returns the input to C<combine()> or the resultant
+decomposed fields of C successful <parse()>, whichever was called more
 recently.
 
-Note that the return value is undefined after using C<getline ()>, which
-does not fill the data structures returned by C<parse ()>.
+Note that the return value is undefined after using C<getline()>, which
+does not fill the data structures returned by C<parse()>.
 
 =head2 meta_info
 
- @flags = $csv->meta_info ();
+ @flags = $csv->meta_info();
 
-This object function returns the flags of the input to C<combine ()> or
-the flags of the resultant decomposed fields of C<parse ()>, whichever
+This object function returns the flags of the input to C<combine()> or
+the flags of the resultant decomposed fields of C<parse()>, whichever
 was called more recently.
 
 For each field, a meta_info field will hold flags that tell something about
-the field returned by the C<fields ()> method or passed to the C<combine ()>
+the field returned by the C<fields()> method or passed to the C<combine()>
 method. The flags are bitwise-or'd like:
 
 =over 4
@@ -1709,14 +1709,14 @@ The field was binary.
 
 =back
 
-See the C<is_*** ()> methods below.
+See the C<is_***()> methods below.
 
 =head2 is_quoted
 
-  my $quoted = $csv->is_quoted ($column_idx);
+  my $quoted = $csv->is_quoted($column_idx);
 
 Where C<$column_idx> is the (zero-based) index of the column in the
-last result of C<parse ()>.
+last result of C<parse()>.
 
 This returns a true value if the data in the indicated column was
 enclosed in C<quote_char> quotes. This might be important for data
@@ -1725,35 +1725,35 @@ C<,"20070108",> is explicitly marked as character string data.
 
 =head2 is_binary
 
-  my $binary = $csv->is_binary ($column_idx);
+  my $binary = $csv->is_binary($column_idx);
 
 Where C<$column_idx> is the (zero-based) index of the column in the
-last result of C<parse ()>.
+last result of C<parse()>.
 
 This returns a true value if the data in the indicated column
 contained any byte in the range [\x00-\x08,\x10-\x1F,\x7F-\xFF]
 
 =head2 status
 
- $status = $csv->status ();
+ $status = $csv->status();
 
-This object function returns success (or failure) of C<combine ()> or
-C<parse ()>, whichever was called more recently.
+This object function returns success (or failure) of C<combine()> or
+C<parse()>, whichever was called more recently.
 
 =head2 error_input
 
- $bad_argument = $csv->error_input ();
+ $bad_argument = $csv->error_input();
 
 This object function returns the erroneous argument (if it exists) of
-C<combine ()> or C<parse ()>, whichever was called more recently.
+C<combine()> or C<parse()>, whichever was called more recently.
 
 =head2 error_diag
 
- Text::CSV_PP->error_diag ();
- $csv->error_diag ();
- $error_code   = 0  + $csv->error_diag ();
- $error_str    = "" . $csv->error_diag ();
- ($cde, $str, $pos) = $csv->error_diag ();
+ Text::CSV_PP->error_diag();
+ $csv->error_diag();
+ $error_code   = 0  + $csv->error_diag();
+ $error_str    = "" . $csv->error_diag();
+ ($cde, $str, $pos) = $csv->error_diag();
 
 If (and only if) an error occured, this function returns the diagnostics
 of that error.
@@ -1777,15 +1777,15 @@ To achieve this behavior with CSV_PP, the returned diagnostics is blessed object
 
 =head2 SetDiag
 
- $csv->SetDiag (0);
+ $csv->SetDiag(0);
 
 Use to reset the diagnostics if you are dealing with errors.
 
 =head1 DIAGNOSTICS
 
-If an error occured, $csv->error_diag () can be used to get more information
+If an error occured, $csv->error_diag() can be used to get more information
 on the cause of the failure. Note that for speed reasons, the internal value
-is never cleared on success, so using the value returned by error_diag () in
+is never cleared on success, so using the value returned by error_diag() in
 normal cases - when no error occured - may cause unexpected results.
 
 Note: CSV_PP's diagnostics is different from CSV_XS's:
@@ -1847,17 +1847,17 @@ C<escape_char> is not allowed.
 
 =item 4004 "EUF - "
 
-=item 3001 "EHR - Unsupported syntax for column_names ()"
+=item 3001 "EHR - Unsupported syntax for column_names()"
 
-=item 3002 "EHR - getline_hr () called before column_names ()"
+=item 3002 "EHR - getline_hr() called before column_names()"
 
-=item 3003 "EHR - bind_columns () and column_names () fields count mismatch"
+=item 3003 "EHR - bind_columns() and column_names() fields count mismatch"
 
-=item 3004 "EHR - bind_columns () only accepts refs to scalars"
+=item 3004 "EHR - bind_columns() only accepts refs to scalars"
 
-=item 3006 "EHR - bind_columns () did not pass enough refs for parsed fields"
+=item 3006 "EHR - bind_columns() did not pass enough refs for parsed fields"
 
-=item 3007 "EHR - bind_columns needs refs to writable scalars"
+=item 3007 "EHR - bind_columns() needs refs to writable scalars"
 
 =item 3008 "EHR - unexpected error in bound fields"
 
