@@ -371,7 +371,7 @@ sub _parse {
     my $re_split       = $self->{_re_split}->{$quot}->{$esc}->{$sep} ||= _make_regexp_split_column($esc, $quot, $sep);
     my $re_quoted       = $self->{_re_quoted}->{$quot}               ||= qr/^\Q$quot\E(.*)\Q$quot\E$/s;
     my $re_in_quot_esp1 = $self->{_re_in_quot_esp1}->{$esc}          ||= qr/\Q$esc\E(.)/;
-    my $re_in_quot_esp2 = $self->{_re_in_quot_esp2}->{$quot}->{$esc} ||= qr/[\Q$quot$esc$sep\E0]/;
+    my $re_in_quot_esp2 = $self->{_re_in_quot_esp2}->{$quot}->{$esc} ||= qr/[\Q$quot$esc$sep\E]/;
     my $re_quot_char    = $self->{_re_quot_char}->{$quot}            ||= qr/\Q$quot\E/;
     my $re_esc          = $self->{_re_esc}->{$quot}->{$esc}          ||= qr/\Q$esc\E(\Q$quot\E|\Q$esc\E|\Q$sep\E|0)/;
     my $re_invalid_quot = $self->{_re_invalid_quot}->{$quot}->{$esc} ||= qr/^$re_quot_char|[^\Q$re_esc\E]$re_quot_char/;
@@ -583,11 +583,11 @@ sub _make_regexp_split_column {
 
    return qr/(
         \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E0][^\Q$quot$esc\E]*)*
+            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E][^\Q$quot$esc\E]*)*
         \Q$quot\E
         | # or
         \Q$quot\E
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
+            (?:\Q$esc\E[\Q$quot$esc$sep\E]|[^\Q$quot$esc$sep\E])*
         \Q$quot\E
         | # or
         [^\Q$sep\E]*
@@ -602,14 +602,14 @@ sub _make_regexp_split_column_allow_unqout_esc {
 
    return qr/(
         \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E0][^\Q$quot$esc\E]*)*
+            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E][^\Q$quot$esc\E]*)*
         \Q$quot\E
         | # or
         \Q$quot\E
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
+            (?:\Q$esc\E[\Q$quot$esc$sep\E]|[^\Q$quot$esc$sep\E])*
         \Q$quot\E
         | # or
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
+            (?:\Q$esc\E[\Q$quot$esc$sep\E]|[^\Q$quot$esc$sep\E])*
         | # or
         [^\Q$sep\E]*
        )
@@ -635,7 +635,7 @@ sub _make_regexp_split_column_allow_sp {
     qr/$ws*
        (
         \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc$sep\E0][^\Q$quot$esc\E]*)*
+            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc$sep\E][^\Q$quot$esc\E]*)*
         \Q$quot\E
         | # or
         [^\Q$sep\E]*?
