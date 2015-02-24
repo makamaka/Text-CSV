@@ -786,7 +786,7 @@ sub getline_all {
 
     while ( my $row = $self->getline($io) ) {
         next if $offset && $offset-- > 0;               # skip
-        last if defined $len && !$tail && $n >= $len;   # exceedes limit size
+        last if defined $len && !$tail && $n >= $len;   # exceeds limit size
         push @list, $row;
         ++$n;
         if ( $tail && $n > $tail ) {
@@ -933,7 +933,7 @@ sub is_missing {
 }
 ################################################################################
 # _check_type
-#  take an arg as scalar referrence.
+#  take an arg as scalar reference.
 #  if not numeric, make the value 0. otherwise INTEGERized.
 ################################################################################
 sub _check_type {
@@ -1269,7 +1269,7 @@ is read as
 
  (1, undef, undef, " ", 2)
 
-Note that this only effects fields that are I<realy> empty, not fields
+Note that this only effects fields that are I<really> empty, not fields
 that are empty after stripping allowed whitespace. YMMV.
 
 =item quote_char
@@ -1755,7 +1755,7 @@ C<combine ()> or C<parse ()>, whichever was called more recently.
  $error_str    = "" . $csv->error_diag ();
  ($cde, $str, $pos) = $csv->error_diag ();
 
-If (and only if) an error occured, this function returns the diagnostics
+If (and only if) an error occurred, this function returns the diagnostics
 of that error.
 
 If called in void context, it will print the internal error code and the
@@ -1783,10 +1783,10 @@ Use to reset the diagnostics if you are dealing with errors.
 
 =head1 DIAGNOSTICS
 
-If an error occured, $csv->error_diag () can be used to get more information
+If an error occurred, $csv->error_diag () can be used to get more information
 on the cause of the failure. Note that for speed reasons, the internal value
 is never cleared on success, so using the value returned by error_diag () in
-normal cases - when no error occured - may cause unexpected results.
+normal cases - when no error occurred - may cause unexpected results.
 
 Note: CSV_PP's diagnostics is different from CSV_XS's:
 
