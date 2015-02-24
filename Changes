@@ -2,6 +2,10 @@ Revision history for Perl extension Text::CSV.
 
 1.32
 	- fix t/rt71_pp.t
+    - Fix some reported bugs with handling fields with zeros.
+        - Did not work in Text::CSV_PP - worked in Text::CSV_XS
+        - https://rt.cpan.org/Public/Bug/Display.html?id=93518
+        - https://rt.cpan.org/Public/Bug/Display.html?id=92509
 
 1.31  Thu Jun 13 14:06:49 2013
 	- fix handling UTF8 in parse method.

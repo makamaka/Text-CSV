@@ -635,7 +635,7 @@ sub _make_regexp_split_column_allow_sp {
     qr/$ws*
        (
         \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc$sep\E0][^\Q$quot$esc\E]*)*
+            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot\E][^\Q$quot$esc\E]*)*
         \Q$quot\E
         | # or
         [^\Q$sep\E]*?
