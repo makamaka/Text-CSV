@@ -566,6 +566,25 @@ sub _parse {
     if ($palatable) {
         $self->{_ERROR_INPUT} = undef;
         $self->{_FIELDS}      = \@part;
+
+        if ( $self->{_BOUND_COLUMNS} ) {
+            my @vals  = @part;
+            my ( $max, $count ) = ( scalar @vals, 0 );
+
+            if ( @{ $self->{_BOUND_COLUMNS} } < $max ) {
+                $self->_set_error_diag(3006);
+                return;
+            }
+
+            for ( my $i = 0; $i < $max; $i++ ) {
+                my $bind = $self->{_BOUND_COLUMNS}->[ $i ];
+                if ( Scalar::Util::readonly( $$bind ) ) {
+                    $self->_set_error_diag(3008);
+                    return;
+                }
+                $$bind = $vals[ $i ];
+            }
+        }
     }
 
     $self->{_FFLAGS} = $keep_meta_info ? $meta_flag : [];
@@ -735,38 +754,13 @@ sub getline {
 
     $self->_parse($line);
 
-    return $self->_return_getline_result();
-}
-
-
-sub _return_getline_result {
-
     if ( eof ) {
-        $_[0]->{_AUTO_DETECT_CR} = 0;
+        $self->{_AUTO_DETECT_CR} = 0;
     }
 
-    return unless $_[0]->{_STATUS};
+    return unless $self->{_STATUS};
 
-    return [ $_[0]->_fields() ] unless $_[0]->{_BOUND_COLUMNS};
-
-    my @vals  = $_[0]->_fields();
-    my ( $max, $count ) = ( scalar @vals, 0 );
-
-    if ( @{ $_[0]->{_BOUND_COLUMNS} } < $max ) {
-            $_[0]->_set_error_diag(3006);
-            return;
-    }
-
-    for ( my $i = 0; $i < $max; $i++ ) {
-        my $bind = $_[0]->{_BOUND_COLUMNS}->[ $i ];
-        if ( Scalar::Util::readonly( $$bind ) ) {
-            $_[0]->_set_error_diag(3008);
-            return;
-        }
-        $$bind = $vals[ $i ];
-    }
-
-    return [];
+    return $self->{_BOUND_COLUMNS} ? [] : [ $self->_fields() ];
 }
 ################################################################################
 # getline_all
