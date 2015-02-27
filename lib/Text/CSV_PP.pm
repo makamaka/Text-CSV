@@ -11,7 +11,7 @@ use strict;
 use vars qw($VERSION);
 use Carp ();
 
-$VERSION = '1.31';
+$VERSION = '1.32';
 
 sub PV  { 0 }
 sub IV  { 1 }
@@ -1146,7 +1146,7 @@ is a XS module and Text::CSV_PP is a Puer Perl one.
 
 =head1 VERSION
 
-    1.31
+    1.32
 
 This module is compatible with Text::CSV_XS B<0.99>.
 (except for diag_verbose and allow_unquoted_escape)
