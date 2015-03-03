@@ -1617,6 +1617,17 @@ Will set C<$hr->{"\cAUNDEF\cA"}> to the 1st field, C<$hr->{""}> to the
 
 C<column_names ()> croaks on invalid arguments.
 
+=head2 print_hr
+
+ $csv->print_hr ($io, $ref);
+
+Provides an easy way to print a C<$ref> as fetched with L<getline_hr>
+provided the column names are set with L<column_names>.
+
+It is just a wrapper method with basic parameter checks over
+
+ $csv->print ($io, [ map { $ref->{$_} } $csv->column_names ]);
+
 =head2 bind_columns
 
 Takes a list of references to scalars to store the fields fetched

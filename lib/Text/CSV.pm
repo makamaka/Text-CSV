@@ -813,6 +813,17 @@ C<getline_hr ()> will croak if called before C<column_names ()>.
 This will return a reference to a list of C<getline_hr ($io)> results.
 In this call, C<keep_meta_info> is disabled.
 
+=head2 print_hr
+
+ $csv->print_hr ($io, $ref);
+
+Provides an easy way to print a C<$ref> as fetched with L<getline_hr>
+provided the column names are set with L<column_names>.
+
+It is just a wrapper method with basic parameter checks over
+
+ $csv->print ($io, [ map { $ref->{$_} } $csv->column_names ]);
+
 =head2 column_names
 
 Set the keys that will be used in the C<getline_hr ()> calls. If no keys
