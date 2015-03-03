@@ -543,6 +543,24 @@ binary characters other than CR or NL are encountered. Note that a simple
 string like C<"\x{00a0}"> might still be binary, but not marked UTF8, so
 setting C<{ binary =E<gt> 1 }> is still a wise option.
 
+=item decode_utf8
+
+This attributes defaults to TRUE.
+
+While I<parsing>,  fields that are valid UTF-8, are automatically set to be
+UTF-8, so that
+
+  $csv->parse ("\xC4\xA8\n");
+
+results in
+
+  PV("\304\250"\0) [UTF8 "\x{128}"]
+
+Sometimes it might not be a desired action.  To prevent those upgrades, set
+this attribute to false, and the result will be
+
+  PV("\304\250"\0)
+
 =item types
 
 A set of column types; this attribute is immediately passed to the
@@ -647,6 +665,7 @@ is equivalent to
      quote_space         => 1,
      quote_null          => 1,
      binary              => 0,
+     decode_utf8         => 0,
      keep_meta_info      => 0,
      allow_loose_quotes  => 0,
      allow_loose_escapes => 0,
