@@ -1192,17 +1192,17 @@ New Text::CSV (since 0.99) is maintained by Makamaka.
 Text::CSV
 
 Copyright (C) 1997 Alan Citterman. All rights reserved.
-Copyright (C) 2007-2009 Makamaka Hannyaharamitu.
+Copyright (C) 2007-2015 Makamaka Hannyaharamitu.
 
 
 Text::CSV_PP:
 
-Copyright (C) 2005-2013 Makamaka Hannyaharamitu.
+Copyright (C) 2005-2015 Makamaka Hannyaharamitu.
 
 
 Text:CSV_XS:
 
-Copyright (C) 2007-2013 H.Merijn Brand for PROCURA B.V.
+Copyright (C) 2007-2015 H.Merijn Brand for PROCURA B.V.
 Copyright (C) 1998-2001 Jochen Wiedmann. All rights reserved.
 Portions Copyright (C) 1997 Alan Citterman. All rights reserved.
 

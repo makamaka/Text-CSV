@@ -1890,7 +1890,7 @@ Text::CSV was written by E<lt>alan[at]mfgrtl.comE<gt>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2005-2013 by Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
+Copyright 2005-2015 by Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 
