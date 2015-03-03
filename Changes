@@ -1,19 +1,27 @@
 Revision history for Perl extension Text::CSV.
 
+1.33  Tue Mar  3 14:13:41 2015
+	- Fix some reported bugs with handling fields with zeros.
+	   https://rt.cpan.org/Public/Bug/Display.html?id=93518
+	   https://rt.cpan.org/Public/Bug/Display.html?id=92509
+	                                      patched by shlomif
+	- catch up Text::CSV_XS 1.02
+	    * add decode_utf8 attribute by ktat
+	- fix warnings: $. is undefined by ktat
+	- typo fixes in doc by anirvan, dsteinbrunner and pdl.
+	- parse() supports bind_columns()
+
+	* TODO: Updating documents and adding diag_verbose in the next version.
+	        Catching up CSV_XS 1.04.
+
 1.32
 	- fix t/rt71_pp.t
-    - Fix some reported bugs with handling fields with zeros.
-        - Did not work in Text::CSV_PP - worked in Text::CSV_XS
-        - https://rt.cpan.org/Public/Bug/Display.html?id=93518
-        - https://rt.cpan.org/Public/Bug/Display.html?id=92509
 
 1.31  Thu Jun 13 14:06:49 2013
 	- fix handling UTF8 in parse method.
 	- fix getline with allow_loose_quotes (rt#83705)
 	- add allow_unquoted_escape
 	- fix parsing escapted sep char (found in Text::CSV_XS rt#81295)
-
-	* TODO: Updating documents and adding diag_verbose in the next version
 
 1.30  Tue Jun 11 00:06:02 2013
 	- catch up Text::CSV_XS 0.99

@@ -1,4 +1,4 @@
-Text::CSV version 1.30
+Text::CSV version 1.33
 ========================
 
 comma-separated values manipulator
@@ -31,7 +31,7 @@ DESCRIPTION
 COPYRIGHT AND LICENSE
 
         Copyright (C) 1997 Alan Citterman. All rights reserved.
-        Copyright (C) 2007-2013 Makamaka Hannyaharamitu. All rights reserved.
+        Copyright (C) 2007-2015 Makamaka Hannyaharamitu. All rights reserved.
 
         This library is free software; you can redistribute it and/or modify
         it under the same terms as Perl itself.
