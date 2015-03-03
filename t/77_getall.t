@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 29;
+use Test::More tests => 61;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -14,19 +14,15 @@ BEGIN {
 
 $| = 1;
 
-my @list = (
+
+my @testlist = (
     [ 1, "a", "\x01", "A" ],
     [ 2, "b", "\x02", "B" ],
     [ 3, "c", "\x03", "C" ],
     [ 4, "d", "\x04", "D" ],
     );
 
-{   ok (my $csv = Text::CSV->new ({ binary => 1, eol => "\n" }), "csv out");
-    open  FH, ">_77test.csv" or die "_77test.csv: $!";
-    ok ($csv->print (*FH, $_), "write $_->[0]") for @list;
-    close FH;
-    }
-
+my @list;
 sub do_tests
 {
     my $sub = shift;
@@ -43,28 +39,45 @@ sub do_tests
     $sub->([@list[1..3]], -3,  3);
     } # do_tests
 
-{   ok (my $csv = Text::CSV->new ({ binary => 1 }), "csv in");
+foreach my $eol ("\n", "\r") {
 
-    do_tests (sub {
-	my ($expect, @args) = @_;
-	open  FH, "<_77test.csv" or die "_77test.csv: $!";
-	my $s_args = join ", " => @args;
-	is_deeply ($csv->getline_all (*FH, @args), $expect, "getline_all ($s_args)");
-	close FH;
-	});
+    @list = @testlist;
+
+    {   ok (my $csv = Text::CSV->new ({ binary => 1, eol => $eol }), "csv out EOL "._readable ($eol));
+	open my $fh, ">", "_77test.csv" or die "_77test.csv: $!";
+	ok ($csv->print ($fh, $_), "write $_->[0]") for @list;
+	close $fh;
+	}
+
+    {   ok (my $csv = Text::CSV->new ({ binary => 1 }), "csv in");
+
+	do_tests (sub {
+	    my ($expect, @args) = @_;
+	    open my $fh, "<", "_77test.csv" or die "_77test.csv: $!";
+	    my $s_args = join ", " => @args;
+	    is_deeply ($csv->getline_all ($fh, @args), $expect, "getline_all ($s_args)");
+	    close $fh;
+	    });
+	}
+
+    {   ok (my $csv = Text::CSV->new ({ binary => 1 }), "csv in");
+	ok ($csv->column_names (my @cn = qw( foo bar bin baz )), "Set column names");
+	@list = map { my %h; @h{@cn} = @$_; \%h } @list;
+
+	do_tests (sub {
+	    my ($expect, @args) = @_;
+	    open my $fh, "<", "_77test.csv" or die "_77test.csv: $!";
+	    my $s_args = join ", " => @args;
+	    is_deeply ($csv->getline_hr_all ($fh, @args), $expect, "getline_hr_all ($s_args)");
+	    close $fh;
+	    });
+	}
+
+    {   ok (my $csv = Text::CSV->new ({ binary => 1 }), "csv in");
+	open my $fh, "<", "_77test.csv" or die "_77test.csv: $!";
+	eval { my $row = $csv->getline_hr_all ($fh); };
+	is ($csv->error_diag () + 0, 3002, "Use _hr before colnames ()");
+	}
+
+    unlink "_77test.csv";
     }
-
-{   ok (my $csv = Text::CSV->new ({ binary => 1 }), "csv in");
-    ok ($csv->column_names (my @cn = qw( foo bar bin baz )));
-    @list = map { my %h; @h{@cn} = @$_; \%h } @list;
-
-    do_tests (sub {
-	my ($expect, @args) = @_;
-	open  FH, "<_77test.csv" or die "_77test.csv: $!";
-	my $s_args = join ", " => @args;
-	is_deeply ($csv->getline_hr_all (*FH, @args), $expect, "getline_hr_all ($s_args)");
-	close FH;
-	});
-    }
-
-unlink "_77test.csv";

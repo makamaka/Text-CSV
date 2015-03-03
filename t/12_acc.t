@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 135;
+use Test::More tests => 135; # XS's t/12_acc.t + 2 (for decode_utf8)
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;

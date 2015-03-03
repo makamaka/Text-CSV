@@ -43,20 +43,19 @@ BEGIN {
 	[ "bytes up :encoding(UTF-8)", ":encoding(UTF-8)", $bytes_up,  "utf8",   "no warn", ],
 	);
 
-    plan tests => 7 + 6 * @tests;
+    plan tests => 11 + 6 * @tests;
     }
 
 BEGIN {
-    $ENV{PERL_TEXT_CSV} = 0;
-    require_ok "Text::CSV";
-    plan skip_all => "Cannot load Text::CSV" if $@;
+    require_ok "Text::CSV_PP";
+    plan skip_all => "Cannot load Text::CSV_PP" if $@;
     require "t/util.pl";
     }
 
 sub hexify { join " ", map { sprintf "%02x", $_ } unpack "C*", @_ }
 sub warned { length ($_[0]) ? "warn" : "no warn" }
 
-my $csv = Text::CSV->new ({ auto_diag => 1, binary => 1 });
+my $csv = Text::CSV_PP->new ({ auto_diag => 1, binary => 1 });
 
 for (@tests) {
     my ($test, $perlio, $data, $enc, $expect_w) = @$_;
@@ -96,26 +95,42 @@ for (@tests) {
     }
 
 # Test automatic upgrades for valid UTF-8
-{   my $data = join "\n" => (
-	"1,aap,3",		# No diac
-	"1,a\x{e1}p,3",		# a_ACUTE in ISO-8859-1
-	"1,a\x{c4}\x{83}p,3",	# a_BREVE in UTF-8
+{   my $blob = pack "C*", 0..255; $blob =~ tr/",//d;
+    # perl-5.10.x has buggy SvCUR () on blob
+    $] >= 5.010000 && $] <= 5.012001 and $blob =~ tr/\0//d;
+    my @data = (
+	qq[1,aap,3],		# No diac
+	qq[1,a\x{e1}p,3],	# a_ACUTE in ISO-8859-1
+	qq[1,a\x{c4}\x{83}p,3],	# a_BREVE in UTF-8
+	qq[1,"$blob",3],	# Binary shit
 	) x 2;
-    my @expect = ("aap", "a\341p", "a\x{0103}p") x 2;
+    my $data = join "\n" => @data;
+    my @expect = ("aap", "a\341p", "a\x{0103}p", $blob) x 2;
 
-    my $csv = Text::CSV->new ({ binary => 1, auto_diag => 1 });
+    my $csv = Text::CSV_PP->new ({ binary => 1, auto_diag => 1 });
 
     foreach my $bc (undef, 3) {
-	my @data;
+	my @read;
+
+	# Using getline ()
 	open my $fh, "<", \$data;
 	$bc and $csv->bind_columns (\my ($f1, $f2, $f3));
 	is (scalar $csv->bind_columns, $bc, "Columns_bound?");
 	while (my $row = $csv->getline ($fh)) {
-	    push @data, $bc ? $f2 : $row->[1];
+	    push @read, $bc ? $f2 : $row->[1];
 	    }
 	close $fh;
-	is_deeply (\@data, \@expect, "Set and reset UTF-8 ".($bc?"no bind":"bind_columns"));
-	is_deeply ([ map { utf8::is_utf8 ($_) } @data ],
-	    [ "", "", 1, "", "", 1 ], "UTF8 flags");
+	is_deeply (\@read, \@expect, "Set and reset UTF-8 ".($bc?"no bind":"bind_columns"));
+	is_deeply ([ map { utf8::is_utf8 ($_) } @read ],
+	    [ "", "", 1, "", "", "", 1, "" ], "UTF8 flags");
+
+	# Using parse ()
+	@read = map {
+	    $csv->parse ($_);
+	    $bc ? $f2 : ($csv->fields)[1];
+	    } @data;
+	is_deeply (\@read, \@expect, "Set and reset UTF-8 ".($bc?"no bind":"bind_columns"));
+	is_deeply ([ map { utf8::is_utf8 ($_) } @read ],
+	    [ "", "", 1, "", "", "", 1, "" ], "UTF8 flags");
 	}
     }

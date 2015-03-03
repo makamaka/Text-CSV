@@ -17,9 +17,14 @@ Converted into a test program by Shlomi Fish ( L<http://www.shlomifish.org/> )
 , while disclaiming all explicit or implicit copyright ownership on the
 modifications.
 
+==head1 MODIFICATION
+
+modified by makamaka for old perl.
+
 =cut
 
-use warnings;
+#use warnings;
+$^W = 1;
 use strict;
 
 use Test::More tests => 4;
@@ -30,6 +35,8 @@ my $USE_XS = $FALSE;
 
 use Text::CSV_PP;
 use Data::Dumper qw(Dumper);
+
+END { unlink '_fc0_test.csv'; }
 
 if ($USE_XS)
 {
@@ -42,7 +49,13 @@ if ($USE_XS)
 "1", "UK", "Lambda", "Gambda Noo", "Foo", "Quad", "Rectum", "", "Eingoon", "Land", "Simplex", "", "", "099 999", "", 0.00
 EOF
 
-    open my $IF, "<", \$csv_text;
+#    open my $IF, "<", \$csv_text;
+    my $IF;
+    open  $IF, ">_fc0_test.csv" or die "_fc0_test.csv: $!";
+    print $IF $csv_text;
+    close $IF;
+
+    open  $IF, "<_fc0_test.csv" or die "_fc0_test.csv: $!";
 
     my $csv = ($USE_XS ? "Text::CSV_XS" : "Text::CSV_PP")->new({
             allow_whitespace    => 1,
