@@ -27,7 +27,7 @@ my @PublicMethods = qw/
     keep_meta_info allow_loose_quotes allow_loose_escapes verbatim meta_info is_quoted is_binary eof
     getline print parse combine fields string error_diag error_input status blank_is_undef empty_is_undef
     getline_hr column_names bind_columns auto_diag quote_space quote_null getline_all getline_hr_all
-    is_missing quote_binary record_number print_hr
+    is_missing quote_binary record_number print_hr fragment
     PV IV NV
 /;
 #
@@ -823,6 +823,57 @@ provided the column names are set with L<column_names>.
 It is just a wrapper method with basic parameter checks over
 
  $csv->print ($io, [ map { $ref->{$_} } $csv->column_names ]);
+
+
+=head2 fragment
+
+This function tries to implement RFC7111 (URI Fragment Identifiers for the
+text/csv Media Type) - http://tools.ietf.org/html/rfc7111
+
+ my $AoA = $csv->fragment ($io, $spec);
+
+In specifications, C<*> is used to specify the I<last> item, a dash (C<->)
+to indicate a range. All indices are 1-based: the first row or column
+has index 1. Selections on row and column can be combined with the
+semi-colon (C<;>).
+
+When using this method in combination with L</column_names>, the returned
+reference will point to a list of hashes instead of to a list of lists.
+
+ $csv->column_names ("Name", "Age");
+ my $AoH = $csv->fragment ($io, "col=3;8");
+
+=over 2
+
+=item row
+
+ row=4
+ row=5-7
+ row=6-*
+ row=1-2;4;6-*
+
+=item col
+
+ col=2
+ col=1-3
+ col=4-*
+ col=1-2;4;7-*
+
+=item cell
+
+In cell-based selection, the comma (C<,>) is used to pair row and column
+
+ cell=4,1
+
+The range operator using cells can be used to define top-left and bottom-right
+cell location
+
+ cell=3,1-4,6
+
+=back
+
+RFC7111 does not allow any combination of the three selection methods. Passing
+an invalid fragment specification will croak and set error 2013.
 
 =head2 column_names
 

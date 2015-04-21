@@ -31,6 +31,7 @@ my $ERRORS = {
 
         2010 => "ECR - QUO char inside quotes followed by CR not part of EOL",
         2011 => "ECR - Characters after end of quoted field",
+        2013 => "ESP - Specification error for fragments RFC7111",
 
         2021 => "EIQ - NL char inside quotes, binary off",
         2022 => "EIQ - CR char inside quotes, binary off",
@@ -876,6 +877,88 @@ sub bind_columns {
     @refs;
 }
 ################################################################################
+# fragment
+################################################################################
+sub fragment { # copied and modified from Text::CSV_XS
+    my ( $self, $io, $spec ) = @_;
+
+    my $qd = qr{\s* [0-9]+ \s* }x;
+    my $qr = qr{$qd (?: - (?: $qd | \s* \* \s* ))?}x;
+    my $qc = qr{$qr (?: ; $qr)*}x;
+
+    defined $spec && $spec =~ m{^ \s*
+        \x23 ? \s*                      # optional leading #
+        ( row | col | cell ) \s* =
+        ( $qc                           # for row and col
+        | $qd , $qd (?: - $qd , $qd)?   # for cell
+        ) \s* $}xi or croak( $self->SetDiag(2013) );
+    my ($type, $range) = (lc $1, $2);
+
+    my @h = $self->column_names();
+    my @c;
+
+    if ($type eq "cell") {
+        my ($tlr, $tlc, $brr, $brc) = ($range =~ m{
+            ^ \s*
+            ([0-9]+) \s* , \s* ([0-9]+)
+            \s* (?: - \s*
+            ([0-9]+) \s* , \s* ([0-9]+)
+            )?
+            \s* $}x) or croak( $self->SetDiag(2013) );
+        defined $brr or ($brr, $brc) = ($tlr, $tlc);
+        $tlr <= 0 || $tlc <= 0 || $brr <= 0 || $brc <= 0 ||
+                $brr < $tlr || $brc < $tlc and croak ($self->SetDiag (2013));
+        $_-- for $tlc, $brc;
+        my $r = 0;
+        while ( my $row = $self->getline($io) ) {
+            ++$r <  $tlr and next;
+            push @c, [ @{$row}[$tlc..$brc] ];
+            if (@h) {
+                my %h; @h{@h} = @{$c[-1]};
+                $c[-1] = \%h;
+            }
+            $r >= $brr and last;
+        }
+        return \@c;
+    }
+
+    # row or col
+    my @r;
+    my $eod = 0;
+    for ( split m/\s*;\s*/, $range ) {
+        my ($from, $to) = m/^\s* ([0-9]+) (?: \s* - \s* ([0-9]+ | \* ))? \s* $/x
+            or croak ($self->SetDiag (2013));
+        $to ||= $from;
+        $to eq "*" and ($to, $eod) = ($from, 1);
+        $from <= 0 || $to <= 0 || $to < $from and croak ($self->SetDiag (2013));
+        $r[$_] = 1 for $from .. $to;
+    }
+
+    my $r = 0;
+    $type eq "col" and shift @r;
+    $_ ||= 0 for @r;
+    while ( my $row = $self->getline($io) ) {
+        $r++;
+        if ($type eq "row") {
+            if (($r > $#r && $eod) || $r[$r]) {
+                push @c, $row;
+                if (@h) {
+                    my %h; @h{@h} = @{$c[-1]};
+                    $c[-1] = \%h;
+                }
+            }
+            next;
+        }
+        push @c, [ map { ($_ > $#r && $eod) || $r[$_] ? $row->[$_] : () } 0..$#$row ];
+        if (@h) {
+            my %h; @h{@h} = @{$c[-1]};
+            $c[-1] = \%h;
+        }
+    }
+
+    return \@c;
+}
+################################################################################
 # eof
 ################################################################################
 sub eof {
@@ -1594,6 +1677,57 @@ C<getline_hr ()> will croak if called before C<column_names ()>.
 
 This will return a reference to a list of C<getline_hr ($io)> results.
 In this call, C<keep_meta_info> is disabled.
+
+
+=head2 fragment
+
+This function tries to implement RFC7111 (URI Fragment Identifiers for the
+text/csv Media Type) - http://tools.ietf.org/html/rfc7111
+
+ my $AoA = $csv->fragment ($io, $spec);
+
+In specifications, C<*> is used to specify the I<last> item, a dash (C<->)
+to indicate a range. All indices are 1-based: the first row or column
+has index 1. Selections on row and column can be combined with the
+semi-colon (C<;>).
+
+When using this method in combination with L</column_names>, the returned
+reference will point to a list of hashes instead of to a list of lists.
+
+ $csv->column_names ("Name", "Age");
+ my $AoH = $csv->fragment ($io, "col=3;8");
+
+=over 2
+
+=item row
+
+ row=4
+ row=5-7
+ row=6-*
+ row=1-2;4;6-*
+
+=item col
+
+ col=2
+ col=1-3
+ col=4-*
+ col=1-2;4;7-*
+
+=item cell
+
+In cell-based selection, the comma (C<,>) is used to pair row and column
+
+ cell=4,1
+
+The range operator using cells can be used to define top-left and bottom-right
+cell location
+
+ cell=3,1-4,6
+
+=back
+
+RFC7111 does not allow any combination of the three selection methods. Passing
+an invalid fragment specification will croak and set error 2013.
 
 =head2 column_names
 
