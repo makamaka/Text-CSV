@@ -8,7 +8,7 @@ package Text::CSV_PP;
 require 5.005;
 
 use strict;
-use vars qw($VERSION);
+use vars qw( $VERSION @ISA @EXPORT_OK );
 use Carp ();
 
 $VERSION = '1.33';
@@ -21,6 +21,9 @@ sub IS_QUOTED () { 0x0001; }
 sub IS_BINARY () { 0x0002; }
 sub IS_MISSING () { 0x0010; }
 
+require Exporter;
+@ISA = qw( Exporter );
+@EXPORT_OK = qw( csv );
 
 my $ERRORS = {
         # PP and XS
@@ -1169,6 +1172,99 @@ sub _is_valid_utf8 {
     )+$/x )  ? 1 : 0;
 }
 ################################################################################
+# csv function (copied and modified from Text::CSV_XS)
+################################################################################
+my $csv_usage = q{usage: my $aoa = csv (in => $file);};
+
+sub _csv_attr {
+    my %attr = (@_ == 1 && ref $_[0] eq "HASH" ? %{$_[0]} : @_) or die;
+
+    $attr{binary} = 1;
+
+    my $enc = delete $attr{encoding} || "";
+
+    my $fh;
+    my $in  = delete $attr{in}  || delete $attr{file} or Carp::croak $csv_usage;
+    my $out = delete $attr{out} || delete $attr{file};
+    if (ref $in eq "ARRAY") {
+        # we need an out
+        $out or Carp::croak qq{for CSV source, "out" is required};
+        defined $attr{eol} or $attr{eol} = "\r\n";
+        if (ref $out or "GLOB" eq ref \$out) {
+            $fh = $out;
+        }
+        else {
+            $enc =~ m/^[-\w.]+$/ and $enc = ":encoding($enc)";
+            open $fh, ">$enc", $out or Carp::croak "$out: $!";
+        }
+    }
+    elsif (ref $in or "GLOB" eq ref \$in) {
+        if (!ref $in && $] < 5.008005) {
+            $fh = \*$in;
+        }
+        else {
+            $fh = $in;
+        }
+    }
+    else {
+        $enc =~ m/^[-\w.]+$/ and $enc = ":encoding($enc)";
+        open $fh, "<$enc", $in or Carp::croak "$in: $!";
+    }
+    $fh or Carp::croak qq{No valid source passed. "in" is required};
+
+    my $hdrs = delete $attr{headers};
+    my $frag = delete $attr{fragment};
+
+    defined $attr{auto_diag} or $attr{auto_diag} = 1;
+
+    my $csv = Text::CSV_PP->new(\%attr) or Carp::croak $last_new_error;
+
+    return {
+        csv  => $csv,
+        fh   => $fh,
+        in   => $in,
+        out  => $out,
+        hdrs => $hdrs,
+        frag => $frag,
+    };
+}
+
+sub csv {
+    # This is a function, not a method
+    @_ && ref $_[0] ne __PACKAGE__ or Carp::croak $csv_usage;
+
+    my $c = _csv_attr (@_);
+    my ($csv, $fh, $hdrs) = @{$c}{"csv", "fh", "hdrs"};
+
+    if ($c->{out}) {
+        if (ref $c->{in}[0] eq "ARRAY") { # aoa
+            ref $hdrs and $csv->print($fh, $hdrs);
+            $csv->print($fh, $_) for @{$c->{in}};
+        }
+        else { # aoh
+            my @hdrs = ref $hdrs ? @{$hdrs} : keys %{$c->{in}[0]};
+            defined $hdrs or $hdrs = "auto";
+            ref $hdrs || $hdrs eq "auto" and $csv->print($fh, \@hdrs);
+            $csv->print($fh, [ @{$_}{@hdrs} ]) for @{$c->{in}};
+        }
+        return close $fh;
+    }
+
+    if (defined $hdrs && !ref $hdrs) {
+        $hdrs eq "skip" and         $csv->getline($fh);
+        $hdrs eq "auto" and $hdrs = $csv->getline($fh);
+    }
+
+    my $frag = $c->{frag};
+    # aoa
+    ref $hdrs or
+        return $frag ? $csv->fragment($fh, $frag) : $csv->getline_all($fh);
+
+    # aoh
+    $csv->column_names ($hdrs);
+    return $frag ? $csv->fragment($fh, $frag) : $csv->getline_hr_all($fh);
+}
+################################################################################
 package Text::CSV::ErrorDiag;
 
 use strict;
@@ -1924,11 +2020,117 @@ the diagnostics message in string context.
 
 To achieve this behavior with CSV_PP, the returned diagnostics is blessed object.
 
+=head2 record_number
+
+  $recno = $csv->record_number ();
+
+Returns the records parsed by this csv instance. This value should be more
+accurate than C<$.> when embedded newlines come in play. Records written by
+this instance are not counted.
+
 =head2 SetDiag
 
  $csv->SetDiag (0);
 
 Use to reset the diagnostics if you are dealing with errors.
+
+
+=head1 FUNCTIONS
+
+=head2 csv
+
+This function is not exported by default and should be explicitly requested:
+
+ use Text::CSV_PP qw( csv );
+
+This is the first draft. This function will stay, but the arguments might
+change based on user feedback: esp. the C<headers> attribute is not complete.
+The basics will stay.
+
+This is an high-level function that aims at simple interfaces. It can be used
+to read/parse a CSV file or stream (the default behavior) or to produce a file
+or write to a stream (define the C<out> attribute). It returns an array
+reference on parsing (or undef on fail) or the numeric value of L</error_diag>
+on writing. When this function fails you can get to the error using the class
+call to L</error_diag>
+
+ my $aoa = csv (in => "test.csv") or
+     die Text::CSV_PP->error_diag;
+
+This function takes the arguments as key-value pairs. It can be passed as
+a list or as an anonymous hash:
+
+ my $aoa = csv (  in => "test.csv", sep_char => ";");
+ my $aoh = csv ({ in => $fh, headers => "auto" });
+
+The arguments passed consist of two parts: the arguments to L</csv> itself
+and the optional attributes to the CSV object used inside the function as
+enumerated and explained in L</new>.
+
+If not overridden, the default options used for CSV are
+
+ auto_diag => 1
+
+These options are always set and cannot be altered
+
+ binary    => 1
+
+=head3 in
+
+Used to specify the source.  C<in> can be a file name (e.g. C<"file.csv">),
+which will be opened for reading and closed when finished, a file handle (e.g.
+C<$fh> or C<FH>), a reference to a glob (e.g. C<\*ARGV>), or - when your
+version of perl is not archaic - the glob itself (e.g. C<*STDIN>).
+
+When used with L</out>, it should be a reference to a CSV structure (AoA or AoH).
+
+ my $aoa = csv (in => "file.csv");
+
+ open my $fh, "<", "file.csv";
+ my $aoa = csv (in => $fh);
+
+ my $csv = [ [qw( Foo Bar )], [ 1, 2 ], [ 2, 3 ]];
+ my $err = csv (in => $csv, out => "file.csv");
+
+=head3 out
+
+In output mode, the default CSV options when producing CSV are
+
+ eol       => "\r\n"
+
+The L</fragment> attribute is ignored in output mode.
+
+C<out> can be a file name (e.g. C<"file.csv">), which will be opened for
+writing and closed when finished, a file handle (e.g. C<$fh> or C<FH>), a
+reference to a glob (e.g. C<\*STDOUT>), or - when your version of perl is
+not archaic - the glob itself (e.g. C<*STDOUT>).
+
+=head3 encoding
+
+If passed, it should be an encoding accepted by the C<:encoding()> option
+to C<open>. There is no default value. This attribute does not work in
+perl 5.6.x.
+
+=head3 headers
+
+If this attribute is not given, the default behavior is to produce an array
+of arrays.
+
+If C<headers> is given, it should be either an anonymous list of column names
+or a flag: C<auto> or C<skip>. When C<skip> is used, the header will not be
+included in the output.
+
+ my $aoa = csv (in => $fh, headers => "skip");
+
+If C<auto> is used, the first line of the CSV source will be read as the list
+of field headers and used to produce an array of hashes.
+
+ my $aoh = csv (in => $fh, headers => "auto");
+
+If C<headers> is an anonymous list, it will be used instead
+
+ my $aoh = csv (in => $fh, headers => [qw( Foo Bar )]);
+ csv (in => $aoa, out => $fh, headers => [qw( code description price }]);
 
 =head1 DIAGNOSTICS
 
