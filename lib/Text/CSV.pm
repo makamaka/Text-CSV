@@ -61,12 +61,14 @@ unless ($Text::CSV::Worker) {
 
 }
 
-
-
-sub import {
-    my ($class, $option) = @_;
+sub import { # assume 'csv' only
+    my ($class, $func ) = @_;
+    return unless $func and $func eq 'csv';
+    my $caller = caller;
+    $class->backend->import( $func );
+    no strict 'refs';
+    *{"$caller\::csv"} = *{"$Text::CSV::Worker\::csv"};
 }
-
 
 
 sub new { # normal mode
@@ -1098,6 +1100,103 @@ this instance are not counted.
  $csv->SetDiag (0);
 
 Use to reset the diagnostics if you are dealing with errors.
+
+=head1 FUNCTIONS
+
+=head2 csv
+
+This function is not exported by default and should be explicitly requested:
+
+ use Text::CSV_PP qw( csv );
+
+This is the first draft. This function will stay, but the arguments might
+change based on user feedback: esp. the C<headers> attribute is not complete.
+The basics will stay.
+
+This is an high-level function that aims at simple interfaces. It can be used
+to read/parse a CSV file or stream (the default behavior) or to produce a file
+or write to a stream (define the C<out> attribute). It returns an array
+reference on parsing (or undef on fail) or the numeric value of L</error_diag>
+on writing. When this function fails you can get to the error using the class
+call to L</error_diag>
+
+ my $aoa = csv (in => "test.csv") or
+     die Text::CSV_PP->error_diag;
+
+This function takes the arguments as key-value pairs. It can be passed as
+a list or as an anonymous hash:
+
+ my $aoa = csv (  in => "test.csv", sep_char => ";");
+ my $aoh = csv ({ in => $fh, headers => "auto" });
+
+The arguments passed consist of two parts: the arguments to L</csv> itself
+and the optional attributes to the CSV object used inside the function as
+enumerated and explained in L</new>.
+
+If not overridden, the default options used for CSV are
+
+ auto_diag => 1
+
+These options are always set and cannot be altered
+
+ binary    => 1
+
+=head3 in
+
+Used to specify the source.  C<in> can be a file name (e.g. C<"file.csv">),
+which will be opened for reading and closed when finished, a file handle (e.g.
+C<$fh> or C<FH>), a reference to a glob (e.g. C<\*ARGV>), or - when your
+version of perl is not archaic - the glob itself (e.g. C<*STDIN>).
+
+When used with L</out>, it should be a reference to a CSV structure (AoA or AoH).
+
+ my $aoa = csv (in => "file.csv");
+
+ open my $fh, "<", "file.csv";
+ my $aoa = csv (in => $fh);
+
+ my $csv = [ [qw( Foo Bar )], [ 1, 2 ], [ 2, 3 ]];
+ my $err = csv (in => $csv, out => "file.csv");
+
+=head3 out
+
+In output mode, the default CSV options when producing CSV are
+
+ eol       => "\r\n"
+
+The L</fragment> attribute is ignored in output mode.
+
+C<out> can be a file name (e.g. C<"file.csv">), which will be opened for
+writing and closed when finished, a file handle (e.g. C<$fh> or C<FH>), a
+reference to a glob (e.g. C<\*STDOUT>), or - when your version of perl is
+not archaic - the glob itself (e.g. C<*STDOUT>).
+
+=head3 encoding
+
+If passed, it should be an encoding accepted by the C<:encoding()> option
+to C<open>. There is no default value. This attribute does not work in
+perl 5.6.x.
+
+=head3 headers
+
+If this attribute is not given, the default behavior is to produce an array
+of arrays.
+
+If C<headers> is given, it should be either an anonymous list of column names
+or a flag: C<auto> or C<skip>. When C<skip> is used, the header will not be
+included in the output.
+
+ my $aoa = csv (in => $fh, headers => "skip");
+
+If C<auto> is used, the first line of the CSV source will be read as the list
+of field headers and used to produce an array of hashes.
+
+ my $aoh = csv (in => $fh, headers => "auto");
+
+If C<headers> is an anonymous list, it will be used instead
+
+ my $aoh = csv (in => $fh, headers => [qw( Foo Bar )]);
+ csv (in => $aoa, out => $fh, headers => [qw( code description price }]);
 
 =head2 Some methods are Text::CSV only.
 
