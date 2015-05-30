@@ -1152,7 +1152,7 @@ Text::CSV_PP - Text::CSV_XS compatible pure-Perl module
 Text::CSV_PP has almost same functions of L<Text::CSV_XS> which 
 provides facilities for the composition and decomposition of
 comma-separated values. As its name suggests, L<Text::CSV_XS>
-is a XS module and Text::CSV_PP is a Puer Perl one.
+is a XS module and Text::CSV_PP is a Pure Perl one.
 
 =head1 VERSION
 
