@@ -159,7 +159,7 @@ sub _check_sanity {
     }
 
     if ( $self->{allow_whitespace} and
-           ( defined $self->{quote_char}  && $self->{quote_char}  =~ m/^[ \t]$/ ) 
+           ( defined $self->{quote_char}  && $self->{quote_char}  =~ m/^[ \t]$/ )
            ||
            ( defined $self->{escape_char} && $self->{escape_char} =~ m/^[ \t]$/ )
     ) {
@@ -231,7 +231,7 @@ sub error_diag {
     my $self = shift;
     my @diag = (0, $last_new_error, 0);
 
-    unless ($self and ref $self) {	# Class method or direct call
+    unless ($self and ref $self) {    # Class method or direct call
         $last_new_error and $diag[0] = defined $last_new_err_num ? $last_new_err_num : 1000;
     }
     elsif ( $self->isa (__PACKAGE__) and defined $self->{_ERROR_DIAG} ) {
@@ -257,7 +257,7 @@ sub error_diag {
 
 sub record_number {
     return shift->{_RECNO};
-} 
+}
 
 ################################################################################
 # string
@@ -737,7 +737,7 @@ sub getline {
                             $re             # $quote
                             [^0$quot]       # non zero or $quote
                         )
-                        |                   
+                        |
                         (?:[^$quot]*)       # exceptions of $quote
                     )+
                     $
@@ -1119,21 +1119,21 @@ Text::CSV_PP - Text::CSV_XS compatible pure-Perl module
 =head1 SYNOPSIS
 
  use Text::CSV_PP;
- 
+
  $csv = Text::CSV_PP->new();     # create a new object
  # If you want to handle non-ascii char.
  $csv = Text::CSV_PP->new({binary => 1});
- 
+
  $status = $csv->combine(@columns);    # combine columns into a string
  $line   = $csv->string();             # get the combined string
- 
+
  $status  = $csv->parse($line);        # parse a CSV string into fields
  @columns = $csv->fields();            # get the parsed fields
- 
+
  $status       = $csv->status ();      # get the most recent status
  $bad_argument = $csv->error_input (); # get the most recent bad argument
  $diag         = $csv->error_diag ();  # if an error occured, explains WHY
- 
+
  $status = $csv->print ($io, $colref); # Write an array of fields
                                        # immediately to a file $io
  $colref = $csv->getline ($io);        # Read a line from file $io,
@@ -1143,13 +1143,13 @@ Text::CSV_PP - Text::CSV_XS compatible pure-Perl module
  $ref = $csv->getline_hr ($io);        # getline (), but returns a hashref
  $eof = $csv->eof ();                  # Indicate if last parse or
                                        # getline () hit End Of File
- 
+
  $csv->types(\@t_array);               # Set column types
 
 
 =head1 DESCRIPTION
 
-Text::CSV_PP has almost same functions of L<Text::CSV_XS> which 
+Text::CSV_PP has almost same functions of L<Text::CSV_XS> which
 provides facilities for the composition and decomposition of
 comma-separated values. As its name suggests, L<Text::CSV_XS>
 is a XS module and Text::CSV_PP is a Puer Perl one.
@@ -1893,7 +1893,7 @@ Text::CSV was written by E<lt>alan[at]mfgrtl.comE<gt>.
 Copyright 2005-2015 by Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself. 
+it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
