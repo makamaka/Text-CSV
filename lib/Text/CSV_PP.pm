@@ -1738,6 +1738,8 @@ enclosed in C<quote_char> quotes. This might be important for data
 where C<,20070108,> is to be treated as a numeric value, and where
 C<,"20070108",> is explicitly marked as character string data.
 
+This method is only valid when L</keep_meta_info> is set to a true value.
+
 =head2 is_binary
 
   my $binary = $csv->is_binary ($column_idx);
@@ -1747,6 +1749,8 @@ last result of C<parse ()>.
 
 This returns a true value if the data in the indicated column
 contained any byte in the range [\x00-\x08,\x10-\x1F,\x7F-\xFF]
+
+This method is only valid when L</keep_meta_info> is set to a true value.
 
 =head2 status
 
