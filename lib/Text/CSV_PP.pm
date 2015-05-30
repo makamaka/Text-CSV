@@ -51,7 +51,7 @@ my $ERRORS = {
         # PP Only Error
         4002 => "EIQ - Unescaped ESC in quoted field",
         4003 => "EIF - ESC CR",
-        4004 => "EUF - ",
+        4004 => "EUF - Field is terminated by the escape character (escape_char)",
 
         # Hash-Ref errors
         3001 => "EHR - Unsupported syntax for column_names ()",
