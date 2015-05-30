@@ -65,7 +65,9 @@ WriteMakefile(
     ( $ExtUtils::MakeMaker::VERSION >= 6.46 ? (
         'META_MERGE' => {
             resources => {
-                repository  =>      'http://github.com/makamaka/Text-CSV',
+                repository => 'https://github.com/makamaka/Text-CSV',
+                bugtracker => 'https://github.com/makamaka/Text-CSV/issues/',
+                license    => 'http://dev.perl.org/licenses/',
             },
         } ) : ()
     ),
