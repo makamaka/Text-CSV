@@ -30,3 +30,5 @@ ok ($hr = $csv->getline_hr (*FH));
 is (int $hr->{code}, 2, "code==2");
 isnt ($csv->is_missing(0), undef, "isn't is_missing()");
 close FH;
+
+unlink "_99test.csv";
