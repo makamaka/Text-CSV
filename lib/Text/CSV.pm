@@ -545,7 +545,7 @@ setting C<{ binary =E<gt> 1 }> is still a wise option.
 
 =item decode_utf8
 
-This attributes defaults to TRUE.
+This attribute defaults to TRUE.
 
 While I<parsing>,  fields that are valid UTF-8, are automatically set to be
 UTF-8, so that
@@ -665,7 +665,7 @@ is equivalent to
      quote_space         => 1,
      quote_null          => 1,
      binary              => 0,
-     decode_utf8         => 0,
+     decode_utf8         => 1,
      keep_meta_info      => 0,
      allow_loose_quotes  => 0,
      allow_loose_escapes => 0,
