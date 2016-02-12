@@ -295,7 +295,13 @@ sub _combine {
 
     return $self->_set_error_diag(1001) if ($sep eq $esc or $sep eq $quot);
 
-    my $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
+    my $re_esc;
+    if ($quot ne '') {
+      $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
+    } else {
+      $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$esc\E)/;
+    }
+
     my $re_sp  = $self->{_re_comb_sp}->{$sep}->{$quote_space} ||= ( $quote_space ? qr/[\s\Q$sep\E]/ : qr/[\Q$sep\E]/ );
 
     my $must_be_quoted;
@@ -318,7 +324,7 @@ sub _combine {
 
         $must_be_quoted = 0;
 
-        if($quot ne '' and $column =~ s/$re_esc/$esc$1/g){
+        if($column =~ s/$re_esc/$esc$1/g and $quot ne ''){
             $must_be_quoted++;
         }
         if($column =~ /$re_sp/){

@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 197;
+use Test::More tests => 201;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -239,4 +239,12 @@ ok (1, "Testing quote_space");
     ok ($csv->combine (1, " ", 3),	"Combine");
     is ($csv->string, q{1," ",3},	"String");
     is ($csv->quote_space, 1,		"Attr 1");
+    }
+
+# https://rt.cpan.org/Public/Bug/Display.html?id=109097
+ok (1, "Testing quote_char as undef");
+{   my $csv = Text::CSV->new ({ quote_char => undef });
+    is ($csv->escape_char, '"',		"Escape Char defaults to double quotes");
+    ok ($csv->combine ('space here', '"quoted"', '"quoted and spaces"'),	"Combine");
+    is ($csv->string, q{space here,""quoted"",""quoted and spaces""},		"String");
     }
