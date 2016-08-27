@@ -1156,7 +1156,7 @@ is a XS module and Text::CSV_PP is a Puer Perl one.
 
 =head1 VERSION
 
-    1.31
+    1.33
 
 This module is compatible with Text::CSV_XS B<0.99>.
 (except for diag_verbose and allow_unquoted_escape)
