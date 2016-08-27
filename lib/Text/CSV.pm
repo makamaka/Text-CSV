@@ -36,7 +36,7 @@ my @UndocumentedXSMethods = qw/Combine Parse SetDiag/;
 my @UndocumentedPPMethods = qw//; # Currently empty
 
 
-# Check the environment variable to decide worker module. 
+# Check the environment variable to decide worker module.
 
 unless ($Text::CSV::Worker) {
     $Text::CSV::DEBUG and  Carp::carp("Check used worker module...");
@@ -233,7 +233,7 @@ Text::CSV - comma-separated values manipulator (using XS or PurePerl)
  my @rows;
  my $csv = Text::CSV->new ( { binary => 1 } )  # should set binary attribute.
                  or die "Cannot use CSV: ".Text::CSV->error_diag ();
- 
+
  open my $fh, "<:encoding(utf8)", "test.csv" or die "test.csv: $!";
  while ( my $row = $csv->getline( $fh ) ) {
      $row->[2] =~ m/pattern/ or next; # 3rd field should match
@@ -243,25 +243,25 @@ Text::CSV - comma-separated values manipulator (using XS or PurePerl)
  close $fh;
 
  $csv->eol ("\r\n");
- 
+
  open $fh, ">:encoding(utf8)", "new.csv" or die "new.csv: $!";
  $csv->print ($fh, $_) for @rows;
  close $fh or die "new.csv: $!";
- 
+
  #
  # parse and combine style
  #
- 
+
  $status = $csv->combine(@columns);    # combine columns into a string
  $line   = $csv->string();             # get the combined string
- 
+
  $status  = $csv->parse($line);        # parse a CSV string into fields
  @columns = $csv->fields();            # get the parsed fields
- 
+
  $status       = $csv->status ();      # get the most recent status
  $bad_argument = $csv->error_input (); # get the most recent bad argument
  $diag         = $csv->error_diag ();  # if an error occured, explains WHY
- 
+
  $status = $csv->print ($io, $colref); # Write an array of fields
                                        # immediately to a file $io
  $colref = $csv->getline ($io);        # Read a line from file $io,
@@ -271,7 +271,7 @@ Text::CSV - comma-separated values manipulator (using XS or PurePerl)
  $ref = $csv->getline_hr ($io);        # getline (), but returns a hashref
  $eof = $csv->eof ();                  # Indicate if last parse or
                                        # getline () hit End Of File
- 
+
  $csv->types(\@t_array);               # Set column types
 
 =head1 DESCRIPTION
@@ -306,7 +306,7 @@ C<parse ()> method, which is more complicated from the usual point of
 usage:
 
  my $csv = Text::CSV->new ({ binary => 1, eol => $/ });
- while (<>) {		#  WRONG!
+ while (<>) {    #  WRONG!
      $csv->parse ($_);
      my @fields = $csv->fields ();
 
@@ -1214,6 +1214,6 @@ Portions Copyright (C) 1997 Alan Citterman. All rights reserved.
 
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself. 
+it under the same terms as Perl itself.
 
 =cut
