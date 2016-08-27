@@ -1752,8 +1752,8 @@ contained any byte in the range [\x00-\x08,\x10-\x1F,\x7F-\xFF]
 
  $status = $csv->status ();
 
-This object function returns success (or failure) of C<combine ()> or
-C<parse ()>, whichever was called more recently.
+This object function returns a true value for success and false for failure,
+for C<combine ()> or C<parse ()>, whichever was called more recently.
 
 =head2 error_input
 
