@@ -813,6 +813,8 @@ C<getline_hr ()> will croak if called before C<column_names ()>.
 This will return a reference to a list of C<getline_hr ($io)> results.
 In this call, C<keep_meta_info> is disabled.
 
+C<getline_hr_all ()> will croak if called before C<column_names ()>.
+
 =head2 print_hr
 
  $csv->print_hr ($io, $ref);

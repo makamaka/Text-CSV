@@ -1595,6 +1595,8 @@ C<getline_hr ()> will croak if called before C<column_names ()>.
 This will return a reference to a list of C<getline_hr ($io)> results.
 In this call, C<keep_meta_info> is disabled.
 
+C<getline_hr_all ()> will croak if called before C<column_names ()>.
+
 =head2 column_names
 
 Set the keys that will be used in the C<getline_hr ()> calls. If no keys
