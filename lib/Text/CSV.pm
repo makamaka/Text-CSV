@@ -260,7 +260,7 @@ Text::CSV - comma-separated values manipulator (using XS or PurePerl)
 
  $status       = $csv->status ();      # get the most recent status
  $bad_argument = $csv->error_input (); # get the most recent bad argument
- $diag         = $csv->error_diag ();  # if an error occured, explains WHY
+ $diag         = $csv->error_diag ();  # if an error occurred, explains WHY
 
  $status = $csv->print ($io, $colref); # Write an array of fields
                                        # immediately to a file $io

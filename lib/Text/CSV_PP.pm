@@ -1132,7 +1132,7 @@ Text::CSV_PP - Text::CSV_XS compatible pure-Perl module
 
  $status       = $csv->status ();      # get the most recent status
  $bad_argument = $csv->error_input (); # get the most recent bad argument
- $diag         = $csv->error_diag ();  # if an error occured, explains WHY
+ $diag         = $csv->error_diag ();  # if an error occurred, explains WHY
 
  $status = $csv->print ($io, $colref); # Write an array of fields
                                        # immediately to a file $io
