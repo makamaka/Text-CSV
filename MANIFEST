@@ -5,7 +5,7 @@ lib/Text/CSV.pm
 lib/Text/CSV_PP.pm
 Makefile.PL
 MANIFEST
-README
+README.md
 t/00_pod.t			Check if pod is valid
 t/10_base.t			Base tests (combine and parse only)
 t/12_acc.t			Accessor methods
