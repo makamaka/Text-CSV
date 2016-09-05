@@ -5,7 +5,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 103;
+use Test::More tests => 104;
 
 
 BEGIN { $ENV{PERL_TEXT_CSV} = $ARGV[0] || 0; }
@@ -376,4 +376,16 @@ is_deeply ([ $csv->fields ], [ 1, "2,4", 3 ], "escaped sep in quoted field");
     eval { is_deeply( $csv->getline($fh), [qw[ foo bar baz ]]) };
     is($@, '', "no exception thrown");
     ok($fh->eof);
+}
+
+{ # https://github.com/makamaka/Text-CSV/issues/14
+    SKIP: {
+        skip 1, "requires Encode" unless eval "require Encode";
+        my $csv = Text::CSV->new({empty_is_undef => 1});
+        my $line = "foo,,bar,";
+        Encode::_utf8_on($line);
+        $csv->parse($line);
+        my @fields = $csv->fields;
+        is_deeply \@fields => ['foo', undef, 'bar', undef];
+    }
 }

@@ -548,9 +548,11 @@ sub _parse {
 
         }
 
-        utf8::encode($col) if $utf8;
-        if ( $decode_utf8 && defined $col && _is_valid_utf8($col) ) {
-            utf8::decode($col);
+        if ( defined $col ) {
+            utf8::encode($col) if $utf8;
+            if ( $decode_utf8 && _is_valid_utf8($col) ) {
+                utf8::decode($col);
+            }
         }
 
         push @part,$col;
