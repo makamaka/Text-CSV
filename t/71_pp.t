@@ -379,9 +379,10 @@ is_deeply ([ $csv->fields ], [ 1, "2,4", 3 ], "escaped sep in quoted field");
 }
 
 { # https://github.com/makamaka/Text-CSV/issues/14
+  # https://rt.cpan.org/Ticket/Display.html?id=109719
     SKIP: {
         skip 1, "requires Encode" unless eval "require Encode";
-        my $csv = Text::CSV->new({empty_is_undef => 1});
+        my $csv = Text::CSV->new({empty_is_undef => 1, blank_is_undef => 1});
         my $line = "foo,,bar,";
         Encode::_utf8_on($line);
         $csv->parse($line);

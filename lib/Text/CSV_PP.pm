@@ -538,7 +538,7 @@ sub _parse {
                 $col = undef;
             }
 
-            if ( $empty_is_undef and length($col) == 0 ) {
+            if ( $empty_is_undef and defined $col and length($col) == 0 ) {
                 $col = undef;
             }
 
