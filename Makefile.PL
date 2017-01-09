@@ -11,7 +11,7 @@ if ($@) {
     print "Loading lib/Text/CSV.pm failed. No B module?\n";
     print "perl says : $@";
     print "Set the environmental variable 'PERL_DL_NONLAZY' with 0.\n";
-    print "And see to ExtUtils::MM_Unix.\n";
+    print "See ExtUtils::MM_Unix.\n";
     print "No Makefile created.\n";
     exit 0;
 }
