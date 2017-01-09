@@ -3,6 +3,7 @@ use ExtUtils::MakeMaker;
 
 use lib qw( ./lib );
 
+$ENV{PERL_TEXT_CSV} = 'Text::CSV_PP';
 eval q| require Text::CSV |;
 
 # B module can't install? I'm not careful for such a problem.
