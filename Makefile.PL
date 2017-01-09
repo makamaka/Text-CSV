@@ -62,6 +62,9 @@ WriteMakefile(
 
     ( $ExtUtils::MakeMaker::VERSION >= 6.46 ? (
         'META_MERGE' => {
+            recommends => {
+                'Text::CSV_XS' => Text::CSV->require_xs_version,
+            },
             resources => {
                 repository  =>      'http://github.com/makamaka/Text-CSV',
             },
