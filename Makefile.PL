@@ -8,12 +8,12 @@ eval q| require Text::CSV |;
 # B module can't install? I'm not careful for such a problem.
 # Leave us alone today?
 if ($@) {
-    print "We try to look up lib/Text::CSV.pm, but in vain. B module can't install?\n";
+    print "Loading lib/Text/CSV.pm failed. No B module?\n";
+    print "perl says : $@";
     print "Set the environmental variable 'PERL_DL_NONLAZY' with 0.\n";
     print "And see to ExtUtils::MM_Unix.\n";
-    print "perl says : $@";
-    print "We do not make Makefile by requiring Perl version 7.0.\n";
-    require 7.0000;
+    print "No Makefile created.\n";
+    exit 0;
 }
 
 my $version     = Text::CSV->VERSION;
