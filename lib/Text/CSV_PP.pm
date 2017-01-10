@@ -68,8 +68,8 @@ my $ERRORS = {
 };
 
 
-my $last_new_error = '';
-my $last_new_err_num;
+my $last_error = '';
+my $last_err_num;
 
 my %def_attr = (
     quote_char          => '"',
@@ -163,8 +163,8 @@ sub _check_sanity {
            ||
            ( defined $self->{escape_char} && $self->{escape_char} =~ m/^[ \t]$/ )
     ) {
-       #$last_new_error = "INI - allow_whitespace with escape_char or quote_char SP or TAB";
-       #$last_new_err_num = 1002;
+       #$last_error = "INI - allow_whitespace with escape_char or quote_char SP or TAB";
+       #$last_err_num = 1002;
        return 1002;
     }
 
@@ -176,8 +176,8 @@ sub new {
     my $proto = shift;
     my $attr  = @_ > 0 ? shift : {};
 
-    $last_new_error   = 'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);';
-    $last_new_err_num = 1000;
+    $last_error   = 'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);';
+    $last_err_num = 1000;
 
     return unless ( defined $attr and ref($attr) eq 'HASH' );
 
@@ -186,7 +186,7 @@ sub new {
 
     for my $prop (keys %$attr) { # if invalid attr, return undef
         unless ($prop =~ /^[a-z]/ && exists $def_attr{$prop}) {
-            $last_new_error = "INI - Unknown attribute '$prop'";
+            $last_error = "INI - Unknown attribute '$prop'";
             error_diag() if $attr->{ auto_diag };
             return;
         }
@@ -196,13 +196,13 @@ sub new {
     my $ec = _check_sanity( $self );
 
     if ( $ec ) {
-        $last_new_error   = $ERRORS->{ $ec };
-        $last_new_err_num = $ec;
+        $last_error   = $ERRORS->{ $ec };
+        $last_err_num = $ec;
         return;
         #$class->SetDiag ($ec);
     }
 
-    $last_new_error = '';
+    $last_error = '';
 
     defined $\ and $self->{eol} = $\;
 
@@ -229,10 +229,10 @@ sub error_input {
 ################################################################################
 sub error_diag {
     my $self = shift;
-    my @diag = (0, $last_new_error, 0);
+    my @diag = (0, $last_error, 0);
 
     unless ($self and ref $self) {    # Class method or direct call
-        $last_new_error and $diag[0] = defined $last_new_err_num ? $last_new_err_num : 1000;
+        $last_error and $diag[0] = defined $last_err_num ? $last_err_num : 1000;
     }
     elsif ( $self->isa (__PACKAGE__) and defined $self->{_ERROR_DIAG} ) {
         @diag = ( 0 + $self->{_ERROR_DIAG}, $ERRORS->{ $self->{_ERROR_DIAG} } );
@@ -1050,7 +1050,7 @@ sub eol {
 sub SetDiag {
     if ( defined $_[1] and $_[1] == 0 ) {
         $_[0]->{_ERROR_DIAG} = undef;
-        $last_new_error = '';
+        $last_error = '';
         return;
     }
 
