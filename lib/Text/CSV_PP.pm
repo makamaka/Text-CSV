@@ -23,35 +23,52 @@ sub IS_MISSING () { 0x0010; }
 
 
 my $ERRORS = {
-        # PP and XS
+        # Generic errors
         1000 => "INI - constructor failed",
-        1001 => "sep_char is equal to quote_char or escape_char",
+        1001 => "INI - sep_char is equal to quote_char or escape_char",
         1002 => "INI - allow_whitespace with escape_char or quote_char SP or TAB",
         1003 => "INI - \\r or \\n in main attr not allowed",
+        1004 => "INI - callbacks should be undef or a hashref",
+        1005 => "INI - EOL too long",
+        1006 => "INI - SEP too long",
+        1007 => "INI - QUOTE too long",
+        1008 => "INI - SEP undefined",
 
+        1010 => "INI - the header is empty",
+        1011 => "INI - the header contains more than one valid separator",
+        1012 => "INI - the header contains an empty field",
+        1013 => "INI - the header contains nun-unique fields",
+        1014 => "INI - header called on undefined stream",
+
+        # Parse errors
         2010 => "ECR - QUO char inside quotes followed by CR not part of EOL",
         2011 => "ECR - Characters after end of quoted field",
+        2012 => "EOF - End of data in parsing input stream",
+        2013 => "ESP - Specification error for fragments RFC7111",
 
+        # EIQ - Error Inside Quotes
         2021 => "EIQ - NL char inside quotes, binary off",
         2022 => "EIQ - CR char inside quotes, binary off",
+        2023 => "EIQ - QUO character not allowed",
+        2024 => "EIQ - EOF cannot be escaped, not even inside quotes",
         2025 => "EIQ - Loose unescaped escape",
         2026 => "EIQ - Binary character inside quoted field, binary off",
         2027 => "EIQ - Quoted field not terminated",
 
+        # EIF - Error Inside Field
         2030 => "EIF - NL char inside unquoted verbatim, binary off",
         2031 => "EIF - CR char is first char of field, not part of EOL",
         2032 => "EIF - CR char inside unquoted, not part of EOL",
         2034 => "EIF - Loose unescaped quote",
+        2035 => "EIF - Escaped EOF in unquoted field",
+        2036 => "EIF - ESC error",
         2037 => "EIF - Binary character in unquoted field, binary off",
 
+        # Combine errors
         2110 => "ECB - Binary character in Combine, binary off",
 
+        # IO errors
         2200 => "EIO - print to IO failed. See errno",
-
-        # PP Only Error
-        4002 => "EIQ - Unescaped ESC in quoted field",
-        4003 => "EIF - ESC CR",
-        4004 => "EUF - Field is terminated by the escape character (escape_char)",
 
         # Hash-Ref errors
         3001 => "EHR - Unsupported syntax for column_names ()",
@@ -63,6 +80,11 @@ my $ERRORS = {
         3008 => "EHR - unexpected error in bound fields",
         3009 => "EHR - print_hr () called before column_names ()",
         3010 => "EHR - print_hr () called with invalid arguments",
+
+        # PP Only Error
+        4002 => "EIQ - Unescaped ESC in quoted field",
+        4003 => "EIF - ESC CR",
+        4004 => "EUF - Field is terminated by the escape character (escape_char)",
 
         0    => "",
 };
