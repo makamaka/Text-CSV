@@ -27,7 +27,7 @@ my $ERRORS = {
         1000 => "INI - constructor failed",
         1001 => "sep_char is equal to quote_char or escape_char",
         1002 => "INI - allow_whitespace with escape_char or quote_char SP or TAB",
-        1003 => "INI - \r or \n in main attr not allowed",
+        1003 => "INI - \\r or \\n in main attr not allowed",
 
         2010 => "ECR - QUO char inside quotes followed by CR not part of EOL",
         2011 => "ECR - Characters after end of quoted field",
