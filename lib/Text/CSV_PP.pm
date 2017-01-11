@@ -9,7 +9,7 @@ require 5.005;
 
 use strict;
 use vars qw($VERSION);
-use Carp ();
+use Carp;
 
 $VERSION = '1.33';
 
