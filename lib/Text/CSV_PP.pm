@@ -230,6 +230,10 @@ sub _check_sanity {
     return _unhealthy_whitespace ($self, $self->{allow_whitespace});
     }
 
+sub known_attributes {
+    sort grep !m/^_/ => "sep", "quote", keys %def_attr;
+    }
+
 sub new {
     $last_error   = 'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);';
     $last_err_num = 1000;

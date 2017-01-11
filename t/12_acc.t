@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 191;
+use Test::More tests => 194;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -224,5 +224,23 @@ foreach my $arg (undef, 0, "", " ", 1, [], [ 0 ], *STDOUT) {
     is  (Text::CSV->new ($arg),         undef,	"Illegal type for first arg");
     is ((Text::CSV::error_diag)[0], 1000, "Should be a hashref - numeric error");
     }
+
+my $attr = [ sort qw(
+    eol
+    sep_char sep quote_char quote escape_char
+    binary decode_utf8
+    auto_diag diag_verbose
+    blank_is_undef empty_is_undef
+    allow_whitespace allow_loose_quotes allow_loose_escapes allow_unquoted_escape
+    always_quote quote_space quote_empty quote_binary
+    escape_null
+    keep_meta_info
+    verbatim
+    types
+    callbacks
+    )];
+is_deeply ([ Text::CSV::known_attributes () ],      $attr, "Known attributes (function)");
+is_deeply ([ Text::CSV->known_attributes () ],      $attr, "Known attributes (class method)");
+is_deeply ([ Text::CSV->new->known_attributes () ], $attr, "Known attributes (method)");
 
 1;

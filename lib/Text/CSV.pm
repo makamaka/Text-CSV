@@ -28,6 +28,7 @@ my @PublicMethods = qw/
     getline print parse combine fields string error_diag error_input status blank_is_undef empty_is_undef
     getline_hr column_names bind_columns auto_diag quote_space quote_null getline_all getline_hr_all
     is_missing quote_binary record_number print_hr
+    known_attributes
     PV IV NV
 /;
 #
