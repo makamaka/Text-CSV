@@ -618,7 +618,7 @@ sub _parse {
         }
     }
 
-    $self->{_FFLAGS} = $keep_meta_info ? $meta_flag : undef;
+    $self->{_FFLAGS} = $keep_meta_info ? $meta_flag : [];
 
     return $self->{_STATUS} = $palatable;
 }
@@ -947,6 +947,7 @@ sub is_binary {
 
 sub is_missing {
     my ($self, $idx, $val) = @_;
+    return unless $self->{keep_meta_info}; # FIXME
     $idx < 0 || !ref $self->{_FFLAGS} and return;
     $idx >= @{$self->{_FFLAGS}} and return 1;
     $self->{_FFLAGS}[$idx] & IS_MISSING ? 1 : 0;
