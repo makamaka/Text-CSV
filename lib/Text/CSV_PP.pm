@@ -952,8 +952,8 @@ sub is_binary {
 
 sub is_missing {
     my ($self, $idx, $val) = @_;
-    ref $self->{_FFLAGS} &&
-            $idx >= 0 && $idx < @{$self->{_FFLAGS}} or return;
+    $idx < 0 || !ref $self->{_FFLAGS} and return;
+    $idx >= @{$self->{_FFLAGS}} and return 1;
     $self->{_FFLAGS}[$idx] & IS_MISSING ? 1 : 0;
 }
 ################################################################################

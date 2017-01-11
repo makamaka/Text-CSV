@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 203;
+use Test::More tests => 209;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -148,6 +148,7 @@ sub crnlsp {
 
     is ($csv->is_quoted (0), undef,		"is_quoted () before parse");
     is ($csv->is_binary (0), undef,		"is_binary () before parse");
+    is ($csv->is_missing (0), undef,		"is_missing () before parse");
 
     my $bintxt = chr ($] < 5.006 ? 0xbf : 0x20ac);
     ok ( $csv->parse (qq{,"1","a\rb",0,"a\nb",1,\x8e,"a\r\n","$bintxt","",}),
@@ -160,17 +161,22 @@ sub crnlsp {
 
     is ($csv->is_quoted (0), 0,			"fflag 0 - not quoted");
     is ($csv->is_binary (0), 0,			"fflag 0 - not binary");
+    is ($csv->is_missing (0), 0,		"fflag 0 - not missig");
     is ($csv->is_quoted (2), 1,			"fflag 2 - quoted");
     is ($csv->is_binary (2), 1,			"fflag 2 - binary");
+    is ($csv->is_missing (2), 0,		"fflag 2 - not missing");
 
     is ($csv->is_quoted (6), 0,			"fflag 5 - not quoted");
     is ($csv->is_binary (6), 1,			"fflag 5 - binary");
+    is ($csv->is_missing (6), 0,		"fflag 5 - not missing");
 
     is ($csv->is_quoted (-1), undef,		"fflag -1 - undefined");
     is ($csv->is_binary (-8), undef,		"fflag -8 - undefined");
+    is ($csv->is_missing (-8), undef,		"fflag -8 - undefined");
 
     is ($csv->is_quoted (21), undef,		"fflag 21 - undefined");
     is ($csv->is_binary (98), undef,		"fflag 98 - undefined");
+    is ($csv->is_missing (98), 1,		"fflag 98 - missing");
     }
 
 {   my $csv = Text::CSV->new ({ escape_char => "+" });
