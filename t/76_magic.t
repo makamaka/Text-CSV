@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 7;
+ use Test::More tests => 13;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -17,15 +17,19 @@ my $csv = Text::CSV->new ({ binary => 1, eol => "\n" });
 
 my $fh;
 my $foo;
+my $bar;
 my @foo = ("#", 1..3);
 
-SKIP: {
-    $] < 5.006 and skip "Need perl 5.6.0 or higher for magic here", 2;
-    tie $foo, "Foo";
-    ok ($csv->combine (@$foo),		"combine () from magic");
-    untie $foo;
-    is_deeply ([$csv->fields], \@foo,	"column_names ()");
-    }
+tie $foo, "Foo";
+ok ($csv->combine (@$foo),		"combine () from magic");
+untie $foo;
+is_deeply ([$csv->fields], \@foo,	"column_names ()");
+
+tie $bar, "Bar";
+$bar = "#";
+ok ($csv->combine ($bar, @{$foo}[1..3]),"combine () from magic");
+untie $bar;
+is_deeply ([$csv->fields], \@foo,	"column_names ()");
 
 tie $foo, "Foo";
 open  $fh, ">", $tfn or die "$tfn: $!\n";
@@ -42,24 +46,61 @@ ok ($csv->column_names ($foo),		"column_names () from magic");
 untie $foo;
 is_deeply ([$csv->column_names], \@foo,	"column_names ()");
 
+open  $fh, "<", $tfn or die "$tfn: $!\n";
+tie $bar, "Bar";
+ok ($csv->bind_columns (\$bar, \my ($f0, $f1, $f2)), "bind");
+ok ($csv->getline ($fh),		"fetch with magic");
+is_deeply ([$bar,$f0,$f1,$f2], \@foo,	"columns fetched on magic");
+# free any refs
+is ($csv->bind_columns (undef), undef,	"bind column clear");
+untie $bar;
+close $fh;
 
-package Foo;
-
-use strict;
-local $^W = 1;
+{   package Foo;
+    use strict;
+    use warnings;
 
     require Tie::Scalar;
     use vars qw( @ISA );
     @ISA = qw(Tie::Scalar);
 
-sub FETCH
-{
-    [ "#", 1 .. 3 ];
-    } # FETCH
+    sub FETCH
+    {
+	[ "#", 1 .. 3 ];
+	} # FETCH
 
-sub TIESCALAR
-{
-    bless [], "Foo";
-    } # TIESCALAR
+    sub TIESCALAR
+    {
+	bless [], "Foo";
+	} # TIESCALAR
 
-1;
+    1;
+    }
+
+{   package Bar;
+
+    use strict;
+    use warnings;
+
+    require Tie::Scalar;
+    use vars qw( @ISA );
+    @ISA = qw(Tie::Scalar);
+
+    sub FETCH
+    {
+	return ${$_[0]};
+	} # FETCH
+
+    sub STORE
+    {
+	${$_[0]} = $_[1];
+	} # STORE
+
+    sub TIESCALAR
+    {
+	my $bar;
+	bless \$bar, "Bar";
+	} # TIESCALAR
+
+    1;
+    }
