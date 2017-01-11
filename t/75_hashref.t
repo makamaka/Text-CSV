@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 75;
+ use Test::More tests => 100;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -133,8 +133,47 @@ ok ($csv->eol ("\n"),				"set eol for output");
 ok ($csv->print ($fh, [ $csv->column_names ]),	"print header");
 ok ($csv->print_hr ($fh, $hr),			"print_hr");
 close $fh;
+ok ($csv->keep_meta_info (1),			"keep meta info");
 open $fh, "<", $tfn or die "$tfn: $!\n";
 ok ($csv->column_names ($csv->getline ($fh)),	"get column names");
 is_deeply ($csv->getline_hr ($fh), $hr,		"compare to written hr");
 close $fh;
 
+open $fh, ">", $tfn or die "$tfn: $!\n";
+print $fh <<"EOC";
+a,b
+
+2
+EOC
+close $fh;
+
+ok ($csv = Text::CSV->new (), "new");
+
+open $fh, "<", $tfn or die "$tfn: $!\n";
+ok ($csv->column_names ("code", "foo"), "set column names");
+ok ($hr = $csv->getline_hr ($fh), "get header line");
+is ($csv->is_missing (0), undef, "not is_missing () - no meta");
+is ($csv->is_missing (1), undef, "not is_missing () - no meta");
+ok ($hr = $csv->getline_hr ($fh), "get empty line");
+is ($csv->is_missing (0), undef, "not is_missing () - no meta");
+is ($csv->is_missing (1), undef, "not is_missing () - no meta");
+ok ($hr = $csv->getline_hr ($fh), "get partial data line");
+is (int $hr->{code}, 2, "code == 2");
+is ($csv->is_missing (0), undef, "not is_missing () - no meta");
+is ($csv->is_missing (1), undef, "not is_missing () - no meta");
+close $fh;
+
+open $fh, "<", $tfn or die "$tfn: $!\n";
+$csv->keep_meta_info (1);
+ok ($csv->column_names ("code", "foo"), "set column names");
+ok ($hr = $csv->getline_hr ($fh), "get header line");
+is ($csv->is_missing (0), 0, "not is_missing () - with meta");
+is ($csv->is_missing (1), 0, "not is_missing () - with meta");
+ok ($hr = $csv->getline_hr ($fh), "get empty line");
+is ($csv->is_missing (0), 1, "not is_missing () - with meta");
+is ($csv->is_missing (1), 1, "not is_missing () - with meta");
+ok ($hr = $csv->getline_hr ($fh), "get partial data line");
+is (int $hr->{code}, 2, "code == 2");
+is ($csv->is_missing (0), 0, "not is_missing () - with meta");
+is ($csv->is_missing (1), 1, "not is_missing () - with meta");
+close $fh;

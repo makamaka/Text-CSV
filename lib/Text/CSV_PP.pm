@@ -618,7 +618,7 @@ sub _parse {
         }
     }
 
-    $self->{_FFLAGS} = $keep_meta_info ? $meta_flag : [];
+    $self->{_FFLAGS} = $keep_meta_info ? $meta_flag : undef;
 
     return $self->{_STATUS} = $palatable;
 }
@@ -829,21 +829,16 @@ sub getline_all {
 # getline_hr
 ################################################################################
 sub getline_hr {
-    my ( $self, $io) = @_;
-    my %hr;
-
-    unless ( $self->{_COLUMN_NAMES} ) {
-        $self->SetDiag( 3002 );
-    }
-
-    my $fr = $self->getline( $io ) or return undef;
-
-    if ( ref $self->{_FFLAGS} ) {
-        $self->{_FFLAGS}[$_] = IS_MISSING for ($#{$fr} + 1) .. $#{$self->{_COLUMN_NAMES}};
-    }
-
-    @hr{ @{ $self->{_COLUMN_NAMES} } } = @$fr;
-
+    my ($self, @args, %hr) = @_;
+    $self->{_COLUMN_NAMES} or croak ($self->SetDiag (3002));
+    my $fr = $self->getline (@args) or return;
+    if (ref $self->{_FFLAGS}) { # missing
+        $self->{_FFLAGS}[$_] = IS_MISSING
+            for (@$fr ? $#{$fr} + 1 : 0) .. $#{$self->{_COLUMN_NAMES}};
+        @$fr == 1 && (!defined $fr->[0] || $fr->[0] eq "") and
+            $self->{_FFLAGS}[0] ||= IS_MISSING;
+        }
+    @hr{@{$self->{_COLUMN_NAMES}}} = @$fr;
     \%hr;
 }
 ################################################################################
