@@ -989,7 +989,7 @@ sub _set_error_diag {
 ################################################################################
 
 BEGIN {
-    for my $method ( qw/always_quote binary keep_meta_info allow_loose_quotes allow_loose_escapes
+    for my $method ( qw/always_quote binary allow_loose_quotes allow_loose_escapes
                             verbatim blank_is_undef empty_is_undef quote_space quote_null
                             quote_binary allow_unquoted_escape/ ) {
         eval qq|
@@ -1001,7 +1001,28 @@ BEGIN {
     }
 }
 
+# A `character'
+sub _set_attr_C {
+    my ($self, $name, $val, $ec) = @_;
+    defined $val or $val = 0;
+    utf8::decode ($val);
+    $self->{$name} = $val;
+    $ec = _check_sanity ($self) and
+        croak ($self->SetDiag ($ec));
+    }
 
+# A flag
+sub _set_attr_X {
+    my ($self, $name, $val) = @_;
+    defined $val or $val = 0;
+    $self->{$name} = $val;
+    }
+
+# A number
+sub _set_attr_N {
+    my ($self, $name, $val) = @_;
+    $self->{$name} = $val;
+    }
 
 sub sep_char {
     my $self = shift;
@@ -1022,6 +1043,17 @@ sub decode_utf8 {
     }
     $self->{decode_utf8};
 }
+
+sub keep_meta_info {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        !defined $v || $v eq "" and $v = 0;
+        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
+        $self->_set_attr_X ("keep_meta_info", $v);
+        }
+    $self->{keep_meta_info};
+    }
 
 sub quote_char {
     my $self = shift;

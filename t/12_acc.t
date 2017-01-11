@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 140;
+use Test::More tests => 145;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -50,7 +50,10 @@ is ($csv->eol (""),			"",		"eol ('')");
 is ($csv->eol ("\r"),			"\r",		"eol (\\r)");
 is ($csv->keep_meta_info (1),		1,		"keep_meta_info (1)");
 is ($csv->keep_meta_info (0),		0,		"keep_meta_info (0)");
+is ($csv->keep_meta_info (""),		0,		"keep_meta_info ('')");
 is ($csv->keep_meta_info (undef),	0,		"keep_meta_info (undef)");
+is ($csv->keep_meta_info ("false"),	0,		"keep_meta_info (undef)");
+is ($csv->keep_meta_info ("true"),	1,		"keep_meta_info (undef)");
 is ($csv->always_quote (undef),		0,		"always_quote (undef)");
 is ($csv->always_quote (1),		1,		"always_quote (1)");
 is ($csv->allow_loose_quotes (1),	1,		"allow_loose_quotes (1)");
