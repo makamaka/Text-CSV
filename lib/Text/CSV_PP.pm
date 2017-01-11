@@ -173,26 +173,57 @@ sub version {
 # new
 ################################################################################
 
-sub _check_sanity {
-    my ( $self ) = @_;
+sub _unhealthy_whitespace {
+    my $self = shift;
+    $_[0] or return 0; # no checks needed without allow_whitespace
 
-    for ( qw( sep_char quote_char escape_char ) ) {
-        ( exists $self->{$_} && defined $self->{$_} && $self->{$_} =~ m/[\r\n]/ ) and return 1003;
-    }
+    my $quo = $self->{quote};
+    defined $quo && length ($quo) or $quo = $self->{quote_char};
+    my $esc = $self->{escape_char};
 
-    if ( $self->{allow_whitespace} and
-           ( defined $self->{quote_char}  && $self->{quote_char}  =~ m/^[ \t]$/ )
-           ||
-           ( defined $self->{escape_char} && $self->{escape_char} =~ m/^[ \t]$/ )
-    ) {
-       #$last_error = "INI - allow_whitespace with escape_char or quote_char SP or TAB";
-       #$last_err_num = 1002;
-       return 1002;
-    }
+    (defined $quo && $quo =~ m/^[ \t]/) || (defined $esc && $esc =~ m/^[ \t]/) and
+        return 1002;
 
     return 0;
-}
+    }
 
+sub _check_sanity {
+    my $self = shift;
+
+    my $eol = $self->{eol};
+    my $sep = $self->{sep};
+    defined $sep && length ($sep) or $sep = $self->{sep_char};
+    my $quo = $self->{quote};
+    defined $quo && length ($quo) or $quo = $self->{quote_char};
+    my $esc = $self->{escape_char};
+
+#    use DP;::diag ("SEP: '", DPeek ($sep),
+#                "', QUO: '", DPeek ($quo),
+#                "', ESC: '", DPeek ($esc),"'");
+
+    # sep_char should not be undefined
+    if (defined $sep && $sep ne "") {
+        length ($sep) > 16                and return 1006;
+        $sep =~ m/[\r\n]/                and return 1003;
+        }
+    else {
+                                            return 1008;
+        }
+    if (defined $quo) {
+        defined $sep && $quo eq $sep        and return 1001;
+        length ($quo) > 16                and return 1007;
+        $quo =~ m/[\r\n]/                and return 1003;
+        }
+    if (defined $esc) {
+        defined $sep && $esc eq $sep        and return 1001;
+        $esc =~ m/[\r\n]/                and return 1003;
+        }
+    if (defined $eol) {
+        length ($eol) > 16                and return 1005;
+        }
+
+    return _unhealthy_whitespace ($self, $self->{allow_whitespace});
+    }
 
 sub new {
     my $proto = shift;
