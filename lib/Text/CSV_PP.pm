@@ -1019,19 +1019,6 @@ sub _set_error_diag {
 }
 ################################################################################
 
-BEGIN {
-    for my $method ( qw/always_quote binary allow_loose_quotes allow_loose_escapes
-                            verbatim blank_is_undef empty_is_undef quote_space quote_null
-                            quote_binary allow_unquoted_escape/ ) {
-        eval qq|
-            sub $method {
-                \$_[0]->{$method} = defined \$_[1] ? \$_[1] : 0 if (\@_ > 1);
-                \$_[0]->{$method};
-            }
-        |;
-    }
-}
-
 # A `character'
 sub _set_attr_C {
     my ($self, $name, $val, $ec) = @_;
@@ -1055,15 +1042,126 @@ sub _set_attr_N {
     $self->{$name} = $val;
     }
 
+# Accessor methods.
+#   It is unwise to change them halfway through a single file!
+sub quote_char {
+    my $self = shift;
+    if (@_) {
+        $self->_set_attr_C ("quote_char", shift);
+        }
+    $self->{quote_char};
+    }
+
+sub quote {
+    my $self = shift;
+    if (@_) {
+        my $quote = shift;
+        defined $quote or $quote = "";
+        utf8::decode ($quote);
+        my @b = unpack "U0C*", $quote;
+        if (@b > 1) {
+            @b > 16 and croak ($self->SetDiag (1007));
+            $self->quote_char ("\0");
+            }
+        else {
+            $self->quote_char ($quote);
+            $quote = "";
+            }
+        $self->{quote} = $quote;
+
+        my $ec = _check_sanity ($self);
+        $ec and croak ($self->SetDiag ($ec));
+        }
+    my $quote = $self->{quote};
+    defined $quote && length ($quote) ? $quote : $self->{quote_char};
+    }
+
+sub escape_char {
+    my $self = shift;
+    @_ and $self->_set_attr_C ("escape_char", shift);
+    $self->{escape_char};
+    }
+
 sub sep_char {
     my $self = shift;
-    if ( @_ ) {
-        $self->{sep_char} = $_[0];
-        my $ec = _check_sanity( $self );
-        $ec and Carp::croak( $self->SetDiag( $ec ) );
-    }
+    if (@_) {
+        $self->_set_attr_C ("sep_char", shift);
+        }
     $self->{sep_char};
 }
+
+sub sep {
+    my $self = shift;
+    if (@_) {
+        my $sep = shift;
+        defined $sep or $sep = "";
+        utf8::decode ($sep);
+        my @b = unpack "U0C*", $sep;
+        if (@b > 1) {
+            @b > 16 and croak ($self->SetDiag (1006));
+            $self->sep_char ("\0");
+            }
+        else {
+            $self->sep_char ($sep);
+            $sep = "";
+            }
+        $self->{sep} = $sep;
+
+        my $ec = _check_sanity ($self);
+        $ec and croak ($self->SetDiag ($ec));
+        }
+    my $sep = $self->{sep};
+    defined $sep && length ($sep) ? $sep : $self->{sep_char};
+    }
+
+sub eol {
+    my $self = shift;
+    if (@_) {
+        my $eol = shift;
+        defined $eol or $eol = "";
+        length ($eol) > 16 and croak ($self->SetDiag (1005));
+        $self->{eol} = $eol;
+        }
+    $self->{eol};
+    }
+
+sub always_quote {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("always_quote", shift);
+    $self->{always_quote};
+    }
+
+sub quote_space {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("quote_space", shift);
+    $self->{quote_space};
+    }
+
+sub quote_empty {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("quote_empty", shift);
+    $self->{quote_empty};
+    }
+
+sub escape_null {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("escape_null", shift);
+    $self->{escape_null};
+    }
+
+sub quote_null { goto &escape_null; }
+
+sub quote_binary {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("quote_binary", shift);
+    $self->{quote_binary};
+    }
+
+sub binary {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("binary", shift);
+    $self->{binary};
+    }
 
 sub decode_utf8 {
     my $self = shift;
@@ -1086,47 +1184,74 @@ sub keep_meta_info {
     $self->{keep_meta_info};
     }
 
-sub quote_char {
+sub allow_loose_quotes {
     my $self = shift;
-    if ( @_ ) {
-        $self->{quote_char} = $_[0];
-        my $ec = _check_sanity( $self );
-        $ec and Carp::croak( $self->SetDiag( $ec ) );
+    @_ and $self->_set_attr_X ("allow_loose_quotes", shift);
+    $self->{allow_loose_quotes};
     }
-    $self->{quote_char};
-}
 
-
-sub escape_char {
+sub allow_loose_escapes {
     my $self = shift;
-    if ( @_ ) {
-        $self->{escape_char} = $_[0];
-        my $ec = _check_sanity( $self );
-        $ec and Carp::croak( $self->SetDiag( $ec ) );
+    @_ and $self->_set_attr_X ("allow_loose_escapes", shift);
+    $self->{allow_loose_escapes};
     }
-    $self->{escape_char};
-}
-
 
 sub allow_whitespace {
     my $self = shift;
-    if ( @_ ) {
+    if (@_) {
         my $aw = shift;
-        $aw and
-            (defined $self->{quote_char}  && $self->{quote_char}  =~ m/^[ \t]$/) ||
-            (defined $self->{escape_char} && $self->{escape_char} =~ m/^[ \t]$/)
-                and Carp::croak ($self->SetDiag (1002));
-        $self->{allow_whitespace} = $aw;
-    }
+        _unhealthy_whitespace ($self, $aw) and
+            croak ($self->SetDiag (1002));
+        $self->_set_attr_X ("allow_whitespace", $aw);
+        }
     $self->{allow_whitespace};
-}
+    }
 
+sub allow_unquoted_escape {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("allow_unquoted_escape", shift);
+    $self->{allow_unquoted_escape};
+    }
 
-sub eol {
-    $_[0]->{eol} = defined $_[1] ? $_[1] : '' if ( @_ > 1 );
-    $_[0]->{eol};
-}
+sub blank_is_undef {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("blank_is_undef", shift);
+    $self->{blank_is_undef};
+    }
 
+sub empty_is_undef {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("empty_is_undef", shift);
+    $self->{empty_is_undef};
+    }
+
+sub verbatim {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("verbatim", shift);
+    $self->{verbatim};
+    }
+
+sub auto_diag {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        !defined $v || $v eq "" and $v = 0;
+        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
+        $self->_set_attr_X ("auto_diag", $v);
+        }
+    $self->{auto_diag};
+    }
+
+sub diag_verbose {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        !defined $v || $v eq "" and $v = 0;
+        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
+        $self->_set_attr_X ("diag_verbose", $v);
+        }
+    $self->{diag_verbose};
+    }
 
 sub SetDiag {
     if ( defined $_[1] and $_[1] == 0 ) {
@@ -1137,28 +1262,6 @@ sub SetDiag {
 
     $_[0]->_set_error_diag( $_[1] );
     Carp::croak( $_[0]->error_diag . '' );
-}
-
-sub auto_diag {
-    my $self = shift;
-    if (@_) {
-        my $v = shift;
-        !defined $v || $v eq "" and $v = 0;
-        $v =~ m/^[0-9]/ or $v = $v ? 1 : 0; # default for true/false
-        $self->{auto_diag} = $v;
-    }
-    $self->{auto_diag};
-}
-
-sub diag_verbose {
-    my $self = shift;
-    if (@_) {
-        my $v = shift;
-        !defined $v || $v eq "" and $v = 0;
-        $v =~ m/^[0-9]/ or $v = $v ? 1 : 0; # default for true/false
-        $self->{diag_verbose} = $v;
-    }
-    $self->{diag_verbose};
 }
 
 sub _is_valid_utf8 {
