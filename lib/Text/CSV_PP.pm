@@ -1001,6 +1001,87 @@ sub column_names {
     $self->{_COLUMN_NAMES} = [ map { defined $_ ? $_ : "\cAUNDEF\cA" } @columns ];
     @{ $self->{_COLUMN_NAMES} };
 }
+
+sub header {
+    my ($self, $fh, @args) = @_;
+
+    $fh or croak ($self->SetDiag (1014));
+
+    my (@seps, %args);
+    for (@args) {
+        if (ref $_ eq "ARRAY") {
+            push @seps, @$_;
+            next;
+            }
+        if (ref $_ eq "HASH") {
+            %args = %$_;
+            next;
+            }
+        croak (q{usage: $csv->header ($fh, [ seps ], { options })});
+        }
+
+    defined $args{detect_bom}         or $args{detect_bom}         = 1;
+    defined $args{munge_column_names} or $args{munge_column_names} = "lc";
+    defined $args{set_column_names}   or $args{set_column_names}   = 1;
+
+    defined $args{sep_set} && ref $args{sep_set} eq "ARRAY" and
+        @seps =  @{$args{sep_set}};
+
+    my $hdr = <$fh>;
+    defined $hdr && $hdr ne "" or croak ($self->SetDiag (1010));
+
+    my %sep;
+    @seps or @seps = (",", ";");
+    foreach my $sep (@seps) {
+        index ($hdr, $sep) >= 0 and $sep{$sep}++;
+        }
+
+    keys %sep >= 2 and croak ($self->SetDiag (1011));
+
+    $self->sep (keys %sep);
+    my $enc = "";
+    if ($args{detect_bom}) { # UTF-7 is not supported
+           if ($hdr =~ s/^\x00\x00\xfe\xff//) { $enc = "utf-32be"   }
+        elsif ($hdr =~ s/^\xff\xfe\x00\x00//) { $enc = "utf-32le"   }
+        elsif ($hdr =~ s/^\xfe\xff//)         { $enc = "utf-16be"   }
+        elsif ($hdr =~ s/^\xff\xfe//)         { $enc = "utf-16le"   }
+        elsif ($hdr =~ s/^\xef\xbb\xbf//)     { $enc = "utf-8"      }
+        elsif ($hdr =~ s/^\xf7\x64\x4c//)     { $enc = "utf-1"      }
+        elsif ($hdr =~ s/^\xdd\x73\x66\x73//) { $enc = "utf-ebcdic" }
+        elsif ($hdr =~ s/^\x0e\xfe\xff//)     { $enc = "scsu"       }
+        elsif ($hdr =~ s/^\xfb\xee\x28//)     { $enc = "bocu-1"     }
+        elsif ($hdr =~ s/^\x84\x31\x95\x33//) { $enc = "gb-18030"   }
+
+        if ($enc) {
+            if ($enc =~ m/([13]).le$/) {
+                my $l = 0 + $1;
+                my $x;
+                $hdr .= "\0" x $l;
+                read $fh, $x, $l;
+                }
+            $enc = ":encoding($enc)";
+            binmode $fh, $enc;
+            }
+        }
+
+    $args{munge_column_names} eq "lc" and $hdr = lc $hdr;
+    $args{munge_column_names} eq "uc" and $hdr = uc $hdr;
+
+    my $hr = \$hdr; # Will cause croak on perl-5.6.x
+    open my $h, "<$enc", $hr;
+    my $row = $self->getline ($h) or croak;
+    close $h;
+
+    my @hdr = @$row   or  croak ($self->SetDiag (1010));
+    ref $args{munge_column_names} eq "CODE" and
+        @hdr = map { $args{munge_column_names}->($_) } @hdr;
+    my %hdr = map { $_ => 1 } @hdr;
+    exists $hdr{""}   and croak ($self->SetDiag (1012));
+    keys %hdr == @hdr or  croak ($self->SetDiag (1013));
+    $args{set_column_names} and $self->column_names (@hdr);
+    wantarray ? @hdr : $self;
+    }
+
 ################################################################################
 # bind_columns
 ################################################################################

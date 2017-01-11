@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 120;
+ use Test::More tests => 122;
 #use Test::More "no_plan";
 
 my %err;
@@ -159,6 +159,13 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     is (0 + $csv->error_diag, 1008, "Can set sep to undef");
     eval { $csv->sep ("="); };
     is (0 + $csv->error_diag, 1001, "Cannot set sep to current sep");
+    }
+
+{   my $csv = Text::CSV->new;
+    eval { $csv->header (undef, "foo"); };
+    is (0 + $csv->error_diag, 1014, "Cannot read header from undefined source");
+    eval { $csv->header (*STDIN, "foo"); };
+    like ($@, qr/^usage:/, "Illegal header call");
     }
 
 1;
