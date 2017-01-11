@@ -327,28 +327,63 @@ sub error_input {
 ################################################################################
 sub error_diag {
     my $self = shift;
-    my @diag = (0, $last_error, 0);
+    my @diag = (0, $last_error, 0, 0, 0);
 
     unless ($self and ref $self) {    # Class method or direct call
         $last_error and $diag[0] = defined $last_err_num ? $last_err_num : 1000;
     }
-    elsif ( $self->isa (__PACKAGE__) and defined $self->{_ERROR_DIAG} ) {
-        @diag = ( 0 + $self->{_ERROR_DIAG}, $ERRORS->{ $self->{_ERROR_DIAG} } );
-        exists $self->{_ERROR_POS} and $diag[2] = 1 + $self->{_ERROR_POS};
-    }
+
+    if ($self && ref $self && # Not a class method or direct call
+         $self->isa (__PACKAGE__) && defined $self->{_ERROR_DIAG}) {
+        $diag[0] = 0 + $self->{_ERROR_DIAG};
+        $diag[1] = $ERRORS->{$self->{_ERROR_DIAG}};
+        $diag[2] = 1 + $self->{_ERROR_POS} if exists $self->{_ERROR_POS};
+        $diag[3] =     $self->{_RECNO};
+        $diag[4] =     $self->{_ERROR_FLD} if exists $self->{_ERROR_FLD};
+
+        $diag[0] && $self && $self->{callbacks} && $self->{callbacks}{error} and
+            return $self->{callbacks}{error}->(@diag);
+        }
 
     my $context = wantarray;
 
     my $diagobj = bless \@diag, 'Text::CSV::ErrorDiag';
 
-    unless (defined $context) { # Void context
-        if ( $diag[0] ) {
-            my $msg = "# CSV_PP ERROR: " . $diag[0] . " - $diag[1]\n";
-            ref $self ? ( $self->{auto_diag} > 1 ? die $msg : warn $msg )
-                      : warn $msg;
-        }
+    unless (defined $context) {	# Void context, auto-diag
+        if ($diag[0] && $diag[0] != 2012) {
+            my $msg = "# CSV_PP ERROR: $diag[0] - $diag[1] \@ rec $diag[3] pos $diag[2]\n";
+            $diag[4] and $msg =~ s/$/ field $diag[4]/;
+
+            unless ($self && ref $self) {        # auto_diag
+                    # called without args in void context
+                warn $msg;
+                return;
+                }
+
+            if ($self->{diag_verbose} and $self->{_ERROR_INPUT}) {
+                $msg .= "$self->{_ERROR_INPUT}'\n";
+                $msg .= " " x ($diag[2] - 1);
+                $msg .= "^\n";
+                }
+
+            my $lvl = $self->{auto_diag};
+            if ($lvl < 2) {
+                my @c = caller (2);
+                if (@c >= 11 && $c[10] && ref $c[10] eq "HASH") {
+                    my $hints = $c[10];
+                    (exists $hints->{autodie} && $hints->{autodie} or
+                     exists $hints->{"guard Fatal"} &&
+                    !exists $hints->{"no Fatal"}) and
+                        $lvl++;
+                    # Future releases of autodie will probably set $^H{autodie}
+                    #  to "autodie @args", like "autodie :all" or "autodie open"
+                    #  so we can/should check for "open" or "new"
+                    }
+                }
+            $lvl > 1 ? die $msg : warn $msg;
+            }
         return;
-    }
+        }
 
     return $context ? @diag : $diagobj;
 }
