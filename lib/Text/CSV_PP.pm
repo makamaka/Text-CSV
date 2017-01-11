@@ -94,42 +94,47 @@ my $last_error = '';
 my $last_err_num;
 
 my %def_attr = (
-    quote_char          => '"',
-    escape_char         => '"',
-    sep_char            => ',',
-    eol                 => defined $\ ? $\ : '',
-    always_quote        => 0,
-    binary              => 0,
-    keep_meta_info      => 0,
-    allow_loose_quotes  => 0,
-    allow_loose_escapes => 0,
-    allow_unquoted_escape => 0,
-    allow_whitespace    => 0,
-    chomp_verbatim      => 0,
-    types               => undef,
-    verbatim            => 0,
-    blank_is_undef      => 0,
-    empty_is_undef      => 0,
-    auto_diag           => 0,
-    quote_space         => 1,
-    quote_null          => 1,
-    quote_binary        => 1,
-    diag_verbose        => 0,
-    decode_utf8         => 1,
+    eol				=> '',
+    sep_char			=> ',',
+    quote_char			=> '"',
+    escape_char			=> '"',
+    binary			=> 0,
+    decode_utf8			=> 1,
+    auto_diag			=> 0,
+    diag_verbose		=> 0,
+    blank_is_undef		=> 0,
+    empty_is_undef		=> 0,
+    allow_whitespace		=> 0,
+    allow_loose_quotes		=> 0,
+    allow_loose_escapes		=> 0,
+    allow_unquoted_escape	=> 0,
+    always_quote		=> 0,
+    quote_empty			=> 0,
+    quote_space			=> 1,
+    quote_binary		=> 1,
+    escape_null			=> 1,
+    keep_meta_info		=> 0,
+    verbatim			=> 0,
+    types			=> undef,
+    callbacks			=> undef,
 
-    _EOF                => 0,
-    _RECNO              => 0,
-    _STATUS             => undef,
-    _FIELDS             => undef,
-    _FFLAGS             => undef,
-    _STRING             => undef,
-    _ERROR_INPUT        => undef,
-    _ERROR_DIAG         => undef,
-
-    _COLUMN_NAMES       => undef,
-    _BOUND_COLUMNS      => undef,
+    _EOF			=> 0,
+    _RECNO			=> 0,
+    _STATUS			=> undef,
+    _FIELDS			=> undef,
+    _FFLAGS			=> undef,
+    _STRING			=> undef,
+    _ERROR_INPUT		=> undef,
+    _COLUMN_NAMES		=> undef,
+    _BOUND_COLUMNS		=> undef,
+    _AHEAD			=> undef,
 );
 
+my %attr_alias = (
+    quote_always		=> "always_quote",
+    verbose_diag		=> "diag_verbose",
+    quote_null			=> "escape_null",
+    );
 
 BEGIN {
     if ( $] < 5.006 ) {
@@ -243,7 +248,8 @@ sub new {
             error_diag() if $attr->{ auto_diag };
             return;
         }
-        $self->{$prop} = $attr->{$prop};
+        my $key = exists $attr_alias{$prop} ? $attr_alias{$prop} : $prop;
+        $self->{$key} = $attr->{$prop};
     }
 
     my $ec = _check_sanity( $self );
