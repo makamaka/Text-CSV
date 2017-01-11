@@ -2,11 +2,13 @@
 
 use strict;
 $^W = 1;
+use charnames ":full";
 
 use Test::More;
+$| = 1;
 
 BEGIN {
-    $] < 5.008001 and
+    $] < 5.008002 and
 	plan skip_all => "UTF8 tests useless in this ancient perl version";
     }
 
@@ -14,6 +16,9 @@ my @tests;
 
 BEGIN {
     delete $ENV{PERLIO};
+
+    my $pu = $ENV{PERL_UNICODE};
+    $pu = defined $pu && ($pu eq "" || $pu =~ m/[oD]/ || ($pu =~ m/^[0-9]+$/ && $pu & 16));
 
     my $euro_ch = "\x{20ac}";
 
@@ -24,7 +29,7 @@ BEGIN {
     @tests = (
 	# $test                        $perlio             $data,      $encoding $expect_w
 	# ---------------------------- ------------------- ----------- --------- ----------
-	[ "Unicode  default",          "",                 $euro_ch,   "utf8",   "warn",    ],
+	[ "Unicode  default",          "",                 $euro_ch,   "utf8",   $pu ? "no warn" : "warn" ],
 	[ "Unicode  binmode",          "[binmode]",        $euro_ch,   "utf8",   "warn",    ],
 	[ "Unicode  :utf8",            ":utf8",            $euro_ch,   "utf8",   "no warn", ],
 	[ "Unicode  :encoding(utf8)",  ":encoding(utf8)",  $euro_ch,   "utf8",   "no warn", ],
@@ -44,18 +49,23 @@ BEGIN {
 	);
 
     plan tests => 11 + 6 * @tests;
+    my $builder = Test::More->builder;
+    binmode $builder->output,         ":encoding(utf8)";
+    binmode $builder->failure_output, ":encoding(utf8)";
+    binmode $builder->todo_output,    ":encoding(utf8)";
     }
 
 BEGIN {
-    require_ok "Text::CSV_PP";
-    plan skip_all => "Cannot load Text::CSV_PP" if $@;
+    $ENV{PERL_TEXT_CSV} = 0;
+    use_ok "Text::CSV", ("csv");
+    plan skip_all => "Cannot load Text::CSV" if $@;
     require "t/util.pl";
     }
 
 sub hexify { join " ", map { sprintf "%02x", $_ } unpack "C*", @_ }
 sub warned { length ($_[0]) ? "warn" : "no warn" }
 
-my $csv = Text::CSV_PP->new ({ auto_diag => 1, binary => 1 });
+my $csv = Text::CSV->new ({ binary => 1, auto_diag => 1 });
 
 for (@tests) {
     my ($test, $perlio, $data, $enc, $expect_w) = @$_;
@@ -107,7 +117,7 @@ for (@tests) {
     my $data = join "\n" => @data;
     my @expect = ("aap", "a\341p", "a\x{0103}p", $blob) x 2;
 
-    my $csv = Text::CSV_PP->new ({ binary => 1, auto_diag => 1 });
+    my $csv = Text::CSV->new ({ binary => 1, auto_diag => 1 });
 
     foreach my $bc (undef, 3) {
 	my @read;

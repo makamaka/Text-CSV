@@ -144,7 +144,7 @@ for ([  1, 1,    0, "\n"		],
      ) {
     my ($tst, $valid, $err, $str) = @$_;
     $io_str = $str;
-    open $io, "<", \$io_str or die "_22test.csv: $!";
+    open $io, "<", \$io_str or die "IO: $!"; binmode $io;
     my $row = $csv->getline ($io);
     close $io;
     my @err  = $csv->error_diag;

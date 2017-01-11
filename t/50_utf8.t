@@ -10,7 +10,7 @@ BEGIN {
 	plan skip_all => "UTF8 tests useless in this ancient perl version";
 	}
     else {
-	plan tests => 91;
+	plan tests => 93;
 	}
     }
 
@@ -103,6 +103,10 @@ is ($csv->string, qq{" ",1,"\x{20ac} "},	"String 1-0");
 ok ($csv->quote_binary (1),			"quote binary on");
 ok ($csv->combine (" ", 1, "\x{20ac} "),	"Combine");
 is ($csv->string, qq{" ",1,"\x{20ac} "},	"String 1-1");
+
+ok ($csv->parse (qq{,1,"f\x{014d}o, 3""56",,bar,\r\n}), "example from XS");
+is_deeply ([$csv->fields], [
+    "", 1, qq{f\x{014d}o, 3"56}, "", "bar", "" ], "content");
 
 open my $fh, ">:encoding(utf-8)", $tfn or die "$tfn: $!\n";
 print   $fh "euro\n\x{20ac}\neuro\n";

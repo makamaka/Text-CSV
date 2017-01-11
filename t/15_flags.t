@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 201;
+use Test::More tests => 203;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -211,7 +211,7 @@ sub crnlsp {
     }
 
 ok (1, "Testing always_quote");
-{   my $csv = Text::CSV->new ({ always_quote => 0 });
+{   ok (my $csv = Text::CSV->new ({ always_quote => 0 }), "new (aq => 0)");
     ok ($csv->combine (1..3),		"Combine");
     is ($csv->string, q{1,2,3},		"String");
     is ($csv->always_quote, 0,		"Attr 0");
@@ -226,7 +226,7 @@ ok (1, "Testing always_quote");
     }
 
 ok (1, "Testing quote_space");
-{   my $csv = Text::CSV->new ({ quote_space => 1 });
+{   ok (my $csv = Text::CSV->new ({ quote_space => 1 }), "new (qs => 1)");
     ok ($csv->combine (1, " ", 3),	"Combine");
     is ($csv->string, q{1," ",3},	"String");
     is ($csv->quote_space, 1,		"Attr 1");

@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 135; # XS's t/12_acc.t + 2 (for decode_utf8)
+use Test::More tests => 140;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -16,8 +16,8 @@ ok ($csv = Text::CSV->new,				"new ()");
 
 is ($csv->quote_char,			'"',		"quote_char");
 is ($csv->escape_char,			'"',		"escape_char");
-is ($csv->sep_char,			',',		"sep_char");
-is ($csv->eol,				'',		"eol");
+is ($csv->sep_char,			",",		"sep_char");
+is ($csv->eol,				"",		"eol");
 is ($csv->always_quote,			0,		"always_quote");
 is ($csv->binary,			0,		"binary");
 is ($csv->keep_meta_info,		0,		"keep_meta_info");
@@ -42,12 +42,15 @@ ok ($csv->combine (@fld),				"combine");
 is ($csv->string,
     qq{"txt =, ""Hi!""",Yes,,2,,1.09,"\r",},	"string");
 
-is ($csv->sep_char (";"),		';',		"sep_char (;)");
-is ($csv->quote_char ("="),		'=',		"quote_char (=)");
+is ($csv->sep_char (";"),		";",		"sep_char (;)");
+is ($csv->sep_char (),			";",		"sep_char ()");
+is ($csv->quote_char ("="),		"=",		"quote_char (=)");
 is ($csv->eol (undef),			"",		"eol (undef)");
 is ($csv->eol (""),			"",		"eol ('')");
 is ($csv->eol ("\r"),			"\r",		"eol (\\r)");
 is ($csv->keep_meta_info (1),		1,		"keep_meta_info (1)");
+is ($csv->keep_meta_info (0),		0,		"keep_meta_info (0)");
+is ($csv->keep_meta_info (undef),	0,		"keep_meta_info (undef)");
 is ($csv->always_quote (undef),		0,		"always_quote (undef)");
 is ($csv->always_quote (1),		1,		"always_quote (1)");
 is ($csv->allow_loose_quotes (1),	1,		"allow_loose_quotes (1)");
@@ -77,6 +80,7 @@ ok ($csv->combine (@fld),				"combine");
 is ($csv->string,
     qq{=txt \\=, "Hi!"=;=Yes=;==;=2=;;=1.09=;=\r=;\r},	"string");
 
+is ($csv->allow_whitespace (0),		0,		"allow_whitespace (0)");
 is ($csv->quote_space (0),		0,		"quote_space (0)");
 is ($csv->quote_null (0),		0,		"quote_null (0)");
 is ($csv->quote_binary (0),		0,		"quote_binary (0)");
@@ -88,7 +92,6 @@ ok ($csv = Text::CSV->new ({
     quote_char	=> undef,
     escape_char	=> undef,
     }),						"new (undef ...)");
-is ($csv->sep_char,		undef,		"sep_char undef");
 is ($csv->quote_char,		undef,		"quote_char undef");
 is ($csv->escape_char,		undef,		"escape_char undef");
 ok ($csv->parse ("foo"),			"parse (foo)");
@@ -101,6 +104,10 @@ $csv->escape_char ("\\");
 ok (!$csv->parse ("foo,foo\0bar"),		"parse (foo)");
 $csv->binary (1);
 ok ( $csv->parse ("foo,foo\0bar"),		"parse (foo)");
+
+# Attribute aliasses
+ok ($csv = Text::CSV->new ({ escape_char => undef }), "undef escape aliases");
+is ($csv->escape_char, undef,	"escape_char is undef");
 
 # Some forbidden combinations
 foreach my $ws (" ", "\t") {
@@ -141,12 +148,12 @@ foreach my $attr (qw( sep_char quote_char escape_char )) {
 
 # And test erroneous calls
 is (Text::CSV::new (0),		   undef,	"new () as function");
-is (Text::CSV::error_diag () . '', "usage: my \$csv = Text::CSV_PP->new ([{ option => value, ... }]);",
+is (Text::CSV::error_diag (), "usage: my \$csv = Text::CSV_PP->new ([{ option => value, ... }]);",
 							"Generic usage () message");
 is (Text::CSV->new ({ oel     => "" }), undef,	"typo in attr");
-is (Text::CSV::error_diag () . '', "INI - Unknown attribute 'oel'",	"Unsupported attr");
+is (Text::CSV::error_diag (), "INI - Unknown attribute 'oel'",	"Unsupported attr");
 is (Text::CSV->new ({ _STATUS => "" }), undef,	"private attr");
-is (Text::CSV::error_diag () . '', "INI - Unknown attribute '_STATUS'",	"Unsupported private attr");
+is (Text::CSV::error_diag (), "INI - Unknown attribute '_STATUS'",	"Unsupported private attr");
 
 foreach my $arg (undef, 0, "", " ", 1, [], [ 0 ], *STDOUT) {
     is  (Text::CSV->new ($arg),         undef,	"Illegal type for first arg");

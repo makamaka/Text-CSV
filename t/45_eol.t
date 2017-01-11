@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 1065;
+use Test::More tests => 1076;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -253,6 +253,29 @@ $/ = $def_rs;
     is (scalar @$row, 15,		"field count");
     is ($row->[0], "",			"field 1");
     close $fh;
+    }
+
+{   ok (my $csv = Text::CSV->new ({ auto_diag => 1, binary => 1 }), "new csv");
+    ok ($csv->eol ("--"), "eol = --");
+
+    open my $fh, ">", $tfn or die "$tfn: $!\n";
+    print   $fh qq{1,"2--3",4--};
+    print   $fh qq{1,"2--3",4,--};
+    print   $fh qq{1,"2--3",4};
+    close   $fh;
+    open    $fh, "<", $tfn or die "$tfn: $!\n";
+    is_deeply ($csv->getline ($fh), [ "1", "2--3", 4 ],		"getline eol");
+    is_deeply ($csv->getline ($fh), [ "1", "2--3", 4, "" ],	"getline ,eol");
+    is_deeply ($csv->getline ($fh), [ "1", "2--3", 4 ],		"getline eof");
+    close   $fh;
+    }
+
+{   ok (my $csv = Text::CSV->new (), "new csv");
+    ok ($csv->parse (qq{"a","b","c"\r\n}), "parse \\r\\n");
+    is_deeply ([$csv->fields], [qw( a b c )], "result");
+    ok ($csv->allow_loose_escapes (1), "allow loose escapes");
+    ok ($csv->parse (qq{"a","b","c"\r\n}), "parse \\r\\n");
+    is_deeply ([$csv->fields], [qw( a b c )], "result");
     }
 
 1;
