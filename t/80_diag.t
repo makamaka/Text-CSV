@@ -161,6 +161,4 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     is (0 + $csv->error_diag, 1001, "Cannot set sep to current sep");
     }
 
-}
-
 1;
