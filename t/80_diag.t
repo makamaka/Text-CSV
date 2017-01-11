@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 122;
+ use Test::More tests => 194;
 #use Test::More "no_plan";
 
 my %err;
@@ -133,6 +133,41 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     ok ($csv->parse (q{1,"abc"}), "Valid parse");
     is ($csv->error_input (), undef, "Undefined error_input");
     is ($csv->{_ERROR_INPUT}, undef, "Undefined error_input");
+    }
+
+foreach my $spec (
+	undef,		# No spec at all
+	"",		# No spec at all
+	"row=0",	# row > 0
+	"col=0",	# col > 0
+	"cell=0",	# cell = r,c
+	"cell=0,0",	# TL col > 0
+	"cell=1,0",	# TL row > 0
+	"cell=1,1;0,1",	# BR col > 0
+	"cell=1,1;1,0",	# BR row > 0
+	"row=*",	# * only after n-
+	"col=3-1",	# to >= from
+	"cell=4,1;1",	# cell has no ;
+	"cell=3,3-2,1",	# bottom-right should be right to and below top-left
+	"cell=3,3-2,*",	# bottom-right should be right to and below top-left
+	"cell=3,3-4,1",	# bottom-right should be right to and below top-left
+	"cell=3,3-*,1",	# bottom-right should be right to and below top-left
+	"cell=1,*",	# * in single cell col
+	"cell=*,1",	# * in single cell row
+	"cell=*,*",	# * in single cell row and column
+	"cell=1,*-8,9",	# * in cell range top-left cell col
+	"cell=*,1-8,9",	# * in cell range top-left cell row
+	"cell=*,*-8,9",	# * in cell range top-left cell row and column
+	"row=/",	# illegal character
+	"col=4;row=3",	# cannot combine rows and columns
+	) {
+    my $csv = Text::CSV->new ();
+    my $r;
+    eval { $r = $csv->fragment (undef, $spec); };
+    is ($r, undef, "Cannot do fragment with bad RFC7111 spec");
+    my ($c_diag, $s_diag, $p_diag) = $csv->error_diag ();
+    is ($c_diag, 2013,	"Illegal RFC7111 spec");
+    is ($p_diag, 0,	"Position");
     }
 
 {   my $err = "";

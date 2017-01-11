@@ -829,6 +829,107 @@ sub print_hr {
     ref $hr eq "HASH"      or $self->_set_error_diag(3010);
     $self->print ($io, [ map { $hr->{$_} } $self->column_names ]);
 }
+
+sub fragment {
+    my ($self, $io, $spec) = @_;
+
+    my $qd = qr{\s* [0-9]+ \s* }x;                # digit
+    my $qs = qr{\s* (?: [0-9]+ | \* ) \s*}x;        # digit or star
+    my $qr = qr{$qd (?: - $qs )?}x;                # range
+    my $qc = qr{$qr (?: ; $qr )*}x;                # list
+    defined $spec && $spec =~ m{^ \s*
+        \x23 ? \s*                                # optional leading #
+        ( row | col | cell ) \s* =
+        ( $qc                                        # for row and col
+        | $qd , $qd (?: - $qs , $qs)?                # for cell (ranges)
+          (?: ; $qd , $qd (?: - $qs , $qs)? )*        # and cell (range) lists
+        ) \s* $}xi or croak ($self->SetDiag (2013));
+    my ($type, $range) = (lc $1, $2);
+
+    my @h = $self->column_names ();
+
+    my @c;
+    if ($type eq "cell") {
+        my @spec;
+        my $min_row;
+        my $max_row = 0;
+        for (split m/\s*;\s*/ => $range) {
+            my ($tlr, $tlc, $brr, $brc) = (m{
+                    ^ \s* ([0-9]+     ) \s* , \s* ([0-9]+     ) \s*
+                (?: - \s* ([0-9]+ | \*) \s* , \s* ([0-9]+ | \*) \s* )?
+                    $}x) or croak ($self->SetDiag (2013));
+            defined $brr or ($brr, $brc) = ($tlr, $tlc);
+            $tlr == 0 || $tlc == 0 ||
+                ($brr ne "*" && ($brr == 0 || $brr < $tlr)) ||
+                ($brc ne "*" && ($brc == 0 || $brc < $tlc))
+                    and croak ($self->SetDiag (2013));
+            $tlc--;
+            $brc-- unless $brc eq "*";
+            defined $min_row or $min_row = $tlr;
+            $tlr < $min_row and $min_row = $tlr;
+            $brr eq "*" || $brr > $max_row and
+                $max_row = $brr;
+            push @spec, [ $tlr, $tlc, $brr, $brc ];
+            }
+        my $r = 0;
+        while (my $row = $self->getline ($io)) {
+            ++$r < $min_row and next;
+            my %row;
+            my $lc;
+            foreach my $s (@spec) {
+                my ($tlr, $tlc, $brr, $brc) = @$s;
+                $r <  $tlr || ($brr ne "*" && $r > $brr) and next;
+                !defined $lc || $tlc < $lc and $lc = $tlc;
+                my $rr = $brc eq "*" ? $#$row : $brc;
+                $row{$_} = $row->[$_] for $tlc .. $rr;
+                }
+            push @c, [ @row{sort { $a <=> $b } keys %row } ];
+            if (@h) {
+                my %h; @h{@h} = @{$c[-1]};
+                $c[-1] = \%h;
+                }
+            $max_row ne "*" && $r == $max_row and last;
+            }
+        return \@c;
+        }
+
+    # row or col
+    my @r;
+    my $eod = 0;
+    for (split m/\s*;\s*/ => $range) {
+        my ($from, $to) = m/^\s* ([0-9]+) (?: \s* - \s* ([0-9]+ | \* ))? \s* $/x
+            or croak ($self->SetDiag (2013));
+        $to ||= $from;
+        $to eq "*" and ($to, $eod) = ($from, 1);
+        $from <= 0 || $to <= 0 || $to < $from and croak ($self->SetDiag (2013));
+        $r[$_] = 1 for $from .. $to;
+        }
+
+    my $r = 0;
+    $type eq "col" and shift @r;
+    $_ ||= 0 for @r;
+    while (my $row = $self->getline ($io)) {
+        $r++;
+        if ($type eq "row") {
+            if (($r > $#r && $eod) || $r[$r]) {
+                push @c, $row;
+                if (@h) {
+                    my %h; @h{@h} = @{$c[-1]};
+                    $c[-1] = \%h;
+                    }
+                }
+            next;
+            }
+        push @c, [ map { ($_ > $#r && $eod) || $r[$_] ? $row->[$_] : () } 0..$#$row ];
+        if (@h) {
+            my %h; @h{@h} = @{$c[-1]};
+            $c[-1] = \%h;
+            }
+        }
+
+    return \@c;
+    }
+
 ################################################################################
 # getline
 ################################################################################
