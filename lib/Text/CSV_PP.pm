@@ -231,45 +231,80 @@ sub _check_sanity {
     }
 
 sub new {
-    my $proto = shift;
-    my $attr  = @_ > 0 ? shift : {};
-
     $last_error   = 'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);';
     $last_err_num = 1000;
 
-    return unless ( defined $attr and ref($attr) eq 'HASH' );
+    my $proto = shift;
+    my $class = ref ($proto) || $proto	or  return;
+    @_ > 0 &&   ref $_[0] ne "HASH"	and return;
+    my $attr  = shift || {};
+    my %attr  = map {
+        my $k = m/^[a-zA-Z]\w+$/ ? lc $_ : $_;
+        exists $attr_alias{$k} and $k = $attr_alias{$k};
+        $k => $attr->{$_};
+        } keys %$attr;
 
-    my $class = ref($proto) || $proto or return;
-    my $self  = { %def_attr };
-
-    for my $prop (keys %$attr) { # if invalid attr, return undef
-        my $key = exists $attr_alias{$prop} ? $attr_alias{$prop} : $prop;
-        unless ($key =~ /^[a-z]/ && exists $def_attr{$key}) {
-            $last_error = "INI - Unknown attribute '$key'";
-            error_diag() if $attr->{ auto_diag };
-            return;
+    my $sep_aliased = 0;
+    if (exists $attr{sep}) {
+        $attr{sep_char} = delete $attr{sep};
+        $sep_aliased = 1;
         }
-        $self->{$key} = $attr->{$prop};
-    }
+    my $quote_aliased = 0;
+    if (exists $attr{quote}) {
+        $attr{quote_char} = delete $attr{quote};
+        $quote_aliased = 1;
+        }
+    for (keys %attr) {
+        if (m/^[a-z]/ && exists $def_attr{$_}) {
+            # uncoverable condition false
+            defined $attr{$_} && m/_char$/ and utf8::decode ($attr{$_});
+            next;
+            }
+#        croak?
+        $last_error = "INI - Unknown attribute '$_'";
+        $last_err_num = 1000;
+        $attr{auto_diag} and error_diag ();
+        return;
+        }
+    if ($sep_aliased and defined $attr{sep_char}) {
+        my @b = unpack "U0C*", $attr{sep_char};
+        if (@b > 1) {
+            $attr{sep} = $attr{sep_char};
+            $attr{sep_char} = "\0";
+            }
+        else {
+            $attr{sep} = undef;
+            }
+        }
+    if ($quote_aliased and defined $attr{quote_char}) {
+        my @b = unpack "U0C*", $attr{quote_char};
+        if (@b > 1) {
+            $attr{quote} = $attr{quote_char};
+            $attr{quote_char} = "\0";
+            }
+        else {
+            $attr{quote} = undef;
+            }
+        }
 
-    my $ec = _check_sanity( $self );
-
-    if ( $ec ) {
+    my $self = { %def_attr, %attr };
+    if (my $ec = _check_sanity ($self)) {
         $last_error   = $ERRORS->{ $ec };
         $last_err_num = $ec;
+        $attr{auto_diag} and error_diag ();
         return;
-        #$class->SetDiag ($ec);
-    }
+        }
+    if (defined $self->{callbacks} && ref $self->{callbacks} ne "HASH") {
+        Carp::carp "The 'callbacks' attribute is set but is not a hash: ignored\n";
+        $self->{callbacks} = undef;
+        }
 
-    $last_error = '';
-
-    defined $\ and $self->{eol} = $\;
-
+    $last_error = "";
+    $last_err_num = 0;
+    defined $\ && !exists $attr{eol} and $self->{eol} = $\;
     bless $self, $class;
-
-    $self->types( $self->{types} ) if( exists( $self->{types} ) );
-
-    return $self;
+    defined $self->{types} and $self->types ($self->{types});
+    $self;
 }
 ################################################################################
 # status
