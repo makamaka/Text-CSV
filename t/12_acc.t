@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 149;
+use Test::More tests => 191;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -15,8 +15,10 @@ my $csv;
 ok ($csv = Text::CSV->new,				"new ()");
 
 is ($csv->quote_char,			'"',		"quote_char");
+is ($csv->quote,			'"',		"quote");
 is ($csv->escape_char,			'"',		"escape_char");
 is ($csv->sep_char,			",",		"sep_char");
+is ($csv->sep,				",",		"sep");
 is ($csv->eol,				"",		"eol");
 is ($csv->always_quote,			0,		"always_quote");
 is ($csv->binary,			0,		"binary");
@@ -31,6 +33,8 @@ is ($csv->auto_diag,			0,		"auto_diag");
 is ($csv->diag_verbose,			0,		"diag_verbose");
 is ($csv->verbatim,			0,		"verbatim");
 is ($csv->quote_space,			1,		"quote_space");
+is ($csv->quote_empty,			0,		"quote_empty");
+is ($csv->escape_null,			1,		"escape_null");
 is ($csv->quote_null,			1,		"quote_null");
 is ($csv->quote_binary,			1,		"quote_binary");
 is ($csv->record_number,		0,		"record_number");
@@ -43,8 +47,11 @@ is ($csv->string,
     qq{"txt =, ""Hi!""",Yes,,2,,1.09,"\r",},	"string");
 
 is ($csv->sep_char (";"),		";",		"sep_char (;)");
+is ($csv->sep (";"),			";",		"sep (;)");
 is ($csv->sep_char (),			";",		"sep_char ()");
 is ($csv->quote_char ("="),		"=",		"quote_char (=)");
+is ($csv->quote (undef),		"",		"quote (undef)");
+is ($csv->quote ("="),			"=",		"quote (=)");
 is ($csv->eol (undef),			"",		"eol (undef)");
 is ($csv->eol (""),			"",		"eol ('')");
 is ($csv->eol ("\r"),			"\r",		"eol (\\r)");
@@ -78,6 +85,8 @@ is ($csv->diag_verbose (undef),		0,		"diag_verbose (undef)");
 is ($csv->diag_verbose (""),		0,		"diag_verbose (\"\")");
 is ($csv->verbatim (1),			1,		"verbatim (1)");
 is ($csv->quote_space (1),		1,		"quote_space (1)");
+is ($csv->quote_empty (1),		1,		"quote_empty (1)");
+is ($csv->escape_null (1),		1,		"escape_null (1)");
 is ($csv->quote_null (1),		1,		"quote_null (1)");
 is ($csv->quote_binary (1),		1,		"quote_binary (1)");
 is ($csv->escape_char ("\\"),		"\\",		"escape_char (\\)");
@@ -87,17 +96,40 @@ is ($csv->string,
 
 is ($csv->allow_whitespace (0),		0,		"allow_whitespace (0)");
 is ($csv->quote_space (0),		0,		"quote_space (0)");
+is ($csv->quote_empty (0),		0,		"quote_empty (0)");
+is ($csv->escape_null (0),		0,		"escape_null (0)");
 is ($csv->quote_null (0),		0,		"quote_null (0)");
 is ($csv->quote_binary (0),		0,		"quote_binary (0)");
 is ($csv->decode_utf8 (0),		0,		"decode_utf8 (0)");
+is ($csv->sep ("--"),			"--",		"sep (\"--\")");
+is ($csv->sep_char (),			"\0",		"sep_char");
+is ($csv->quote ("++"),			"++",		"quote (\"++\")");
+is ($csv->quote_char (),		"\0",		"quote_char");
+
+# Test single-byte specials in UTF-8 mode
+is ($csv->sep ("|"),			"|",		"sep |");
+is ($csv->sep_char (),			"|",		"sep_char");
+chop (my $s = "|\x{20ac}");
+is ($csv->sep ($s),			"|",		"sep |");
+is ($csv->sep (),			"|",		"sep_char");
+is ($csv->sep_char (),			"|",		"sep_char");
+is ($csv->quote ("'"),			"'",		"quote '");
+is ($csv->quote_char (),		"'",		"quote_char");
+chop (my $q = "'\x{20ac}");
+is ($csv->quote ($q),			"'",		"quote '");
+is ($csv->quote (),			"'",		"quote_char");
+is ($csv->quote_char (),		"'",		"quote_char");
 
 # Funny settings, all three translate to \0 internally
 ok ($csv = Text::CSV->new ({
-    sep_char	=> undef,
+    sep		=> "::::::::::",
     quote_char	=> undef,
     escape_char	=> undef,
     }),						"new (undef ...)");
+is ($csv->sep_char,		"\0",		"sep_char undef");
+is ($csv->sep,			"::::::::::",	"sep long");
 is ($csv->quote_char,		undef,		"quote_char undef");
+is ($csv->quote,		undef,		"quote undef");
 is ($csv->escape_char,		undef,		"escape_char undef");
 ok ($csv->parse ("foo"),			"parse (foo)");
 $csv->sep_char (",");
@@ -111,8 +143,14 @@ $csv->binary (1);
 ok ( $csv->parse ("foo,foo\0bar"),		"parse (foo)");
 
 # Attribute aliasses
+ok ($csv = Text::CSV->new ({ quote_always => 1, verbose_diag => 1}));
+is ($csv->always_quote, 1,	"always_quote = quote_always");
+is ($csv->diag_verbose, 1,	"diag_verbose = verbose_diag");
 ok ($csv = Text::CSV->new ({ escape_char => undef }), "undef escape aliases");
 is ($csv->escape_char, undef,	"escape_char is undef");
+ok ($csv = Text::CSV->new ({ quote  => undef }), "undef quote aliases");
+is ($csv->quote_char,  undef,	"quote_char is undef");
+is ($csv->quote,       undef,	"quote is undef");
 
 # Some forbidden combinations
 foreach my $ws (" ", "\t") {
@@ -152,10 +190,26 @@ foreach my $attr (qw( sep_char quote_char escape_char )) {
     }
 
 # Too long attr (max 16)
+$csv = Text::CSV->new ({ quote => "'" });
 my $xl = "X" x 32;
+eval { $csv->eol ($xl); };
+is (($csv->error_diag)[0],		1005,	"eol too long");
+is ($csv->eol (),			"",	"eol unchanged");
+eval { $csv->sep ($xl); };
+is (($csv->error_diag)[0],		1006,	"sep too long");
+is ($csv->sep (),			",",	"sep unchanged");
+eval { $csv->quote ($xl); };
+is (($csv->error_diag)[0],		1007,	"quo too long");
+is ($csv->quote (),			"'",	"quo unchanged");
 eval { $csv = Text::CSV->new ({ eol   => $xl }); };
 is ($csv,				undef,	"new with EOL too long");
 is ((Text::CSV::error_diag)[0],	1005,	"error set");
+eval { $csv = Text::CSV->new ({ sep   => $xl }); };
+is ($csv,				undef,	"new with SEP too long");
+is ((Text::CSV::error_diag)[0],	1006,	"error set");
+eval { $csv = Text::CSV->new ({ quote => $xl }); };
+is ($csv,				undef,	"new with QUO too long");
+is ((Text::CSV::error_diag)[0],	1007,	"error set");
 
 # And test erroneous calls
 is (Text::CSV::new (0),		   undef,	"new () as function");
