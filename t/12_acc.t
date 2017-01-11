@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 145;
+use Test::More tests => 149;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -66,12 +66,14 @@ is ($csv->auto_diag (1),		1,		"auto_diag (1)");
 is ($csv->auto_diag (2),		2,		"auto_diag (2)");
 is ($csv->auto_diag (9),		9,		"auto_diag (9)");
 is ($csv->auto_diag ("true"),		1,		"auto_diag (\"true\")");
+is ($csv->auto_diag ("false"),		0,		"auto_diag (\"false\")");
 is ($csv->auto_diag (undef),		0,		"auto_diag (undef)");
 is ($csv->auto_diag (""),		0,		"auto_diag (\"\")");
 is ($csv->diag_verbose (1),		1,		"diag_verbose (1)");
 is ($csv->diag_verbose (2),		2,		"diag_verbose (2)");
 is ($csv->diag_verbose (9),		9,		"diag_verbose (9)");
 is ($csv->diag_verbose ("true"),	1,		"diag_verbose (\"true\")");
+is ($csv->diag_verbose ("false"),	0,		"diag_verbose (\"false\")");
 is ($csv->diag_verbose (undef),		0,		"diag_verbose (undef)");
 is ($csv->diag_verbose (""),		0,		"diag_verbose (\"\")");
 is ($csv->verbatim (1),			1,		"verbatim (1)");
@@ -148,6 +150,12 @@ foreach my $attr (qw( sep_char quote_char escape_char )) {
     eval { ok ($csv->$attr ("\n"), "$attr => \\n") };
     is (($csv->error_diag)[0], 1003, "not allowed");
     }
+
+# Too long attr (max 16)
+my $xl = "X" x 32;
+eval { $csv = Text::CSV->new ({ eol   => $xl }); };
+is ($csv,				undef,	"new with EOL too long");
+is ((Text::CSV::error_diag)[0],	1005,	"error set");
 
 # And test erroneous calls
 is (Text::CSV::new (0),		   undef,	"new () as function");
