@@ -243,12 +243,12 @@ sub new {
     my $self  = { %def_attr };
 
     for my $prop (keys %$attr) { # if invalid attr, return undef
-        unless ($prop =~ /^[a-z]/ && exists $def_attr{$prop}) {
-            $last_error = "INI - Unknown attribute '$prop'";
+        my $key = exists $attr_alias{$prop} ? $attr_alias{$prop} : $prop;
+        unless ($key =~ /^[a-z]/ && exists $def_attr{$key}) {
+            $last_error = "INI - Unknown attribute '$key'";
             error_diag() if $attr->{ auto_diag };
             return;
         }
-        my $key = exists $attr_alias{$prop} ? $attr_alias{$prop} : $prop;
         $self->{$key} = $attr->{$prop};
     }
 
@@ -347,8 +347,8 @@ sub _combine {
     $self->{_STRING}      = '';
     $self->{_STATUS}      = 0;
 
-    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $quote_null, $quote_binary )
-            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space quote_null quote_binary/};
+    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $escape_null, $quote_binary )
+            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space escape_null quote_binary/};
 
     if(!defined $quot){ $quot = ''; }
 
@@ -390,7 +390,7 @@ sub _combine {
             $must_be_quoted++;
         }
 
-        if( $binary and $quote_null ){
+        if( $binary and $escape_null ){
             use bytes;
             $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($quote_binary && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
         }
