@@ -10,7 +10,7 @@ BEGIN {
     require_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "t/util.pl";
-}
+    }
 
 $| = 1;
 

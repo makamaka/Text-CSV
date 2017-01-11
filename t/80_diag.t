@@ -17,8 +17,8 @@ BEGIN {
     open PP, "< lib/Text/CSV_PP.pm" or die "Cannot read error messages from PP\n";
     while (<PP>) {
         m/^        ([0-9]{4}) => "([^"]+)"/ and $err{$1} = $2;
+	}
     }
-}
 
 $| = 1;
 
@@ -85,13 +85,13 @@ is (Text::CSV->new ({ ecs_char => ":" }), undef, "Unsupported option");
 {   my @warn;
     local $SIG{__WARN__} = sub { push @warn, @_ };
     is (Text::CSV->new ({ auto_diag => 0, ecs_char => ":" }), undef,
-       "Unsupported option");
+	"Unsupported option");
     ok (@warn == 0, "Error_diag in from new ({ auto_diag => 0})");
     }
 {   my @warn;
     local $SIG{__WARN__} = sub { push @warn, @_ };
     is (Text::CSV->new ({ auto_diag => 1, ecs_char => ":" }), undef,
-       "Unsupported option");
+	"Unsupported option");
     ok (@warn == 1, "Error_diag in from new ({ auto_diag => 1})");
     like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
     }
@@ -129,12 +129,12 @@ SKIP: {
     }
 
 my $diag_file = "_$$.out";
-open  EH,     ">&STDERR";
-open  STDERR, ">$diag_file";
+open  EH,     ">&STDERR"      or die "STDERR: $!\n";
+open  STDERR, ">", $diag_file or die "STDERR: $!\n";
 ok ($csv->_cache_diag,	"Cache debugging output");
 close STDERR;
-open  STDERR, ">&EH";
-open  EH,     "<$diag_file";
+open  STDERR, ">&EH"          or die "STDERR: $!\n";
+open  EH,     "<", $diag_file or die "STDERR: $!\n";
 is (scalar <EH>, "CACHE:\n",	"Title");
 while (<EH>) {
     like ($_, qr{^  \w+\s+[0-9a-f]+:(?:".*"|\s*[0-9]+)$}, "Content");

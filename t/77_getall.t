@@ -14,7 +14,7 @@ BEGIN {
 
 $| = 1;
 
-
+my $tfn = "_77test.csv"; END { -f $tfn and unlink $tfn; }
 my @testlist = (
     [ 1, "a", "\x01", "A" ],
     [ 2, "b", "\x02", "B" ],
@@ -23,8 +23,7 @@ my @testlist = (
     );
 
 my @list;
-sub do_tests
-{
+sub do_tests {
     my $sub = shift;
 
     $sub->(\@list);
@@ -44,7 +43,7 @@ foreach my $eol ("\n", "\r") {
     @list = @testlist;
 
     {   ok (my $csv = Text::CSV->new ({ binary => 1, eol => $eol }), "csv out EOL "._readable ($eol));
-	open my $fh, ">", "_77test.csv" or die "_77test.csv: $!";
+	open my $fh, ">", $tfn or die "$tfn: $!";
 	ok ($csv->print ($fh, $_), "write $_->[0]") for @list;
 	close $fh;
 	}
@@ -53,7 +52,7 @@ foreach my $eol ("\n", "\r") {
 
 	do_tests (sub {
 	    my ($expect, @args) = @_;
-	    open my $fh, "<", "_77test.csv" or die "_77test.csv: $!";
+	    open my $fh, "<", $tfn or die "$tfn: $!";
 	    my $s_args = join ", " => @args;
 	    is_deeply ($csv->getline_all ($fh, @args), $expect, "getline_all ($s_args)");
 	    close $fh;
@@ -66,7 +65,7 @@ foreach my $eol ("\n", "\r") {
 
 	do_tests (sub {
 	    my ($expect, @args) = @_;
-	    open my $fh, "<", "_77test.csv" or die "_77test.csv: $!";
+	    open my $fh, "<", $tfn or die "$tfn: $!";
 	    my $s_args = join ", " => @args;
 	    is_deeply ($csv->getline_hr_all ($fh, @args), $expect, "getline_hr_all ($s_args)");
 	    close $fh;
@@ -74,10 +73,8 @@ foreach my $eol ("\n", "\r") {
 	}
 
     {   ok (my $csv = Text::CSV->new ({ binary => 1 }), "csv in");
-	open my $fh, "<", "_77test.csv" or die "_77test.csv: $!";
+	open my $fh, "<", $tfn or die "$tfn: $!";
 	eval { my $row = $csv->getline_hr_all ($fh); };
 	is ($csv->error_diag () + 0, 3002, "Use _hr before colnames ()");
 	}
-
-    unlink "_77test.csv";
     }

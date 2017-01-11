@@ -9,7 +9,7 @@ BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
-}
+    }
 
 # empty subclass test
 #
@@ -80,9 +80,9 @@ is (($csv->fields ())[1], qq(I said,\t"Hi!"),		"Hi! - fields () - field 2");
 is (($csv->fields ())[2], "",				"Hi! - fields () - field 3");
 ok ( $csv->status (),					"status ()");
 
-ok ( $csv->parse (""),                  "Empty line");
-is ( scalar $csv->fields (), 1,             "Empty - count");
-is (($csv->fields ())[0], "",               "One empty field");
+ok ( $csv->parse (""),					"Empty line");
+is ( scalar $csv->fields (), 1,				"Empty - count");
+is (($csv->fields ())[0], "",				"One empty field");
 
 # Are Integers and Reals quoted?
 #
@@ -90,8 +90,8 @@ is (($csv->fields ())[0], "",               "One empty field");
 #    reason. This file ought to guarantee compatibility to Text::CSV.
 #
 ok (1,							"Integers and Reals");
-ok ( $csv->combine ("", 2, 3.4, "a", "a b"),		"Mixed - combine ()");
-is ( $csv->string, ',2,3.4,a,"a b"',			"Mixed - string ()");
+ok ( $csv->combine ("", 2, 3.25, "a", "a b"),		"Mixed - combine ()");
+is ( $csv->string, ',2,3.25,a,"a b"',			"Mixed - string ()");
 
 # New from object
 ok ($csv->new (),					"\$csv->new ()");

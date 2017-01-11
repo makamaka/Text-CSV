@@ -10,7 +10,7 @@ BEGIN {
     require_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "t/util.pl";
-}
+    }
 
 my $csv = Text::CSV->new ({ binary => 1 });
 
@@ -77,10 +77,10 @@ foreach my $qc (@special) {
 foreach my $ec (@special, "+") {
 foreach my $sc (@special, "\0") {
     combi (
-	quote_char	=> $qc,
-	escape_char	=> $ec,
-	sep_char	=> $sc,
-	always_quote	=> $aq,
+	sep_char         => $sc,
+	quote_char       => $qc,
+	escape_char      => $ec,
+	always_quote     => $aq,
 	);
     }
    }

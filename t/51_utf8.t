@@ -67,12 +67,12 @@ for (@tests) {
     my ($c_out, $c_fh) = ("");
 
     if ($perlio eq "[binmode]") {
-	open $p_fh, ">", \$p_out;  binmode $p_fh;
-	open $c_fh, ">", \$c_out;  binmode $c_fh;
+	open $p_fh, ">",        \$p_out or die "IO: $!\n"; binmode $p_fh;
+	open $c_fh, ">",        \$c_out or die "IO: $!\n"; binmode $c_fh;
 	}
     else {
-	open $p_fh, ">$perlio", \$p_out;
-	open $c_fh, ">$perlio", \$c_out;
+	open $p_fh, ">$perlio", \$p_out or die "IO: $!\n";
+	open $c_fh, ">$perlio", \$c_out or die "IO: $!\n";
 	}
 
     my $p_warn = "";
@@ -113,7 +113,7 @@ for (@tests) {
 	my @read;
 
 	# Using getline ()
-	open my $fh, "<", \$data;
+	open my $fh, "<", \$data or die "IO: $!\n"; binmode $fh;
 	$bc and $csv->bind_columns (\my ($f1, $f2, $f3));
 	is (scalar $csv->bind_columns, $bc, "Columns_bound?");
 	while (my $row = $csv->getline ($fh)) {

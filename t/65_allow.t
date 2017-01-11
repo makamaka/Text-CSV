@@ -13,8 +13,9 @@ BEGIN {
     require "t/util.pl";
     }
 
+my $tfn = "_65test.csv"; END { -f $tfn and unlink $tfn; }
 my $csv;
-#=pod
+
 ok (1, "Allow unescaped quotes");
 # Allow unescaped quotes inside an unquoted field
 {   my @bad = (
@@ -256,6 +257,7 @@ foreach my $conf (
 	}
     }
 
+
 ok (1, "Trailing junk");
 foreach my $bin (0, 1) {
     foreach my $eol (undef, "\r") {
@@ -293,7 +295,7 @@ foreach my $bin (0, 1) {
 	    }
 	}
     }
-#=cut
+
 {   ok (1, "verbatim");
     my $csv = Text::CSV->new ({
 	sep_char => "^",
@@ -352,14 +354,14 @@ foreach my $bin (0, 1) {
 	}
 
     ok (1, "verbatim on getline (*FH)");
-    open  FH, ">_65test.csv";
+    open  FH, ">", $tfn or die "$tfn: $!\n";
     print FH @str, "M^Abe^*\r\n";
     close FH;
 
     foreach $gc (0, 1) {
 	$csv->verbatim ($gc);
 
-	open FH, "<_65test.csv";
+	open FH, "<", $tfn or die "$tfn: $!\n";
 
 	my $row;
 	ok ($row = $csv->getline (*FH),		"#\\r\\n $gc getline");
@@ -385,47 +387,46 @@ foreach my $bin (0, 1) {
 	verbatim	=> 1,
 	eol		=> "#\r\n",
 	});
-    open  FH, ">_65test.csv";
-    print FH $str[1];
-    close FH;
-    open  FH, "<_65test.csv";
-    is ($csv->getline (*FH), undef,	"#\\r\\n $gc getline 2030");
+    open my $fh, ">", $tfn or die "$tfn: $!\n";
+    print   $fh $str[1];
+    close   $fh;
+    open    $fh, "<", $tfn or die "$tfn: $!\n";
+    is ($csv->getline ($fh), undef,	"#\\r\\n $gc getline 2030");
     is (0 + $csv->error_diag, 2030,	"Got 2030");
-    close FH;
-
-    unlink "_65test.csv";
+    close  $fh;
+    unlink $tfn;
     }
 
 {   ok (1, "keep_meta_info on getline ()");
 
     my $csv = Text::CSV->new ({ eol => "\n" });
 
-    open  FH, ">_65test.csv";
-    print FH qq{1,"",,"Q",2\n};
-    close FH;
+    open my $fh, ">", $tfn or die "$tfn: $!\n";
+    print   $fh qq{1,"",,"Q",2\n};
+    close   $fh;
 
     is ($csv->keep_meta_info (0), 0,		"No meta info");
-    open  FH, "<_65test.csv";
-    my $row = $csv->getline (*FH);
+    open    $fh, "<", $tfn or die "$tfn: $!\n";
+    my $row = $csv->getline ($fh);
     ok ($row,					"Get 1st line");
     $csv->error_diag ();
     is ($csv->is_quoted (2), undef,		"Is field 2 quoted?");
     is ($csv->is_quoted (3), undef,		"Is field 3 quoted?");
-    close FH;
+    close $fh;
 
-    open  FH, ">_65test.csv";
-    print FH qq{1,"",,"Q",2\n};
-    close FH;
+    open    $fh, ">", $tfn or die "$tfn: $!\n";
+    print   $fh qq{1,"",,"Q",2\n};
+    close   $fh;
 
     is ($csv->keep_meta_info (1), 1,		"Keep meta info");
-    open  FH, "<_65test.csv";
-    $row = $csv->getline (*FH);
+    open    $fh, "<", $tfn or die "$tfn: $!\n";
+    $row = $csv->getline ($fh);
     ok ($row,					"Get 2nd line");
     $csv->error_diag ();
     is ($csv->is_quoted (2), 0,			"Is field 2 quoted?");
     is ($csv->is_quoted (3), 1,			"Is field 3 quoted?");
-    close FH;
-    unlink "_65test.csv";
+    close  $fh;
+    unlink $tfn;
     }
 
 {   my $csv = Text::CSV->new ({});

@@ -9,7 +9,7 @@ BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV", ();
     plan skip_all => "Cannot load Text::CSV" if $@;
-}
+    }
 
 $| = 1;
 
@@ -39,11 +39,11 @@ my $inp = join "", map { chr $_ }
 # should be "\001\000\002"
 is ($csv->{_types}, $inp,			"IV PV NV");
 
-ok ($csv->parse ("2.55,CSFDATVM01,3.77"),	"parse ()");
+ok ($csv->parse ("2.55,CSFDATVM01,3.75"),	"parse ()");
 my @fields = $csv->fields ();
 is ($fields[0], "2",				"Field 1");
 is ($fields[1], "CSFDATVM01",			"Field 2");
-is ($fields[2], "3.77",				"Field 3");
+is ($fields[2], "3.75",				"Field 3");
 
 ok ($csv->combine ("", "", "1.00"),		"combine ()");
 is ($csv->string, ',,1.00',			"string");

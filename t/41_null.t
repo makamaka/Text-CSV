@@ -45,6 +45,7 @@ my %exp = map {
     ($_ => $x);
     } @pat;
 my $line = ["", undef, "0\n", "", "\0\0\n0"];
+my $tfn = "_41test.csv"; END { -f $tfn and unlink $tfn; }
 
 my $csv = Text::CSV->new ({
     eol			=> "\n",
@@ -56,32 +57,29 @@ my $csv = Text::CSV->new ({
 ok ($csv->combine (@$line), "combine [ ... ]");
 is ($csv->string, qq{,,"0\n",,""0"0\n0"\n}, "string");
 
-open FH, ">__41test.csv" or die $!;
-binmode FH;
+open my $fh, ">", $tfn or die "$tfn: $!\n";
+binmode $fh;
 
-for (@pat) {
-    ok ($csv->print (*FH, [ $_ ]), "print $exp{$_}");
-    }
+ok ($csv->print ($fh, [ $_ ]), "print $exp{$_}") for @pat;
 
 $csv->always_quote (1);
 
-ok ($csv->print (*FH, $line), "print [ ... ]");
+ok ($csv->print ($fh, $line), "print [ ... ]");
 
-close FH;
+close $fh;
 
-open FH, "<__41test.csv" or die $!;
-binmode FH;
+open $fh, "<", $tfn or die "$tfn: $!\n";
+binmode $fh;
 
 foreach my $pat (@pat) {
-    ok (my $row = $csv->getline (*FH), "getline $exp{$pat}");
+    ok (my $row = $csv->getline ($fh), "getline $exp{$pat}");
     is ($row->[0], $pat, "data $exp{$pat}");
     }
 
-is_deeply ($csv->getline (*FH), $line, "read [ ... ]");
+is_deeply ($csv->getline ($fh), $line, "read [ ... ]");
 
-close FH;
-
-unlink "__41test.csv";
+close  $fh;
+unlink $tfn;
 
 $csv = Text::CSV->new ({
     eol			=> "\n",
@@ -94,29 +92,27 @@ $csv = Text::CSV->new ({
 ok ($csv->combine (@$line), "combine [ ... ]");
 is ($csv->string, qq{,,"0\n",,"\0\0\n0"\n}, "string");
 
-open FH, ">__41test.csv" or die $!;
-binmode FH;
+open $fh, ">", $tfn or die "$tfn: $!\n";
+binmode $fh;
 
 for (@pat) {
-    ok ($csv->print (*FH, [ $_ ]), "print $exp{$_}");
+    ok ($csv->print ($fh, [ $_ ]), "print $exp{$_}");
     }
 
 $csv->always_quote (1);
 
-ok ($csv->print (*FH, $line), "print [ ... ]");
+ok ($csv->print ($fh, $line), "print [ ... ]");
 
-close FH;
+close $fh;
 
-open FH, "<__41test.csv" or die $!;
-binmode FH;
+open $fh, "<", $tfn or die "$tfn: $!\n";
+binmode $fh;
 
 foreach my $pat (@pat) {
-    ok (my $row = $csv->getline (*FH), "getline $exp{$pat}");
+    ok (my $row = $csv->getline ($fh), "getline $exp{$pat}");
     is ($row->[0], $pat, "data $exp{$pat}");
     }
 
-is_deeply ($csv->getline (*FH), $line, "read [ ... ]");
+is_deeply ($csv->getline ($fh), $line, "read [ ... ]");
 
-close FH;
-
-unlink "__41test.csv";
+close $fh;

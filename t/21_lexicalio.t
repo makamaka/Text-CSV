@@ -19,18 +19,21 @@ BEGIN {
     use_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "t/util.pl";
-}
+    }
 
 $|  = 1;
 $/  = "\n";
 $\  = undef;
 
 my $io;
+my $tfn = "_21test.csv"; END { -f $tfn and unlink $tfn; }
 my $csv = Text::CSV->new ();
 
 my $UTF8 = ($ENV{LANG} || "C").($ENV{LC_ALL} || "C") =~ m/utf-?8/i ? 1 : 0;
 
+open  $io, ">", $tfn or die "$tfn: $!";
 ok (!$csv->print ($io, ["abc", "def\007", "ghi"]), "print bad character");
+close $io;
 
 for ( [  1, 1, 1, '""'				],
       [  2, 1, 1, '', ''			],
@@ -48,15 +51,15 @@ for ( [  1, 1, 1, '""'				],
       ) {
     my ($tst, $validp, $validg, @arg, $row) = @$_;
 
-    open  $io, ">_21test.csv" or die "_21test.csv: $!";
+    open  $io, ">", $tfn or die "$tfn: $!";
     is ($csv->print ($io, \@arg), $validp||"", "$tst - print ()");
     close $io;
 
-    open  $io, ">_21test.csv" or die "_21test.csv: $!";
+    open  $io, ">", $tfn or die "$tfn: $!";
     print $io join ",", @arg;
     close $io;
 
-    open  $io, "<_21test.csv" or die "_21test.csv: $!";
+    open  $io, "<", $tfn or die "$tfn: $!";
     $row = $csv->getline ($io);
     unless ($validg) {
 	is ($row, undef, "$tst - false getline ()");
@@ -70,12 +73,12 @@ for ( [  1, 1, 1, '""'				],
 	}
     }
 
-unlink "_21test.csv";
+unlink $tfn;
 
 # This test because of a problem with DBD::CSV
 
 ok (1, "Tests for DBD::CSV");
-open  $io, ">_21test.csv" or die "_21test.csv: $!";
+open  $io, ">", $tfn or die "$tfn: $!";
 $csv->binary (1);
 $csv->eol    ("\r\n");
 ok ($csv->print ($io, [ "id", "name"			]), "Bad character");
@@ -95,14 +98,14 @@ id,name\015
 5\015
 CONTENTS
 
-open  $io, "<_21test.csv" or die "_21test.csv: $!";
+open  $io, "<", $tfn or die "$tfn: $!";
 my $content = do { local $/; <$io> };
 close $io;
 is ($content, $expected, "Content");
-open  $io, ">_21test.csv" or die "_21test.csv: $!";
+open  $io, ">", $tfn or die "$tfn: $!";
 print $io $content;
 close $io;
-open  $io, "<_21test.csv" or die "_21test.csv: $!";
+open  $io, "<", $tfn or die "$tfn: $!";
 
 my $fields;
 print "# Retrieving data\n";
@@ -140,11 +143,13 @@ for ([  1, 1,    0, "\n"		],
      [ 22, 0, 2025, qq{"+\r\r+"\r}	],
      ) {
     my ($tst, $valid, $err, $str) = @$_;
-    open  my $io, ">_21test.csv" or die "_21test.csv: $!";
+    my $raw = $] < 5.008 ? "" : ":raw";
+    open  my $io, ">$raw", $tfn or die "$tfn: $!";
     print $io $str;
     close $io;
-    open  $io, "<_21test.csv" or die "_21test.csv: $!";
+    open     $io, "<$raw", $tfn or die "$tfn: $!";
     my $row = $csv->getline ($io);
+    close $io;
     my @err  = $csv->error_diag;
     my $sstr = _readable ($str);
     SKIP: {
@@ -155,5 +160,3 @@ for ([  1, 1,    0, "\n"		],
 	ok ($err[0] >= 0, "Error $err[0] but in CSV_XS $err" . ($err[0] == $err ? " * same in PP and XS *" : "") );
 	}
     }
-
-unlink "_21test.csv";

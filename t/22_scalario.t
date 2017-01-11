@@ -9,11 +9,11 @@ use Test::More;
 
 BEGIN {
     unless (exists  $Config{useperlio} &&
-        defined $Config{useperlio} &&
-        $] >= 5.008                && # perlio was experimental in 5.6.2, but not reliable
-        $Config{useperlio} eq "define") {
-        plan skip_all => "No reliable perlIO available";
-    }
+	    defined $Config{useperlio} &&
+	    $] >= 5.008                && # perlio was experimental in 5.6.2, but not reliable
+	    $Config{useperlio} eq "define") {
+	plan skip_all => "No reliable perlIO available";
+	}
     else {
         plan tests => 105;
     }
@@ -24,16 +24,18 @@ BEGIN {
     use_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "t/util.pl";
-}
+    }
 
 $/ = "\n";
 $\ = undef;
 
 my $io;
-my $io_str;
+my $io_str = "";
 my $csv = Text::CSV->new ();
 
+open  $io, ">", \$io_str or die "IO: $!";
 ok (!$csv->print ($io, ["abc", "def\007", "ghi"]), "print bad character");
+close $io;
 
 for ( [  1, 1, 1, '""'				],
       [  2, 1, 1, '', ''			],
@@ -51,15 +53,15 @@ for ( [  1, 1, 1, '""'				],
       ) {
     my ($tst, $validp, $validg, @arg, $row) = @$_;
 
-    open  $io, ">", \$io_str or die "_22test.csv: $!";
+    open  $io, ">", \$io_str or die "IO: $!";
     is ($csv->print ($io, \@arg), $validp||"", "$tst - print ()");
     close $io;
 
-    open  $io, ">", \$io_str or die "_22test.csv: $!";
+    open  $io, ">", \$io_str or die "IO: $!";
     print $io join ",", @arg;
     close $io;
 
-    open  $io, "<", \$io_str or die "_22test.csv: $!";
+    open  $io, "<", \$io_str or die "IO: $!";
     $row = $csv->getline ($io);
     unless ($validg) {
 	is ($row, undef, "$tst - false getline ()");
@@ -73,12 +75,10 @@ for ( [  1, 1, 1, '""'				],
 	}
     }
 
-unlink "_22test.csv";
-
 # This test because of a problem with DBD::CSV
 
 ok (1, "Tests for DBD::CSV");
-open  $io, ">", \$io_str or die "_22test.csv: $!";
+open  $io, ">", \$io_str or die "IO: $!";
 $csv->binary (1);
 $csv->eol    ("\r\n");
 ok ($csv->print ($io, [ "id", "name"			]), "Bad character");
@@ -98,14 +98,14 @@ id,name\015
 5\015
 CONTENTS
 
-open  $io, "<", \$io_str or die "_22test.csv: $!";
+open  $io, "<", \$io_str or die "IO: $!";
 my $content = do { local $/; <$io> };
 close $io;
 is ($content, $expected, "Content");
-open  $io, ">", \$io_str or die "_22test.csv: $!";
+open  $io, ">", \$io_str or die "IO: $!";
 print $io $content;
 close $io;
-open  $io, "<", \$io_str or die "_22test.csv: $!";
+open  $io, "<", \$io_str or die "IO: $!";
 
 my $fields;
 print "# Retrieving data\n";

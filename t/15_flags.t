@@ -9,10 +9,9 @@ BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
-}
+    }
 
-sub crnlsp
-{
+sub crnlsp {
     my $csv = shift;
     ok (!$csv->parse (),				"Missing arguments");
     ok ( $csv->parse ("\n"),				"NL");

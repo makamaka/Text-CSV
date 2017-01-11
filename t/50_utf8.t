@@ -21,6 +21,7 @@ BEGIN {
     require "t/util.pl";
     }
 
+my $tfn = "_50test.csv"; END { -f $tfn and unlink $tfn; }
 # No binary => 1, as UTF8 is supposed to be allowed without it
 my $csv = Text::CSV->new ({
     always_quote   => 1,
@@ -103,10 +104,10 @@ ok ($csv->quote_binary (1),			"quote binary on");
 ok ($csv->combine (" ", 1, "\x{20ac} "),	"Combine");
 is ($csv->string, qq{" ",1,"\x{20ac} "},	"String 1-1");
 
-open  my $fh, ">:encoding(utf-8)", "_50test.csv";
-print $fh "euro\n\x{20ac}\neuro\n";
-close $fh;
-open     $fh, "<:encoding(utf-8)", "_50test.csv";
+open my $fh, ">:encoding(utf-8)", $tfn or die "$tfn: $!\n";
+print   $fh "euro\n\x{20ac}\neuro\n";
+close   $fh;
+open    $fh, "<:encoding(utf-8)", $tfn or die "$tfn: $!\n";
 
 SKIP: {
     my $out = "";
@@ -129,5 +130,4 @@ SKIP: {
     is ($out,			"euro",		"euro");
     ok (!$isutf8->(1),				"not utf8");
     close $fh;
-    unlink "_50test.csv";
     }
