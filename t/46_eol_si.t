@@ -14,7 +14,7 @@ BEGIN {
 	plan skip_all => "No reliable perlIO available";
 	}
     else {
-	plan tests => 546;
+	plan tests => 553;
 	}
     }
 
@@ -211,5 +211,24 @@ foreach my $eol ("!", "!!", "!\n", "!\n!") {
     }
 $/ = $def_rs;
 
-1;
+{   ok (my $csv = Text::CSV->new,	"new for say");
+    my $foo;
+    open my $fh, ">", \$foo or die "IO: $!\n";
+    ok ($csv->say ($fh, [ 1, 2 ]),	"say");
+    close $fh;
+    is ($foo, "1,2$/");
+    $foo = "";
+    $csv->eol ("#");
+    open $fh, ">", \$foo or die "IO: $!\n";
+    ok ($csv->say ($fh, [ 1, 2 ]),	"say");
+    close $fh;
+    is ($foo, "1,2#");
+    $foo = "";
+    $csv->eol ("0");
+    open $fh, ">", \$foo or die "IO: $!\n";
+    ok ($csv->say ($fh, [ 1, 2 ]),	"say");
+    close $fh;
+    is ($foo, "1,20");
+    }
 
+1;

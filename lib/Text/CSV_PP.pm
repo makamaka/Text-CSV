@@ -967,6 +967,17 @@ sub getline_hr_all {
 
     return [ map { my %h; @h{ @cn } = @$_; \%h } @{ $self->getline_all( $io, @args ) } ];
 }
+
+sub say {
+    my ($self, $io, @f) = @_;
+    my $eol = $self->eol;
+    defined $eol && $eol ne "" or $self->eol ($\ || $/);
+    my $state = $self->print ($io, @f);
+    $self->eol ($eol);
+    return $state;
+    }
+
+
 ################################################################################
 # column_names
 ################################################################################
