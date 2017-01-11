@@ -6,13 +6,10 @@ use lib qw( ./lib );
 $ENV{PERL_TEXT_CSV} = 'Text::CSV_PP';
 eval q| require Text::CSV |;
 
-# B module can't install? I'm not careful for such a problem.
-# Leave us alone today?
 if ($@) {
     print "Loading lib/Text/CSV.pm failed. No B module?\n";
     print "perl says : $@";
     print "Set the environmental variable 'PERL_DL_NONLAZY' with 0.\n";
-    print "See ExtUtils::MM_Unix.\n";
     print "No Makefile created.\n";
     exit 0;
 }
