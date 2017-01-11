@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 100;
+ use Test::More tests => 99;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
