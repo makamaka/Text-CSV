@@ -1121,11 +1121,11 @@ package Text::CSV::ErrorDiag;
 use strict;
 use overload (
     '""' => \&stringify,
-    'cmp' => \&stringify,
     '+'  => \&numeric,
     '-'  => \&numeric,
     '*'  => \&numeric,
     '/'  => \&numeric,
+    fallback => 1,
 );
 
 
