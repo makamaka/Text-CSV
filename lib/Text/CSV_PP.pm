@@ -776,256 +776,25 @@ sub _combine {
 ################################################################################
 # parse
 ################################################################################
-my %allow_eol = ("\r" => 1, "\r\n" => 1, "\n" => 1, "" => 1);
-
 *parse = \&_parse;
-
 sub _parse {
-    my ($self, $line) = @_;
+    my ($self, $str) = @_;
 
-    @{$self}{qw/_STRING _FIELDS _STATUS _ERROR_INPUT/} = ( \do{ defined $line ? "$line" : undef }, undef, 0, $line );
-
-    return 0 if(!defined $line);
-
-    my ($binary, $quot, $sep, $esc, $types, $keep_meta_info, $allow_whitespace, $eol, $blank_is_undef, $empty_is_undef, $unquot_esc, $decode_utf8)
-         = @{$self}{
-            qw/binary quote_char sep_char escape_char types keep_meta_info allow_whitespace eol blank_is_undef empty_is_undef allow_unquoted_escape decode_utf8/
-           };
-
-    $sep  = ',' unless (defined $sep);
-    $esc  = "\0" unless (defined $esc);
-    $quot = "\0" unless (defined $quot);
-
-    my $quot_is_null = $quot eq "\0"; # in this case, any fields are not interpreted as quoted data.
-
-    return $self->_set_error_diag(1001) if (($sep eq $esc or $sep eq $quot) and $sep ne "\0");
-
-    my $meta_flag      = $keep_meta_info ? [] : undef;
-    my $re_split       = $self->{_re_split}->{$quot}->{$esc}->{$sep} ||= _make_regexp_split_column($esc, $quot, $sep);
-    my $re_quoted       = $self->{_re_quoted}->{$quot}               ||= qr/^\Q$quot\E(.*)\Q$quot\E$/s;
-    my $re_in_quot_esp1 = $self->{_re_in_quot_esp1}->{$esc}          ||= qr/\Q$esc\E(.)/;
-    my $re_in_quot_esp2 = $self->{_re_in_quot_esp2}->{$quot}->{$esc} ||= qr/[\Q$quot$esc$sep\E0]/;
-    my $re_quot_char    = $self->{_re_quot_char}->{$quot}            ||= qr/\Q$quot\E/;
-    my $re_esc          = $self->{_re_esc}->{$quot}->{$esc}          ||= qr/\Q$esc\E(\Q$quot\E|\Q$esc\E|\Q$sep\E|0)/;
-    my $re_invalid_quot = $self->{_re_invalid_quot}->{$quot}->{$esc} ||= qr/^$re_quot_char|[^\Q$re_esc\E]$re_quot_char/;
-
-    if ($allow_whitespace) {
-        $re_split = $self->{_re_split_allow_sp}->{$quot}->{$esc}->{$sep}
-                     ||= _make_regexp_split_column_allow_sp($esc, $quot, $sep);
-    }
-    if ($unquot_esc) {
-        $re_split = $self->{_re_split_allow_unqout_esc}->{$quot}->{$esc}->{$sep}
-                     ||= _make_regexp_split_column_allow_unqout_esc($esc, $quot, $sep);
-    }
-
-    my $palatable = 1;
-    my @part      = ();
-
-    my $i = 0;
-    my $flag;
-
-    if (defined $eol and $eol eq "\r") {
-        $line =~ s/[\r ]*\r[ ]*$//;
-    }
-
-    if ($self->{verbatim}) {
-        $line .= $sep;
-    }
+    my $fields = [];
+    my $fflags = [];
+    $self->{_STRING} = \$str;
+    if (defined $str && $self->__parse ($str, $fields, $fflags)) {
+        $self->{_FIELDS} = $fields;
+        $self->{_FFLAGS} = $fflags;
+        $self->{_STATUS} = 1;
+        }
     else {
-        if (defined $eol and !$allow_eol{$eol}) {
-            $line .= $sep;
+        $self->{_FIELDS} = undef;
+        $self->{_FFLAGS} = undef;
+        $self->{_STATUS} = 0;
         }
-        else {
-            $line =~ s/(?:\x0D\x0A|\x0A)?$|(?:\x0D\x0A|\x0A)[ ]*$/$sep/;
-        }
+    $self->{_STATUS};
     }
-
-    my $pos = 0;
-
-    my $utf8 = 1 if $decode_utf8 and utf8::is_utf8( $line ); # if decode_utf8 is true(default) and UTF8 marked, flag on.
-
-    for my $col ( $line =~ /$re_split/g ) {
-
-        if ($keep_meta_info) {
-            $flag = 0x0000;
-            $flag |= IS_BINARY if ($col =~ /[^\x09\x20-\x7E]/);
-        }
-
-        $pos += length $col;
-
-        if ( ( !$binary and !$utf8 ) and $col =~ /[^\x09\x20-\x7E]/) { # Binary character, binary off
-            if ( not $quot_is_null and $col =~ $re_quoted ) {
-                $self->_set_error_diag(
-                      $col =~ /\n([^\n]*)/ ? (2021, $pos - 1 - length $1)
-                    : $col =~ /\r([^\r]*)/ ? (2022, $pos - 1 - length $1)
-                    : (2026, $pos -2) # Binary character inside quoted field, binary off
-                );
-            }
-            else {
-                $self->_set_error_diag(
-                      $col =~ /\Q$quot\E(.*)\Q$quot\E\r$/   ? (2010, $pos - 2)
-                    : $col =~ /\n/                          ? (2030, $pos - length $col)
-                    : $col =~ /^\r/                         ? (2031, $pos - length $col)
-                    : $col =~ /\r([^\r]*)/                  ? (2032, $pos - 1 - length $1)
-                    : (2037, $pos - length $col) # Binary character in unquoted field, binary off
-                );
-            }
-            $palatable = 0;
-            last;
-        }
-
-        if ( ($utf8 and !$binary) and  $col =~ /\n|\0/ ) { # \n still needs binary (Text::CSV_XS 0.51 compat)
-            $self->_set_error_diag(2021, $pos);
-            $palatable = 0;
-            last;
-        }
-
-        if ( not $quot_is_null and $col =~ $re_quoted ) {
-            $flag |= IS_QUOTED if ($keep_meta_info);
-            $col = $1;
-
-            my $flag_in_quot_esp;
-            while ( $col =~ /$re_in_quot_esp1/g ) {
-                my $str = $1;
-                $flag_in_quot_esp = 1;
-
-                if ($str !~ $re_in_quot_esp2) {
-
-                    unless ($self->{allow_loose_escapes}) {
-                        $self->_set_error_diag( 2025, $pos - 2 ); # Needless ESC in quoted field
-                        $palatable = 0;
-                        last;
-                    }
-
-                    unless ($self->{allow_loose_quotes}) {
-                        $col =~ s/\Q$esc\E(.)/$1/g;
-                    }
-                }
-
-            }
-
-            last unless ( $palatable );
-
-            unless ( $flag_in_quot_esp ) {
-                if ($col =~ /(?<!\Q$esc\E)\Q$esc\E/) {
-                    $self->_set_error_diag( 4002, $pos - 1 ); # No escaped ESC in quoted field
-                    $palatable = 0;
-                    last;
-                }
-            }
-
-            $col =~ s{$re_esc}{$1 eq '0' ? "\0" : $1}eg;
-
-            if ( $empty_is_undef and length($col) == 0 ) {
-                $col = undef;
-            }
-
-            if ($types and $types->[$i]) { # IV or NV
-                _check_type(\$col, $types->[$i]);
-            }
-
-        }
-
-        # quoted but invalid
-
-        elsif ( not $quot_is_null and $col =~ $re_invalid_quot ) {
-
-            unless ($self->{allow_loose_quotes} and $col =~ /$re_quot_char/) {
-                $self->_set_error_diag(
-                      $col =~ /^\Q$quot\E(.*)\Q$quot\E.$/s  ? (2011, $pos - 2)
-                    : $col =~ /^$re_quot_char/              ? (2027, $pos - 1)
-                    : (2034, $pos - length $col) # Loose unescaped quote
-                );
-                $palatable = 0;
-                last;
-            }
-
-        }
-
-        elsif ($types and $types->[$i]) { # IV or NV
-            _check_type(\$col, $types->[$i]);
-        }
-
-        # unquoted
-
-        else {
-
-            if (!$self->{verbatim} and $col =~ /\r\n|\n/) {
-                $col =~ s/(?:\r\n|\n).*$//sm;
-            }
-
-            if ($col =~ /\Q$esc\E\r$/) { # for t/15_flags : test 165 'ESC CR' at line 203
-                $self->_set_error_diag( 4003, $pos );
-                $palatable = 0;
-                last;
-            }
-
-            if ($col =~ /.\Q$esc\E$/) { # for t/65_allow : test 53-54 parse('foo\') at line 62, 65
-                $self->_set_error_diag( 4004, $pos );
-                $palatable = 0;
-                last;
-            }
-
-            if ( $col eq '' and $blank_is_undef ) {
-                $col = undef;
-            }
-
-            if ( $empty_is_undef and defined $col and length($col) == 0 ) {
-                $col = undef;
-            }
-
-            if ( $unquot_esc ) {
-                $col =~ s/\Q$esc\E(.)/$1/g;
-            }
-
-        }
-
-        if ( defined $col ) {
-            utf8::encode($col) if $utf8;
-            if ( $decode_utf8 && _is_valid_utf8($col) ) {
-                utf8::decode($col);
-            }
-        }
-
-        push @part,$col;
-        push @{$meta_flag}, $flag if ($keep_meta_info);
-        $self->{ _RECNO }++;
-
-        $i++;
-    }
-
-    if ($palatable and ! @part) {
-        $palatable = 0;
-    }
-
-    if ($palatable) {
-        $self->{_ERROR_INPUT} = undef;
-        $self->{_FIELDS}      = \@part;
-
-        if ( $self->{_BOUND_COLUMNS} ) {
-            my @vals  = @part;
-            my ( $max, $count ) = ( scalar @vals, 0 );
-
-            if ( @{ $self->{_BOUND_COLUMNS} } < $max ) {
-                $self->_set_error_diag(3006);
-                return;
-            }
-
-            for ( my $i = 0; $i < $max; $i++ ) {
-                my $bind = $self->{_BOUND_COLUMNS}->[ $i ];
-                if ( Scalar::Util::readonly( $$bind ) ) {
-                    $self->_set_error_diag(3008);
-                    return;
-                }
-                $$bind = $vals[ $i ];
-            }
-        }
-    }
-
-    $self->{_FFLAGS} = $keep_meta_info ? $meta_flag : [];
-
-    return $self->{_STATUS} = $palatable;
-}
 
 sub column_names {
     my ( $self, @columns ) = @_;
@@ -1639,6 +1408,253 @@ sub __combine {
 ################################################################################
 # methods for parse
 ################################################################################
+
+my %allow_eol = ("\r" => 1, "\r\n" => 1, "\n" => 1, "" => 1);
+sub __parse {
+    my ($self, $str, $fields, $fflags) = @_;
+
+    $self->{_ERROR_INPUT} = $str;
+
+    my ($binary, $quot, $sep, $esc, $types, $keep_meta_info, $allow_whitespace, $eol, $blank_is_undef, $empty_is_undef, $unquot_esc, $decode_utf8)
+         = @{$self}{
+            qw/binary quote_char sep_char escape_char types keep_meta_info allow_whitespace eol blank_is_undef empty_is_undef allow_unquoted_escape decode_utf8/
+           };
+
+    $sep  = ',' unless (defined $sep);
+    $esc  = "\0" unless (defined $esc);
+    $quot = "\0" unless (defined $quot);
+
+    my $quot_is_null = $quot eq "\0"; # in this case, any fields are not interpreted as quoted data.
+
+    if (($sep eq $esc or $sep eq $quot) and $sep ne "\0") {
+        $self->_set_error_diag(1001);
+        return;
+    }
+
+    my $meta_flag      = $keep_meta_info ? [] : undef;
+    my $re_split       = $self->{_re_split}->{$quot}->{$esc}->{$sep} ||= _make_regexp_split_column($esc, $quot, $sep);
+    my $re_quoted       = $self->{_re_quoted}->{$quot}               ||= qr/^\Q$quot\E(.*)\Q$quot\E$/s;
+    my $re_in_quot_esp1 = $self->{_re_in_quot_esp1}->{$esc}          ||= qr/\Q$esc\E(.)/;
+    my $re_in_quot_esp2 = $self->{_re_in_quot_esp2}->{$quot}->{$esc} ||= qr/[\Q$quot$esc$sep\E0]/;
+    my $re_quot_char    = $self->{_re_quot_char}->{$quot}            ||= qr/\Q$quot\E/;
+    my $re_esc          = $self->{_re_esc}->{$quot}->{$esc}          ||= qr/\Q$esc\E(\Q$quot\E|\Q$esc\E|\Q$sep\E|0)/;
+    my $re_invalid_quot = $self->{_re_invalid_quot}->{$quot}->{$esc} ||= qr/^$re_quot_char|[^\Q$re_esc\E]$re_quot_char/;
+
+    if ($allow_whitespace) {
+        $re_split = $self->{_re_split_allow_sp}->{$quot}->{$esc}->{$sep}
+                     ||= _make_regexp_split_column_allow_sp($esc, $quot, $sep);
+    }
+    if ($unquot_esc) {
+        $re_split = $self->{_re_split_allow_unqout_esc}->{$quot}->{$esc}->{$sep}
+                     ||= _make_regexp_split_column_allow_unqout_esc($esc, $quot, $sep);
+    }
+
+    my $palatable = 1;
+
+    my $i = 0;
+    my $flag;
+
+    if (defined $eol and $eol eq "\r") {
+        $str =~ s/[\r ]*\r[ ]*$//;
+    }
+
+    if ($self->{verbatim}) {
+        $str .= $sep;
+    }
+    else {
+        if (defined $eol and !$allow_eol{$eol}) {
+            $str .= $sep;
+        }
+        else {
+            $str =~ s/(?:\x0D\x0A|\x0A)?$|(?:\x0D\x0A|\x0A)[ ]*$/$sep/;
+        }
+    }
+
+    my $pos = 0;
+
+    my $utf8 = 1 if $decode_utf8 and utf8::is_utf8( $str ); # if decode_utf8 is true(default) and UTF8 marked, flag on.
+
+    for my $col ( $str =~ /$re_split/g ) {
+
+        if ($keep_meta_info) {
+            $flag = 0x0000;
+            $flag |= IS_BINARY if ($col =~ /[^\x09\x20-\x7E]/);
+        }
+
+        $pos += length $col;
+
+        if ( ( !$binary and !$utf8 ) and $col =~ /[^\x09\x20-\x7E]/) { # Binary character, binary off
+            if ( not $quot_is_null and $col =~ $re_quoted ) {
+                $self->_set_error_diag(
+                      $col =~ /\n([^\n]*)/ ? (2021, $pos - 1 - length $1)
+                    : $col =~ /\r([^\r]*)/ ? (2022, $pos - 1 - length $1)
+                    : (2026, $pos -2) # Binary character inside quoted field, binary off
+                );
+            }
+            else {
+                $self->_set_error_diag(
+                      $col =~ /\Q$quot\E(.*)\Q$quot\E\r$/   ? (2010, $pos - 2)
+                    : $col =~ /\n/                          ? (2030, $pos - length $col)
+                    : $col =~ /^\r/                         ? (2031, $pos - length $col)
+                    : $col =~ /\r([^\r]*)/                  ? (2032, $pos - 1 - length $1)
+                    : (2037, $pos - length $col) # Binary character in unquoted field, binary off
+                );
+            }
+            $palatable = 0;
+            last;
+        }
+
+        if ( ($utf8 and !$binary) and  $col =~ /\n|\0/ ) { # \n still needs binary (Text::CSV_XS 0.51 compat)
+            $self->_set_error_diag(2021, $pos);
+            $palatable = 0;
+            last;
+        }
+
+        if ( not $quot_is_null and $col =~ $re_quoted ) {
+            $flag |= IS_QUOTED if ($keep_meta_info);
+            $col = $1;
+
+            my $flag_in_quot_esp;
+            while ( $col =~ /$re_in_quot_esp1/g ) {
+                my $str = $1;
+                $flag_in_quot_esp = 1;
+
+                if ($str !~ $re_in_quot_esp2) {
+
+                    unless ($self->{allow_loose_escapes}) {
+                        $self->_set_error_diag( 2025, $pos - 2 ); # Needless ESC in quoted field
+                        $palatable = 0;
+                        last;
+                    }
+
+                    unless ($self->{allow_loose_quotes}) {
+                        $col =~ s/\Q$esc\E(.)/$1/g;
+                    }
+                }
+
+            }
+
+            last unless ( $palatable );
+
+            unless ( $flag_in_quot_esp ) {
+                if ($col =~ /(?<!\Q$esc\E)\Q$esc\E/) {
+                    $self->_set_error_diag( 4002, $pos - 1 ); # No escaped ESC in quoted field
+                    $palatable = 0;
+                    last;
+                }
+            }
+
+            $col =~ s{$re_esc}{$1 eq '0' ? "\0" : $1}eg;
+
+            if ( $empty_is_undef and length($col) == 0 ) {
+                $col = undef;
+            }
+
+            if ($types and $types->[$i]) { # IV or NV
+                _check_type(\$col, $types->[$i]);
+            }
+
+        }
+
+        # quoted but invalid
+
+        elsif ( not $quot_is_null and $col =~ $re_invalid_quot ) {
+
+            unless ($self->{allow_loose_quotes} and $col =~ /$re_quot_char/) {
+                $self->_set_error_diag(
+                      $col =~ /^\Q$quot\E(.*)\Q$quot\E.$/s  ? (2011, $pos - 2)
+                    : $col =~ /^$re_quot_char/              ? (2027, $pos - 1)
+                    : (2034, $pos - length $col) # Loose unescaped quote
+                );
+                $palatable = 0;
+                last;
+            }
+
+        }
+
+        elsif ($types and $types->[$i]) { # IV or NV
+            _check_type(\$col, $types->[$i]);
+        }
+
+        # unquoted
+
+        else {
+
+            if (!$self->{verbatim} and $col =~ /\r\n|\n/) {
+                $col =~ s/(?:\r\n|\n).*$//sm;
+            }
+
+            if ($col =~ /\Q$esc\E\r$/) { # for t/15_flags : test 165 'ESC CR' at line 203
+                $self->_set_error_diag( 4003, $pos );
+                $palatable = 0;
+                last;
+            }
+
+            if ($col =~ /.\Q$esc\E$/) { # for t/65_allow : test 53-54 parse('foo\') at line 62, 65
+                $self->_set_error_diag( 4004, $pos );
+                $palatable = 0;
+                last;
+            }
+
+            if ( $col eq '' and $blank_is_undef ) {
+                $col = undef;
+            }
+
+            if ( $empty_is_undef and defined $col and length($col) == 0 ) {
+                $col = undef;
+            }
+
+            if ( $unquot_esc ) {
+                $col =~ s/\Q$esc\E(.)/$1/g;
+            }
+
+        }
+
+        if ( defined $col ) {
+            utf8::encode($col) if $utf8;
+            if ( $decode_utf8 && _is_valid_utf8($col) ) {
+                utf8::decode($col);
+            }
+        }
+
+        push @$fields,$col;
+        push @{$meta_flag}, $flag if ($keep_meta_info);
+        $self->{ _RECNO }++;
+
+        $i++;
+    }
+
+    if ($palatable and ! @$fields) {
+        $palatable = 0;
+    }
+
+    if ($palatable) {
+        $self->{_ERROR_INPUT} = undef;
+
+        if ( $self->{_BOUND_COLUMNS} ) {
+            my @vals  = @$fields;
+            my ( $max, $count ) = ( scalar @vals, 0 );
+
+            if ( @{ $self->{_BOUND_COLUMNS} } < $max ) {
+                $self->_set_error_diag(3006);
+                return;
+            }
+
+            for ( my $i = 0; $i < $max; $i++ ) {
+                my $bind = $self->{_BOUND_COLUMNS}->[ $i ];
+                if ( Scalar::Util::readonly( $$bind ) ) {
+                    $self->_set_error_diag(3008);
+                    return;
+                }
+                $$bind = $vals[ $i ];
+            }
+        }
+    }
+
+    @$fflags = $keep_meta_info ? @$meta_flag : ();
+
+    return $palatable;
+}
 
 sub getline {
     my ($self, $io) = @_;
