@@ -89,9 +89,57 @@ my $ERRORS = {
         0    => "",
 };
 
+BEGIN {
+    if ( $] < 5.006 ) {
+        $INC{'bytes.pm'} = 1 unless $INC{'bytes.pm'}; # dummy
+        no strict 'refs';
+        *{"utf8::is_utf8"} = sub { 0; };
+        *{"utf8::decode"}  = sub { };
+    }
+    elsif ( $] < 5.008 ) {
+        no strict 'refs';
+        *{"utf8::is_utf8"} = sub { 0; };
+        *{"utf8::decode"}  = sub { };
+    }
+    elsif ( !defined &utf8::is_utf8 ) {
+       require Encode;
+       *utf8::is_utf8 = *Encode::is_utf8;
+    }
 
-my $last_error = '';
-my $last_err_num;
+    eval q| require Scalar::Util |;
+    if ( $@ ) {
+        eval q| require B |;
+        if ( $@ ) {
+            Carp::croak $@;
+        }
+        else {
+            *Scalar::Util::readonly = sub (\$) {
+                my $b = B::svref_2object( $_[0] );
+                $b->FLAGS & 0x00800000; # SVf_READONLY?
+            }
+        }
+    }
+}
+
+################################################################################
+#
+# Common pure perl methods, taken almost directly from Text::CSV_XS
+# (These should be moved into a common class eventually, so that
+# both XS and PP do the same changes.)
+#
+################################################################################
+
+################################################################################
+# version
+################################################################################
+
+sub version {
+    return $VERSION;
+}
+
+################################################################################
+# new
+################################################################################
 
 my %def_attr = (
     eol				=> '',
@@ -136,48 +184,10 @@ my %attr_alias = (
     quote_null			=> "escape_null",
     );
 
-BEGIN {
-    if ( $] < 5.006 ) {
-        $INC{'bytes.pm'} = 1 unless $INC{'bytes.pm'}; # dummy
-        no strict 'refs';
-        *{"utf8::is_utf8"} = sub { 0; };
-        *{"utf8::decode"}  = sub { };
-    }
-    elsif ( $] < 5.008 ) {
-        no strict 'refs';
-        *{"utf8::is_utf8"} = sub { 0; };
-        *{"utf8::decode"}  = sub { };
-    }
-    elsif ( !defined &utf8::is_utf8 ) {
-       require Encode;
-       *utf8::is_utf8 = *Encode::is_utf8;
-    }
+my $last_error = '';
+my $last_err_num;
 
-    eval q| require Scalar::Util |;
-    if ( $@ ) {
-        eval q| require B |;
-        if ( $@ ) {
-            Carp::croak $@;
-        }
-        else {
-            *Scalar::Util::readonly = sub (\$) {
-                my $b = B::svref_2object( $_[0] );
-                $b->FLAGS & 0x00800000; # SVf_READONLY?
-            }
-        }
-    }
-}
-
-################################################################################
-# version
-################################################################################
-sub version {
-    return $VERSION;
-}
-################################################################################
-# new
-################################################################################
-
+# NOT a method: is also used before bless
 sub _unhealthy_whitespace {
     my $self = shift;
     $_[0] or return 0; # no checks needed without allow_whitespace
@@ -310,21 +320,333 @@ sub new {
     defined $self->{types} and $self->types ($self->{types});
     $self;
 }
+
+# Keep in sync with XS!
+my %_cache_id = ( # Only expose what is accessed from within PM
+    quote_char			=>  0,
+    escape_char			=>  1,
+    sep_char			=>  2,
+    sep				=> 39,	# 39 .. 55
+    binary			=>  3,
+    keep_meta_info		=>  4,
+    always_quote		=>  5,
+    allow_loose_quotes		=>  6,
+    allow_loose_escapes		=>  7,
+    allow_unquoted_escape	=>  8,
+    allow_whitespace		=>  9,
+    blank_is_undef		=> 10,
+    eol				=> 11,
+    quote			=> 15,
+    verbatim			=> 22,
+    empty_is_undef		=> 23,
+    auto_diag			=> 24,
+    diag_verbose		=> 33,
+    quote_space			=> 25,
+    quote_empty			=> 37,
+    quote_binary		=> 32,
+    escape_null			=> 31,
+    decode_utf8			=> 35,
+    _has_hooks			=> 36,
+    _is_bound			=> 26,	# 26 .. 29
+    );
+
+# A `character'
+sub _set_attr_C {
+    my ($self, $name, $val, $ec) = @_;
+    defined $val or $val = 0;
+    utf8::decode ($val);
+    $self->{$name} = $val;
+    $ec = _check_sanity ($self) and
+        croak ($self->SetDiag ($ec));
+    }
+
+# A flag
+sub _set_attr_X {
+    my ($self, $name, $val) = @_;
+    defined $val or $val = 0;
+    $self->{$name} = $val;
+    }
+
+# A number
+sub _set_attr_N {
+    my ($self, $name, $val) = @_;
+    $self->{$name} = $val;
+    }
+
+# Accessor methods.
+#   It is unwise to change them halfway through a single file!
+sub quote_char {
+    my $self = shift;
+    if (@_) {
+        $self->_set_attr_C ("quote_char", shift);
+        }
+    $self->{quote_char};
+    }
+
+sub quote {
+    my $self = shift;
+    if (@_) {
+        my $quote = shift;
+        defined $quote or $quote = "";
+        utf8::decode ($quote);
+        my @b = unpack "U0C*", $quote;
+        if (@b > 1) {
+            @b > 16 and croak ($self->SetDiag (1007));
+            $self->quote_char ("\0");
+            }
+        else {
+            $self->quote_char ($quote);
+            $quote = "";
+            }
+        $self->{quote} = $quote;
+
+        my $ec = _check_sanity ($self);
+        $ec and croak ($self->SetDiag ($ec));
+        }
+    my $quote = $self->{quote};
+    defined $quote && length ($quote) ? $quote : $self->{quote_char};
+    }
+
+sub escape_char {
+    my $self = shift;
+    @_ and $self->_set_attr_C ("escape_char", shift);
+    $self->{escape_char};
+    }
+
+sub sep_char {
+    my $self = shift;
+    if (@_) {
+        $self->_set_attr_C ("sep_char", shift);
+        }
+    $self->{sep_char};
+}
+
+sub sep {
+    my $self = shift;
+    if (@_) {
+        my $sep = shift;
+        defined $sep or $sep = "";
+        utf8::decode ($sep);
+        my @b = unpack "U0C*", $sep;
+        if (@b > 1) {
+            @b > 16 and croak ($self->SetDiag (1006));
+            $self->sep_char ("\0");
+            }
+        else {
+            $self->sep_char ($sep);
+            $sep = "";
+            }
+        $self->{sep} = $sep;
+
+        my $ec = _check_sanity ($self);
+        $ec and croak ($self->SetDiag ($ec));
+        }
+    my $sep = $self->{sep};
+    defined $sep && length ($sep) ? $sep : $self->{sep_char};
+    }
+
+sub eol {
+    my $self = shift;
+    if (@_) {
+        my $eol = shift;
+        defined $eol or $eol = "";
+        length ($eol) > 16 and croak ($self->SetDiag (1005));
+        $self->{eol} = $eol;
+        }
+    $self->{eol};
+    }
+
+sub always_quote {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("always_quote", shift);
+    $self->{always_quote};
+    }
+
+sub quote_space {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("quote_space", shift);
+    $self->{quote_space};
+    }
+
+sub quote_empty {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("quote_empty", shift);
+    $self->{quote_empty};
+    }
+
+sub escape_null {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("escape_null", shift);
+    $self->{escape_null};
+    }
+
+sub quote_null { goto &escape_null; }
+
+sub quote_binary {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("quote_binary", shift);
+    $self->{quote_binary};
+    }
+
+sub binary {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("binary", shift);
+    $self->{binary};
+    }
+
+sub decode_utf8 {
+    my $self = shift;
+    if ( @_ ) {
+        $self->{decode_utf8} = $_[0];
+        my $ec = _check_sanity( $self );
+        $ec and Carp::croak( $self->SetDiag( $ec ) );
+    }
+    $self->{decode_utf8};
+}
+
+sub keep_meta_info {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        !defined $v || $v eq "" and $v = 0;
+        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
+        $self->_set_attr_X ("keep_meta_info", $v);
+        }
+    $self->{keep_meta_info};
+    }
+
+sub allow_loose_quotes {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("allow_loose_quotes", shift);
+    $self->{allow_loose_quotes};
+    }
+
+sub allow_loose_escapes {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("allow_loose_escapes", shift);
+    $self->{allow_loose_escapes};
+    }
+
+sub allow_whitespace {
+    my $self = shift;
+    if (@_) {
+        my $aw = shift;
+        _unhealthy_whitespace ($self, $aw) and
+            croak ($self->SetDiag (1002));
+        $self->_set_attr_X ("allow_whitespace", $aw);
+        }
+    $self->{allow_whitespace};
+    }
+
+sub allow_unquoted_escape {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("allow_unquoted_escape", shift);
+    $self->{allow_unquoted_escape};
+    }
+
+sub blank_is_undef {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("blank_is_undef", shift);
+    $self->{blank_is_undef};
+    }
+
+sub empty_is_undef {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("empty_is_undef", shift);
+    $self->{empty_is_undef};
+    }
+
+sub verbatim {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("verbatim", shift);
+    $self->{verbatim};
+    }
+
+sub auto_diag {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        !defined $v || $v eq "" and $v = 0;
+        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
+        $self->_set_attr_X ("auto_diag", $v);
+        }
+    $self->{auto_diag};
+    }
+
+sub diag_verbose {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        !defined $v || $v eq "" and $v = 0;
+        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
+        $self->_set_attr_X ("diag_verbose", $v);
+        }
+    $self->{diag_verbose};
+    }
+
 ################################################################################
 # status
 ################################################################################
+
 sub status {
     $_[0]->{_STATUS};
 }
-################################################################################
-# error_input
-################################################################################
-sub error_input {
-    $_[0]->{_ERROR_INPUT};
+
+sub eof {
+    $_[0]->{_EOF};
 }
+
+sub types {
+    my $self = shift;
+
+    if (@_) {
+        if (my $types = shift) {
+            $self->{'_types'} = join("", map{ chr($_) } @$types);
+            $self->{'types'} = $types;
+        }
+        else {
+            delete $self->{'types'};
+            delete $self->{'_types'};
+            undef;
+        }
+    }
+    else {
+        $self->{'types'};
+    }
+}
+
+sub callbacks {
+    my $self = shift;
+    if (@_) {
+        my $cb;
+        my $hf = 0x00;
+        if (defined $_[0]) {
+            grep { !defined } @_ and croak ($self->SetDiag (1004));
+            $cb = @_ == 1 && ref $_[0] eq "HASH" ? shift
+                : @_ % 2 == 0                    ? { @_ }
+                : croak ($self->SetDiag (1004));
+            foreach my $cbk (keys %$cb) {
+                (!ref $cbk && $cbk =~ m/^[\w.]+$/) && ref $cb->{$cbk} eq "CODE" or
+                    croak ($self->SetDiag (1004));
+                }
+            exists $cb->{error}        and $hf |= 0x01;
+            exists $cb->{after_parse}  and $hf |= 0x02;
+            exists $cb->{before_print} and $hf |= 0x04;
+            }
+        elsif (@_ > 1) {
+            # (undef, whatever)
+            croak ($self->SetDiag (1004));
+            }
+        $self->_set_attr_X ("_has_hooks", $hf);
+        $self->{callbacks} = $cb;
+        }
+    $self->{callbacks};
+    }
+
 ################################################################################
 # error_diag
 ################################################################################
+
 sub error_diag {
     my $self = shift;
     my @diag = (0, $last_error, 0, 0, 0);
@@ -395,17 +717,50 @@ sub record_number {
 ################################################################################
 # string
 ################################################################################
+
 *string = \&_string;
 sub _string {
     defined $_[0]->{_STRING} ? ${ $_[0]->{_STRING} } : undef;
 }
+
 ################################################################################
 # fields
 ################################################################################
+
 *fields = \&_fields;
 sub _fields {
     ref($_[0]->{_FIELDS}) ?  @{$_[0]->{_FIELDS}} : undef;
 }
+
+################################################################################
+# meta_info
+################################################################################
+
+sub meta_info {
+    $_[0]->{_FFLAGS} ? @{ $_[0]->{_FFLAGS} } : undef;
+}
+
+sub is_quoted {
+    return unless (defined $_[0]->{_FFLAGS});
+    return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
+
+    $_[0]->{_FFLAGS}->[$_[1]] & IS_QUOTED ? 1 : 0;
+}
+
+sub is_binary {
+    return unless (defined $_[0]->{_FFLAGS});
+    return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
+    $_[0]->{_FFLAGS}->[$_[1]] & IS_BINARY ? 1 : 0;
+}
+
+sub is_missing {
+    my ($self, $idx, $val) = @_;
+    return unless $self->{keep_meta_info}; # FIXME
+    $idx < 0 || !ref $self->{_FFLAGS} and return;
+    $idx >= @{$self->{_FFLAGS}} and return 1;
+    $self->{_FFLAGS}[$idx] & IS_MISSING ? 1 : 0;
+}
+
 ################################################################################
 # combine
 ################################################################################
@@ -734,94 +1089,161 @@ sub _parse {
     return $self->{_STATUS} = $palatable;
 }
 
+sub column_names {
+    my ( $self, @columns ) = @_;
 
-sub _make_regexp_split_column {
-    my ($esc, $quot, $sep) = @_;
+    @columns or return defined $self->{_COLUMN_NAMES} ? @{$self->{_COLUMN_NAMES}} : undef;
+    @columns == 1 && ! defined $columns[0] and return $self->{_COLUMN_NAMES} = undef;
 
-    if ( $quot eq '' ) {
-        return qr/([^\Q$sep\E]*)\Q$sep\E/s;
+    if ( @columns == 1 && ref $columns[0] eq "ARRAY" ) {
+        @columns = @{ $columns[0] };
+    }
+    elsif ( join "", map { defined $_ ? ref $_ : "" } @columns ) {
+        $self->SetDiag( 3001 );
     }
 
-   return qr/(
-        \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E0][^\Q$quot$esc\E]*)*
-        \Q$quot\E
-        | # or
-        \Q$quot\E
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
-        \Q$quot\E
-        | # or
-        [^\Q$sep\E]*
-       )
-       \Q$sep\E
-    /xs;
-}
-
-
-sub _make_regexp_split_column_allow_unqout_esc {
-    my ($esc, $quot, $sep) = @_;
-
-   return qr/(
-        \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E0][^\Q$quot$esc\E]*)*
-        \Q$quot\E
-        | # or
-        \Q$quot\E
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
-        \Q$quot\E
-        | # or
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
-        | # or
-        [^\Q$sep\E]*
-       )
-       \Q$sep\E
-    /xs;
-}
-
-
-sub _make_regexp_split_column_allow_sp {
-    my ($esc, $quot, $sep) = @_;
-
-    # if separator is space or tab, don't count that separator
-    # as whitespace  --- patched by Mike O'Sullivan
-    my $ws = $sep eq ' '  ? '[\x09]'
-           : $sep eq "\t" ? '[\x20]'
-           : '[\x20\x09]'
-           ;
-
-    if ( $quot eq '' ) {
-        return qr/$ws*([^\Q$sep\E]?)$ws*\Q$sep\E$ws*/s;
+    if ( $self->{_BOUND_COLUMNS} && @columns != @{$self->{_BOUND_COLUMNS}} ) {
+        $self->SetDiag( 3003 );
     }
 
-    qr/$ws*
-       (
-        \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot\E][^\Q$quot$esc\E]*)*
-        \Q$quot\E
-        | # or
-        [^\Q$sep\E]*?
-       )
-       $ws*\Q$sep\E$ws*
-    /xs;
+    $self->{_COLUMN_NAMES} = [ map { defined $_ ? $_ : "\cAUNDEF\cA" } @columns ];
+    @{ $self->{_COLUMN_NAMES} };
 }
-################################################################################
-# print
-################################################################################
-sub print {
-    my ($self, $io, $cols) = @_;
 
-    require IO::Handle;
+sub header {
+    my ($self, $fh, @args) = @_;
 
-    if(ref($cols) ne 'ARRAY'){
-        Carp::croak("Expected fields to be an array ref");
+    $fh or croak ($self->SetDiag (1014));
+
+    my (@seps, %args);
+    for (@args) {
+        if (ref $_ eq "ARRAY") {
+            push @seps, @$_;
+            next;
+            }
+        if (ref $_ eq "HASH") {
+            %args = %$_;
+            next;
+            }
+        croak (q{usage: $csv->header ($fh, [ seps ], { options })});
+        }
+
+    defined $args{detect_bom}         or $args{detect_bom}         = 1;
+    defined $args{munge_column_names} or $args{munge_column_names} = "lc";
+    defined $args{set_column_names}   or $args{set_column_names}   = 1;
+
+    defined $args{sep_set} && ref $args{sep_set} eq "ARRAY" and
+        @seps =  @{$args{sep_set}};
+
+    my $hdr = <$fh>;
+    defined $hdr && $hdr ne "" or croak ($self->SetDiag (1010));
+
+    my %sep;
+    @seps or @seps = (",", ";");
+    foreach my $sep (@seps) {
+        index ($hdr, $sep) >= 0 and $sep{$sep}++;
+        }
+
+    keys %sep >= 2 and croak ($self->SetDiag (1011));
+
+    $self->sep (keys %sep);
+    my $enc = "";
+    if ($args{detect_bom}) { # UTF-7 is not supported
+           if ($hdr =~ s/^\x00\x00\xfe\xff//) { $enc = "utf-32be"   }
+        elsif ($hdr =~ s/^\xff\xfe\x00\x00//) { $enc = "utf-32le"   }
+        elsif ($hdr =~ s/^\xfe\xff//)         { $enc = "utf-16be"   }
+        elsif ($hdr =~ s/^\xff\xfe//)         { $enc = "utf-16le"   }
+        elsif ($hdr =~ s/^\xef\xbb\xbf//)     { $enc = "utf-8"      }
+        elsif ($hdr =~ s/^\xf7\x64\x4c//)     { $enc = "utf-1"      }
+        elsif ($hdr =~ s/^\xdd\x73\x66\x73//) { $enc = "utf-ebcdic" }
+        elsif ($hdr =~ s/^\x0e\xfe\xff//)     { $enc = "scsu"       }
+        elsif ($hdr =~ s/^\xfb\xee\x28//)     { $enc = "bocu-1"     }
+        elsif ($hdr =~ s/^\x84\x31\x95\x33//) { $enc = "gb-18030"   }
+
+        if ($enc) {
+            if ($enc =~ m/([13]).le$/) {
+                my $l = 0 + $1;
+                my $x;
+                $hdr .= "\0" x $l;
+                read $fh, $x, $l;
+                }
+            $enc = ":encoding($enc)";
+            binmode $fh, $enc;
+            }
+        }
+
+    $args{munge_column_names} eq "lc" and $hdr = lc $hdr;
+    $args{munge_column_names} eq "uc" and $hdr = uc $hdr;
+
+    my $hr = \$hdr; # Will cause croak on perl-5.6.x
+    open my $h, "<$enc", $hr;
+    my $row = $self->getline ($h) or croak;
+    close $h;
+
+    my @hdr = @$row   or  croak ($self->SetDiag (1010));
+    ref $args{munge_column_names} eq "CODE" and
+        @hdr = map { $args{munge_column_names}->($_) } @hdr;
+    my %hdr = map { $_ => 1 } @hdr;
+    exists $hdr{""}   and croak ($self->SetDiag (1012));
+    keys %hdr == @hdr or  croak ($self->SetDiag (1013));
+    $args{set_column_names} and $self->column_names (@hdr);
+    wantarray ? @hdr : $self;
     }
 
-    $self->_combine(@$cols) or return '';
+sub bind_columns {
+    my ( $self, @refs ) = @_;
 
-    local $\ = '';
+    @refs or return defined $self->{_BOUND_COLUMNS} ? @{$self->{_BOUND_COLUMNS}} : undef;
+    @refs == 1 && ! defined $refs[0] and return $self->{_BOUND_COLUMNS} = undef;
 
-    $io->print( $self->_string ) or $self->_set_error_diag(2200);
+    if ( $self->{_COLUMN_NAMES} && @refs != @{$self->{_COLUMN_NAMES}} ) {
+        $self->SetDiag( 3003 );
+    }
+
+    if ( grep { ref $_ ne "SCALAR" } @refs ) { # why don't use grep?
+        $self->SetDiag( 3004 );
+    }
+
+    $self->{_is_bound} = scalar @refs; #pack("C", scalar @refs);
+    $self->{_BOUND_COLUMNS} = [ @refs ];
+    @refs;
 }
+
+sub getline_hr {
+    my ($self, @args, %hr) = @_;
+    $self->{_COLUMN_NAMES} or croak ($self->SetDiag (3002));
+    my $fr = $self->getline (@args) or return;
+    if (ref $self->{_FFLAGS}) { # missing
+        $self->{_FFLAGS}[$_] = IS_MISSING
+            for (@$fr ? $#{$fr} + 1 : 0) .. $#{$self->{_COLUMN_NAMES}};
+        @$fr == 1 && (!defined $fr->[0] || $fr->[0] eq "") and
+            $self->{_FFLAGS}[0] ||= IS_MISSING;
+        }
+    @hr{@{$self->{_COLUMN_NAMES}}} = @$fr;
+    \%hr;
+}
+
+sub getline_hr_all {
+    my ( $self, $io, @args ) = @_;
+    my %hr;
+
+    unless ( $self->{_COLUMN_NAMES} ) {
+        $self->SetDiag( 3002 );
+    }
+
+    my @cn = @{$self->{_COLUMN_NAMES}};
+
+    return [ map { my %h; @h{ @cn } = @$_; \%h } @{ $self->getline_all( $io, @args ) } ];
+}
+
+sub say {
+    my ($self, $io, @f) = @_;
+    my $eol = $self->eol;
+    defined $eol && $eol ne "" or $self->eol ($\ || $/);
+    my $state = $self->print ($io, @f);
+    $self->eol ($eol);
+    return $state;
+    }
 
 sub print_hr {
     my ($self, $io, $hr) = @_;
@@ -930,9 +1352,285 @@ sub fragment {
     return \@c;
     }
 
+my $csv_usage = q{usage: my $aoa = csv (in => $file);};
+
+sub _csv_attr {
+    my %attr = (@_ == 1 && ref $_[0] eq "HASH" ? %{$_[0]} : @_) or croak;
+
+    $attr{binary} = 1;
+
+    my $enc = delete $attr{enc} || delete $attr{encoding} || "";
+    $enc eq "auto" and ($attr{detect_bom}, $enc) = (1, "");
+    $enc =~ m/^[-\w.]+$/ and $enc = ":encoding($enc)";
+
+    my $fh;
+    my $cls = 0;        # If I open a file, I have to close it
+    my $in  = delete $attr{in}  || delete $attr{file} or croak $csv_usage;
+    my $out = delete $attr{out} || delete $attr{file};
+
+    ref $in eq "CODE" || ref $in eq "ARRAY" and $out ||= \*STDOUT;
+
+    if ($out) {
+        $in or croak $csv_usage;        # No out without in
+        defined $attr{eol} or $attr{eol} = "\r\n";
+        if ((ref $out and ref $out ne "SCALAR") or "GLOB" eq ref \$out) {
+            $fh = $out;
+            }
+        else {
+            open $fh, ">", $out or croak "$out: $!";
+            $cls = 1;
+            }
+        $enc and binmode $fh, $enc;
+        }
+
+    if (   ref $in eq "CODE" or ref $in eq "ARRAY") {
+        # All done
+        }
+    elsif (ref $in eq "SCALAR") {
+        # Strings with code points over 0xFF may not be mapped into in-memory file handles
+        # "<$enc" does not change that :(
+        open $fh, "<", $in or croak "Cannot open from SCALAR using PerlIO";
+        $cls = 1;
+        }
+    elsif (ref $in or "GLOB" eq ref \$in) {
+        if (!ref $in && $] < 5.008005) {
+            $fh = \*$in; # uncoverable statement ancient perl version required
+            }
+        else {
+            $fh = $in;
+            }
+        }
+    else {
+        open $fh, "<$enc", $in or croak "$in: $!";
+        $cls = 1;
+        }
+    $fh or croak qq{No valid source passed. "in" is required};
+
+    my $hdrs = delete $attr{headers};
+    my $frag = delete $attr{fragment};
+    my $key  = delete $attr{key};
+
+    my $cbai = delete $attr{callbacks}{after_in}    ||
+               delete $attr{after_in}               ||
+               delete $attr{callbacks}{after_parse} ||
+               delete $attr{after_parse};
+    my $cbbo = delete $attr{callbacks}{before_out}  ||
+               delete $attr{before_out};
+    my $cboi = delete $attr{callbacks}{on_in}       ||
+               delete $attr{on_in};
+
+    my $hd_s = delete $attr{sep_set}                ||
+               delete $attr{seps};
+    my $hd_b = delete $attr{detect_bom}             ||
+               delete $attr{bom};
+    my $hd_m = delete $attr{munge}                  ||
+               delete $attr{munge_column_names};
+    my $hd_c = delete $attr{set_column_names};
+
+    for ([ quo    => "quote"                ],
+         [ esc    => "escape"                ],
+         [ escape => "escape_char"        ],
+         ) {
+        my ($f, $t) = @$_;
+        exists $attr{$f} and !exists $attr{$t} and $attr{$t} = delete $attr{$f};
+        }
+
+    my $fltr = delete $attr{filter};
+    my %fltr = (
+        not_blank => sub { @{$_[1]} > 1 or defined $_[1][0] && $_[1][0] ne "" },
+        not_empty => sub { grep { defined && $_ ne "" } @{$_[1]} },
+        filled    => sub { grep { defined && m/\S/    } @{$_[1]} },
+        );
+    defined $fltr && !ref $fltr && exists $fltr{$fltr} and
+        $fltr = { 0 => $fltr{$fltr} };
+    ref $fltr eq "HASH" or $fltr = undef;
+
+    defined $attr{auto_diag}   or $attr{auto_diag}   = 1;
+    defined $attr{escape_null} or $attr{escape_null} = 0;
+    my $csv = delete $attr{csv} || Text::CSV_XS->new (\%attr)
+        or croak $last_error; # FIXME
+
+    return {
+        csv  => $csv,
+        attr => { %attr },
+        fh   => $fh,
+        cls  => $cls,
+        in   => $in,
+        out  => $out,
+        enc  => $enc,
+        hdrs => $hdrs,
+        key  => $key,
+        frag => $frag,
+        fltr => $fltr,
+        cbai => $cbai,
+        cbbo => $cbbo,
+        cboi => $cboi,
+        hd_s => $hd_s,
+        hd_b => $hd_b,
+        hd_m => $hd_m,
+        hd_c => $hd_c,
+        };
+    }
+
+sub csv {
+    @_ && ref $_[0] eq __PACKAGE__ and splice @_, 0, 0, "csv";
+    @_ or croak $csv_usage;
+
+    my $c = _csv_attr (@_);
+
+    my ($csv, $in, $fh, $hdrs) = @{$c}{"csv", "in", "fh", "hdrs"};
+    my %hdr;
+    if (ref $hdrs eq "HASH") {
+        %hdr  = %$hdrs;
+        $hdrs = "auto";
+        }
+
+    if ($c->{out}) {
+        if (ref $in eq "CODE") {
+            my $hdr = 1;
+            while (my $row = $in->($csv)) {
+                if (ref $row eq "ARRAY") {
+                    $csv->print ($fh, $row);
+                    next;
+                    }
+                if (ref $row eq "HASH") {
+                    if ($hdr) {
+                        $hdrs ||= [ map { $hdr{$_} || $_ } keys %$row ];
+                        $csv->print ($fh, $hdrs);
+                        $hdr = 0;
+                        }
+                    $csv->print ($fh, [ @{$row}{@$hdrs} ]);
+                    }
+                }
+            }
+        elsif (ref $in->[0] eq "ARRAY") { # aoa
+            ref $hdrs and $csv->print ($fh, $hdrs);
+            for (@{$in}) {
+                $c->{cboi} and $c->{cboi}->($csv, $_);
+                $c->{cbbo} and $c->{cbbo}->($csv, $_);
+                $csv->print ($fh, $_);
+                }
+            }
+        else { # aoh
+            my @hdrs = ref $hdrs ? @{$hdrs} : keys %{$in->[0]};
+            defined $hdrs or $hdrs = "auto";
+            ref $hdrs || $hdrs eq "auto" and
+                $csv->print ($fh, [ map { $hdr{$_} || $_ } @hdrs ]);
+            for (@{$in}) {
+                local %_;
+                *_ = $_;
+                $c->{cboi} and $c->{cboi}->($csv, $_);
+                $c->{cbbo} and $c->{cbbo}->($csv, $_);
+                $csv->print ($fh, [ @{$_}{@hdrs} ]);
+                }
+            }
+
+        $c->{cls} and close $fh;
+        return 1;
+        }
+
+    if (defined $c->{hd_s} || defined $c->{hd_b} || defined $c->{hd_m} || defined $c->{hd_c}) {
+        my %harg;
+        defined $c->{hd_s} and $harg{set_set}            = $c->{hd_s};
+        defined $c->{hd_d} and $harg{detect_bom}         = $c->{hd_b};
+        defined $c->{hd_m} and $harg{munge_column_names} = $hdrs ? "none" : $c->{hd_m};
+        defined $c->{hd_c} and $harg{set_column_names}   = $hdrs ? 0      : $c->{hd_c};
+        $csv->header ($fh, \%harg);
+        my @hdr = $csv->column_names;
+        @hdr and $hdrs ||= \@hdr;
+        }
+
+    my $key = $c->{key} and $hdrs ||= "auto";
+    $c->{fltr} && grep m/\D/ => keys %{$c->{fltr}} and $hdrs ||= "auto";
+    if (defined $hdrs) {
+        if (!ref $hdrs) {
+            if ($hdrs eq "skip") {
+                $csv->getline ($fh); # discard;
+                }
+            elsif ($hdrs eq "auto") {
+                my $h = $csv->getline ($fh) or return;
+                $hdrs = [ map {      $hdr{$_} || $_ } @$h ];
+                }
+            elsif ($hdrs eq "lc") {
+                my $h = $csv->getline ($fh) or return;
+                $hdrs = [ map { lc ($hdr{$_} || $_) } @$h ];
+                }
+            elsif ($hdrs eq "uc") {
+                my $h = $csv->getline ($fh) or return;
+                $hdrs = [ map { uc ($hdr{$_} || $_) } @$h ];
+                }
+            }
+        elsif (ref $hdrs eq "CODE") {
+            my $h  = $csv->getline ($fh) or return;
+            my $cr = $hdrs;
+            $hdrs  = [ map {  $cr->($hdr{$_} || $_) } @$h ];
+            }
+        }
+
+    if ($c->{fltr}) {
+        my %f = %{$c->{fltr}};
+        # convert headers to index
+        my @hdr;
+        if (ref $hdrs) {
+            @hdr = @{$hdrs};
+            for (0 .. $#hdr) {
+                exists $f{$hdr[$_]} and $f{$_ + 1} = delete $f{$hdr[$_]};
+                }
+            }
+        $csv->callbacks (after_parse => sub {
+            my ($CSV, $ROW) = @_; # lexical sub-variables in caps
+            foreach my $FLD (sort keys %f) {
+                local $_ = $ROW->[$FLD - 1];
+                local %_;
+                @hdr and @_{@hdr} = @$ROW;
+                $f{$FLD}->($CSV, $ROW) or return \"skip";
+                $ROW->[$FLD - 1] = $_;
+                }
+            });
+        }
+
+    my $frag = $c->{frag};
+    my $ref = ref $hdrs
+        ? # aoh
+          do {
+            $csv->column_names ($hdrs);
+            $frag ? $csv->fragment ($fh, $frag) :
+            $key  ? { map { $_->{$key} => $_ } @{$csv->getline_hr_all ($fh)} }
+                  : $csv->getline_hr_all ($fh);
+            }
+        : # aoa
+            $frag ? $csv->fragment ($fh, $frag)
+                  : $csv->getline_all ($fh);
+    $ref or Text::CSV_XS->auto_diag;
+    $c->{cls} and close $fh;
+    if ($ref and $c->{cbai} || $c->{cboi}) {
+        foreach my $r (@{$ref}) {
+            local %_;
+            ref $r eq "HASH" and *_ = $r;
+            $c->{cbai} and $c->{cbai}->($csv, $r);
+            $c->{cboi} and $c->{cboi}->($csv, $r);
+            }
+        }
+
+    defined wantarray or
+        return csv (%{$c->{attr}}, in => $ref, headers => $hdrs, %{$c->{attr}});
+
+    return $ref;
+    }
+
+# The end of the common pure perl part.
+
 ################################################################################
-# getline
+#
+# The following are methods implemented in XS in Text::CSV_XS or
+# helper methods for Text::CSV_PP only
+#
 ################################################################################
+
+################################################################################
+# methods for parse
+################################################################################
+
 sub getline {
     my ($self, $io) = @_;
 
@@ -951,7 +1649,7 @@ sub getline {
     my $line = $io->getline();
 
     # AUTO DETECTION EOL CR
-    if ( defined $line and defined $eol and $eol eq '' and $line =~ /[^\r]\r[^\r\n]/ and eof ) {
+    if ( defined $line and defined $eol and $eol eq '' and $line =~ /[^\r]\r[^\r\n]/ and CORE::eof ) {
         $self->{_AUTO_DETECT_CR} = 1;
         $self->{eol} = "\r";
         seek( $io, 0, 0 ); # restart
@@ -997,7 +1695,7 @@ sub getline {
 
     $self->_parse($line);
 
-    if ( eof ) {
+    if ( CORE::eof ) {
         $self->{_AUTO_DETECT_CR} = 0;
     }
 
@@ -1005,9 +1703,7 @@ sub getline {
 
     return $self->{_BOUND_COLUMNS} ? [] : [ $self->_fields() ];
 }
-################################################################################
-# getline_all
-################################################################################
+
 sub getline_all {
     my ( $self, $io, $offset, $len ) = @_;
     my @list;
@@ -1037,230 +1733,95 @@ sub getline_all {
 
     return \@list;
 }
-################################################################################
-# getline_hr
-################################################################################
-sub getline_hr {
-    my ($self, @args, %hr) = @_;
-    $self->{_COLUMN_NAMES} or croak ($self->SetDiag (3002));
-    my $fr = $self->getline (@args) or return;
-    if (ref $self->{_FFLAGS}) { # missing
-        $self->{_FFLAGS}[$_] = IS_MISSING
-            for (@$fr ? $#{$fr} + 1 : 0) .. $#{$self->{_COLUMN_NAMES}};
-        @$fr == 1 && (!defined $fr->[0] || $fr->[0] eq "") and
-            $self->{_FFLAGS}[0] ||= IS_MISSING;
-        }
-    @hr{@{$self->{_COLUMN_NAMES}}} = @$fr;
-    \%hr;
-}
-################################################################################
-# getline_hr_all
-################################################################################
-sub getline_hr_all {
-    my ( $self, $io, @args ) = @_;
-    my %hr;
 
-    unless ( $self->{_COLUMN_NAMES} ) {
-        $self->SetDiag( 3002 );
+sub print {
+    my ($self, $io, $cols) = @_;
+
+    require IO::Handle;
+
+    if(ref($cols) ne 'ARRAY'){
+        Carp::croak("Expected fields to be an array ref");
     }
 
-    my @cn = @{$self->{_COLUMN_NAMES}};
+    $self->_combine(@$cols) or return '';
 
-    return [ map { my %h; @h{ @cn } = @$_; \%h } @{ $self->getline_all( $io, @args ) } ];
+    local $\ = '';
+
+    $io->print( $self->_string ) or $self->_set_error_diag(2200);
 }
 
-sub say {
-    my ($self, $io, @f) = @_;
-    my $eol = $self->eol;
-    defined $eol && $eol ne "" or $self->eol ($\ || $/);
-    my $state = $self->print ($io, @f);
-    $self->eol ($eol);
-    return $state;
+sub _make_regexp_split_column {
+    my ($esc, $quot, $sep) = @_;
+
+    if ( $quot eq '' ) {
+        return qr/([^\Q$sep\E]*)\Q$sep\E/s;
     }
 
-
-################################################################################
-# column_names
-################################################################################
-sub column_names {
-    my ( $self, @columns ) = @_;
-
-    @columns or return defined $self->{_COLUMN_NAMES} ? @{$self->{_COLUMN_NAMES}} : undef;
-    @columns == 1 && ! defined $columns[0] and return $self->{_COLUMN_NAMES} = undef;
-
-    if ( @columns == 1 && ref $columns[0] eq "ARRAY" ) {
-        @columns = @{ $columns[0] };
-    }
-    elsif ( join "", map { defined $_ ? ref $_ : "" } @columns ) {
-        $self->SetDiag( 3001 );
-    }
-
-    if ( $self->{_BOUND_COLUMNS} && @columns != @{$self->{_BOUND_COLUMNS}} ) {
-        $self->SetDiag( 3003 );
-    }
-
-    $self->{_COLUMN_NAMES} = [ map { defined $_ ? $_ : "\cAUNDEF\cA" } @columns ];
-    @{ $self->{_COLUMN_NAMES} };
+   return qr/(
+        \Q$quot\E
+            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E0][^\Q$quot$esc\E]*)*
+        \Q$quot\E
+        | # or
+        \Q$quot\E
+            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
+        \Q$quot\E
+        | # or
+        [^\Q$sep\E]*
+       )
+       \Q$sep\E
+    /xs;
 }
 
-sub header {
-    my ($self, $fh, @args) = @_;
+sub _make_regexp_split_column_allow_unqout_esc {
+    my ($esc, $quot, $sep) = @_;
 
-    $fh or croak ($self->SetDiag (1014));
+   return qr/(
+        \Q$quot\E
+            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E0][^\Q$quot$esc\E]*)*
+        \Q$quot\E
+        | # or
+        \Q$quot\E
+            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
+        \Q$quot\E
+        | # or
+            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
+        | # or
+        [^\Q$sep\E]*
+       )
+       \Q$sep\E
+    /xs;
+}
 
-    my (@seps, %args);
-    for (@args) {
-        if (ref $_ eq "ARRAY") {
-            push @seps, @$_;
-            next;
-            }
-        if (ref $_ eq "HASH") {
-            %args = %$_;
-            next;
-            }
-        croak (q{usage: $csv->header ($fh, [ seps ], { options })});
-        }
+sub _make_regexp_split_column_allow_sp {
+    my ($esc, $quot, $sep) = @_;
 
-    defined $args{detect_bom}         or $args{detect_bom}         = 1;
-    defined $args{munge_column_names} or $args{munge_column_names} = "lc";
-    defined $args{set_column_names}   or $args{set_column_names}   = 1;
+    # if separator is space or tab, don't count that separator
+    # as whitespace  --- patched by Mike O'Sullivan
+    my $ws = $sep eq ' '  ? '[\x09]'
+           : $sep eq "\t" ? '[\x20]'
+           : '[\x20\x09]'
+           ;
 
-    defined $args{sep_set} && ref $args{sep_set} eq "ARRAY" and
-        @seps =  @{$args{sep_set}};
-
-    my $hdr = <$fh>;
-    defined $hdr && $hdr ne "" or croak ($self->SetDiag (1010));
-
-    my %sep;
-    @seps or @seps = (",", ";");
-    foreach my $sep (@seps) {
-        index ($hdr, $sep) >= 0 and $sep{$sep}++;
-        }
-
-    keys %sep >= 2 and croak ($self->SetDiag (1011));
-
-    $self->sep (keys %sep);
-    my $enc = "";
-    if ($args{detect_bom}) { # UTF-7 is not supported
-           if ($hdr =~ s/^\x00\x00\xfe\xff//) { $enc = "utf-32be"   }
-        elsif ($hdr =~ s/^\xff\xfe\x00\x00//) { $enc = "utf-32le"   }
-        elsif ($hdr =~ s/^\xfe\xff//)         { $enc = "utf-16be"   }
-        elsif ($hdr =~ s/^\xff\xfe//)         { $enc = "utf-16le"   }
-        elsif ($hdr =~ s/^\xef\xbb\xbf//)     { $enc = "utf-8"      }
-        elsif ($hdr =~ s/^\xf7\x64\x4c//)     { $enc = "utf-1"      }
-        elsif ($hdr =~ s/^\xdd\x73\x66\x73//) { $enc = "utf-ebcdic" }
-        elsif ($hdr =~ s/^\x0e\xfe\xff//)     { $enc = "scsu"       }
-        elsif ($hdr =~ s/^\xfb\xee\x28//)     { $enc = "bocu-1"     }
-        elsif ($hdr =~ s/^\x84\x31\x95\x33//) { $enc = "gb-18030"   }
-
-        if ($enc) {
-            if ($enc =~ m/([13]).le$/) {
-                my $l = 0 + $1;
-                my $x;
-                $hdr .= "\0" x $l;
-                read $fh, $x, $l;
-                }
-            $enc = ":encoding($enc)";
-            binmode $fh, $enc;
-            }
-        }
-
-    $args{munge_column_names} eq "lc" and $hdr = lc $hdr;
-    $args{munge_column_names} eq "uc" and $hdr = uc $hdr;
-
-    my $hr = \$hdr; # Will cause croak on perl-5.6.x
-    open my $h, "<$enc", $hr;
-    my $row = $self->getline ($h) or croak;
-    close $h;
-
-    my @hdr = @$row   or  croak ($self->SetDiag (1010));
-    ref $args{munge_column_names} eq "CODE" and
-        @hdr = map { $args{munge_column_names}->($_) } @hdr;
-    my %hdr = map { $_ => 1 } @hdr;
-    exists $hdr{""}   and croak ($self->SetDiag (1012));
-    keys %hdr == @hdr or  croak ($self->SetDiag (1013));
-    $args{set_column_names} and $self->column_names (@hdr);
-    wantarray ? @hdr : $self;
+    if ( $quot eq '' ) {
+        return qr/$ws*([^\Q$sep\E]?)$ws*\Q$sep\E$ws*/s;
     }
 
-################################################################################
-# bind_columns
-################################################################################
-sub bind_columns {
-    my ( $self, @refs ) = @_;
-
-    @refs or return defined $self->{_BOUND_COLUMNS} ? @{$self->{_BOUND_COLUMNS}} : undef;
-    @refs == 1 && ! defined $refs[0] and return $self->{_BOUND_COLUMNS} = undef;
-
-    if ( $self->{_COLUMN_NAMES} && @refs != @{$self->{_COLUMN_NAMES}} ) {
-        $self->SetDiag( 3003 );
-    }
-
-    if ( grep { ref $_ ne "SCALAR" } @refs ) { # why don't use grep?
-        $self->SetDiag( 3004 );
-    }
-
-    $self->{_is_bound} = scalar @refs; #pack("C", scalar @refs);
-    $self->{_BOUND_COLUMNS} = [ @refs ];
-    @refs;
-}
-################################################################################
-# eof
-################################################################################
-sub eof {
-    $_[0]->{_EOF};
-}
-################################################################################
-# type
-################################################################################
-sub types {
-    my $self = shift;
-
-    if (@_) {
-        if (my $types = shift) {
-            $self->{'_types'} = join("", map{ chr($_) } @$types);
-            $self->{'types'} = $types;
-        }
-        else {
-            delete $self->{'types'};
-            delete $self->{'_types'};
-            undef;
-        }
-    }
-    else {
-        $self->{'types'};
-    }
-}
-################################################################################
-sub meta_info {
-    $_[0]->{_FFLAGS} ? @{ $_[0]->{_FFLAGS} } : undef;
+    qr/$ws*
+       (
+        \Q$quot\E
+            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot\E][^\Q$quot$esc\E]*)*
+        \Q$quot\E
+        | # or
+        [^\Q$sep\E]*?
+       )
+       $ws*\Q$sep\E$ws*
+    /xs;
 }
 
-sub is_quoted {
-    return unless (defined $_[0]->{_FFLAGS});
-    return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
-
-    $_[0]->{_FFLAGS}->[$_[1]] & IS_QUOTED ? 1 : 0;
-}
-
-sub is_binary {
-    return unless (defined $_[0]->{_FFLAGS});
-    return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
-    $_[0]->{_FFLAGS}->[$_[1]] & IS_BINARY ? 1 : 0;
-}
-
-sub is_missing {
-    my ($self, $idx, $val) = @_;
-    return unless $self->{keep_meta_info}; # FIXME
-    $idx < 0 || !ref $self->{_FFLAGS} and return;
-    $idx >= @{$self->{_FFLAGS}} and return 1;
-    $self->{_FFLAGS}[$idx] & IS_MISSING ? 1 : 0;
-}
-################################################################################
 # _check_type
 #  take an arg as scalar reference.
 #  if not numeric, make the value 0. otherwise INTEGERized.
-################################################################################
+
 sub _check_type {
     my ($col_ref, $type) = @_;
     unless ($$col_ref =~ /^[+-]?(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/) {
@@ -1273,268 +1834,6 @@ sub _check_type {
     else {
         $$col_ref = sprintf("%d",$$col_ref);
     }
-}
-################################################################################
-# _set_error_diag
-################################################################################
-sub _set_error_diag {
-    my ( $self, $error, $pos ) = @_;
-
-    $self->{_ERROR_DIAG} = $error;
-
-    if (defined $pos) {
-        $_[0]->{_ERROR_POS} = $pos;
-    }
-
-    $self->error_diag() if ( $error and $self->{auto_diag} );
-
-    return;
-}
-################################################################################
-
-# A `character'
-sub _set_attr_C {
-    my ($self, $name, $val, $ec) = @_;
-    defined $val or $val = 0;
-    utf8::decode ($val);
-    $self->{$name} = $val;
-    $ec = _check_sanity ($self) and
-        croak ($self->SetDiag ($ec));
-    }
-
-# A flag
-sub _set_attr_X {
-    my ($self, $name, $val) = @_;
-    defined $val or $val = 0;
-    $self->{$name} = $val;
-    }
-
-# A number
-sub _set_attr_N {
-    my ($self, $name, $val) = @_;
-    $self->{$name} = $val;
-    }
-
-# Accessor methods.
-#   It is unwise to change them halfway through a single file!
-sub quote_char {
-    my $self = shift;
-    if (@_) {
-        $self->_set_attr_C ("quote_char", shift);
-        }
-    $self->{quote_char};
-    }
-
-sub quote {
-    my $self = shift;
-    if (@_) {
-        my $quote = shift;
-        defined $quote or $quote = "";
-        utf8::decode ($quote);
-        my @b = unpack "U0C*", $quote;
-        if (@b > 1) {
-            @b > 16 and croak ($self->SetDiag (1007));
-            $self->quote_char ("\0");
-            }
-        else {
-            $self->quote_char ($quote);
-            $quote = "";
-            }
-        $self->{quote} = $quote;
-
-        my $ec = _check_sanity ($self);
-        $ec and croak ($self->SetDiag ($ec));
-        }
-    my $quote = $self->{quote};
-    defined $quote && length ($quote) ? $quote : $self->{quote_char};
-    }
-
-sub escape_char {
-    my $self = shift;
-    @_ and $self->_set_attr_C ("escape_char", shift);
-    $self->{escape_char};
-    }
-
-sub sep_char {
-    my $self = shift;
-    if (@_) {
-        $self->_set_attr_C ("sep_char", shift);
-        }
-    $self->{sep_char};
-}
-
-sub sep {
-    my $self = shift;
-    if (@_) {
-        my $sep = shift;
-        defined $sep or $sep = "";
-        utf8::decode ($sep);
-        my @b = unpack "U0C*", $sep;
-        if (@b > 1) {
-            @b > 16 and croak ($self->SetDiag (1006));
-            $self->sep_char ("\0");
-            }
-        else {
-            $self->sep_char ($sep);
-            $sep = "";
-            }
-        $self->{sep} = $sep;
-
-        my $ec = _check_sanity ($self);
-        $ec and croak ($self->SetDiag ($ec));
-        }
-    my $sep = $self->{sep};
-    defined $sep && length ($sep) ? $sep : $self->{sep_char};
-    }
-
-sub eol {
-    my $self = shift;
-    if (@_) {
-        my $eol = shift;
-        defined $eol or $eol = "";
-        length ($eol) > 16 and croak ($self->SetDiag (1005));
-        $self->{eol} = $eol;
-        }
-    $self->{eol};
-    }
-
-sub always_quote {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("always_quote", shift);
-    $self->{always_quote};
-    }
-
-sub quote_space {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("quote_space", shift);
-    $self->{quote_space};
-    }
-
-sub quote_empty {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("quote_empty", shift);
-    $self->{quote_empty};
-    }
-
-sub escape_null {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("escape_null", shift);
-    $self->{escape_null};
-    }
-
-sub quote_null { goto &escape_null; }
-
-sub quote_binary {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("quote_binary", shift);
-    $self->{quote_binary};
-    }
-
-sub binary {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("binary", shift);
-    $self->{binary};
-    }
-
-sub decode_utf8 {
-    my $self = shift;
-    if ( @_ ) {
-        $self->{decode_utf8} = $_[0];
-        my $ec = _check_sanity( $self );
-        $ec and Carp::croak( $self->SetDiag( $ec ) );
-    }
-    $self->{decode_utf8};
-}
-
-sub keep_meta_info {
-    my $self = shift;
-    if (@_) {
-        my $v = shift;
-        !defined $v || $v eq "" and $v = 0;
-        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
-        $self->_set_attr_X ("keep_meta_info", $v);
-        }
-    $self->{keep_meta_info};
-    }
-
-sub allow_loose_quotes {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("allow_loose_quotes", shift);
-    $self->{allow_loose_quotes};
-    }
-
-sub allow_loose_escapes {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("allow_loose_escapes", shift);
-    $self->{allow_loose_escapes};
-    }
-
-sub allow_whitespace {
-    my $self = shift;
-    if (@_) {
-        my $aw = shift;
-        _unhealthy_whitespace ($self, $aw) and
-            croak ($self->SetDiag (1002));
-        $self->_set_attr_X ("allow_whitespace", $aw);
-        }
-    $self->{allow_whitespace};
-    }
-
-sub allow_unquoted_escape {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("allow_unquoted_escape", shift);
-    $self->{allow_unquoted_escape};
-    }
-
-sub blank_is_undef {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("blank_is_undef", shift);
-    $self->{blank_is_undef};
-    }
-
-sub empty_is_undef {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("empty_is_undef", shift);
-    $self->{empty_is_undef};
-    }
-
-sub verbatim {
-    my $self = shift;
-    @_ and $self->_set_attr_X ("verbatim", shift);
-    $self->{verbatim};
-    }
-
-sub auto_diag {
-    my $self = shift;
-    if (@_) {
-        my $v = shift;
-        !defined $v || $v eq "" and $v = 0;
-        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
-        $self->_set_attr_X ("auto_diag", $v);
-        }
-    $self->{auto_diag};
-    }
-
-sub diag_verbose {
-    my $self = shift;
-    if (@_) {
-        my $v = shift;
-        !defined $v || $v eq "" and $v = 0;
-        $v =~ m/^[0-9]/ or $v = lc $v eq "false" ? 0 : 1; # true/truth = 1
-        $self->_set_attr_X ("diag_verbose", $v);
-        }
-    $self->{diag_verbose};
-    }
-
-sub SetDiag {
-    if ( defined $_[1] and $_[1] == 0 ) {
-        $_[0]->{_ERROR_DIAG} = undef;
-        $last_error = '';
-        return;
-    }
-
-    $_[0]->_set_error_diag( $_[1] );
-    Carp::croak( $_[0]->error_diag . '' );
 }
 
 sub _is_valid_utf8 {
@@ -1550,6 +1849,40 @@ sub _is_valid_utf8 {
         |[\xF4][\x80-\x8F][\x80-\xBF][\x80-\xBF]
     )+$/x )  ? 1 : 0;
 }
+
+################################################################################
+# methods for errors
+################################################################################
+
+sub _set_error_diag {
+    my ( $self, $error, $pos ) = @_;
+
+    $self->{_ERROR_DIAG} = $error;
+
+    if (defined $pos) {
+        $_[0]->{_ERROR_POS} = $pos;
+    }
+
+    $self->error_diag() if ( $error and $self->{auto_diag} );
+
+    return;
+}
+
+sub error_input {
+    $_[0]->{_ERROR_INPUT};
+}
+
+sub SetDiag {
+    if ( defined $_[1] and $_[1] == 0 ) {
+        $_[0]->{_ERROR_DIAG} = undef;
+        $last_error = '';
+        return;
+    }
+
+    $_[0]->_set_error_diag( $_[1] );
+    Carp::croak( $_[0]->error_diag . '' );
+}
+
 ################################################################################
 package Text::CSV::ErrorDiag;
 
