@@ -8,6 +8,7 @@ package Text::CSV_PP;
 require 5.005;
 
 use strict;
+use Exporter ();
 use vars qw($VERSION @ISA @EXPORT_OK);
 use Carp;
 
