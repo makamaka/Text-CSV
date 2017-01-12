@@ -123,9 +123,9 @@ BEGIN {
 
 ################################################################################
 #
-# Common pure perl methods, taken almost directly from Text::CSV_XS
+# Common pure perl methods, taken almost directly from Text::CSV_XS.
 # (These should be moved into a common class eventually, so that
-# both XS and PP do the same changes.)
+# both XS and PP don't need to apply the same changes.)
 #
 ################################################################################
 
