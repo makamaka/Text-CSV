@@ -2,8 +2,11 @@ package Text::CSV;
 
 
 use strict;
+use Exporter;
 use Carp ();
-use vars qw( $VERSION $DEBUG );
+use vars qw( $VERSION $DEBUG @ISA @EXPORT_OK );
+@ISA = qw( Exporter );
+@EXPORT_OK = qw( csv );
 
 BEGIN {
     $VERSION = '1.33';
@@ -28,7 +31,7 @@ my @PublicMethods = qw/
     getline print parse combine fields string error_diag error_input status blank_is_undef empty_is_undef
     getline_hr column_names bind_columns auto_diag quote_space quote_null getline_all getline_hr_all
     is_missing quote_binary record_number print_hr
-    known_attributes
+    known_attributes csv
     PV IV NV
 /;
 #
@@ -61,14 +64,6 @@ unless ($Text::CSV::Worker) {
     }
 
 }
-
-
-
-sub import {
-    my ($class, $option) = @_;
-}
-
-
 
 sub new { # normal mode
     my $proto = shift;

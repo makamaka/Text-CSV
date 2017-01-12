@@ -8,10 +8,12 @@ package Text::CSV_PP;
 require 5.005;
 
 use strict;
-use vars qw($VERSION);
+use vars qw($VERSION @ISA @EXPORT_OK);
 use Carp;
 
 $VERSION = '1.33';
+@ISA = qw(Exporter);
+@EXPORT_OK = qw(csv);
 
 sub PV  { 0 }
 sub IV  { 1 }
@@ -496,11 +498,7 @@ sub binary {
 
 sub decode_utf8 {
     my $self = shift;
-    if ( @_ ) {
-        $self->{decode_utf8} = $_[0];
-        my $ec = _check_sanity( $self );
-        $ec and Carp::croak( $self->SetDiag( $ec ) );
-    }
+    @_ and $self->_set_attr_X ("decode_utf8", shift);
     $self->{decode_utf8};
 }
 
