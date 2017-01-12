@@ -765,75 +765,14 @@ sub is_missing {
 ################################################################################
 *combine = \&_combine;
 sub _combine {
-    my ($self, @part) = @_;
-
-    # at least one argument was given for "combining"...
-    return $self->{_STATUS} = 0 unless(@part);
-
-    $self->{_FIELDS}      = \@part;
-    $self->{_ERROR_INPUT} = undef;
-    $self->{_STRING}      = '';
-    $self->{_STATUS}      = 0;
-
-    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $escape_null, $quote_binary )
-            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space escape_null quote_binary/};
-
-    if(!defined $quot){ $quot = ''; }
-
-    return $self->_set_error_diag(1001) if ($sep eq $esc or $sep eq $quot);
-
-    my $re_esc;
-    if ($quot ne '') {
-      $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
-    } else {
-      $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$esc\E)/;
+    my ($self, @fields) = @_;
+    my $str  = "";
+    $self->{_FIELDS} = \@fields;
+    $self->{_STATUS} = (@fields > 0) && $self->__combine(\$str, \@fields, 0);
+    $self->{_STRING} = \$str;
+    $self->{_STATUS};
     }
 
-    my $re_sp  = $self->{_re_comb_sp}->{$sep}->{$quote_space} ||= ( $quote_space ? qr/[\s\Q$sep\E]/ : qr/[\Q$sep\E]/ );
-
-    my $must_be_quoted;
-    for my $column (@part) {
-
-        unless (defined $column) {
-            $column = '';
-            next;
-        }
-        elsif ( !$binary ) {
-            $binary = 1 if utf8::is_utf8 $column;
-        }
-
-        if (!$binary and $column =~ /[^\x09\x20-\x7E]/) {
-            # an argument contained an invalid character...
-            $self->{_ERROR_INPUT} = $column;
-            $self->_set_error_diag(2110);
-            return $self->{_STATUS};
-        }
-
-        $must_be_quoted = 0;
-
-        if($column =~ s/$re_esc/$esc$1/g and $quot ne ''){
-            $must_be_quoted++;
-        }
-        if($column =~ /$re_sp/){
-            $must_be_quoted++;
-        }
-
-        if( $binary and $escape_null ){
-            use bytes;
-            $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($quote_binary && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
-        }
-
-        if($always_quote or $must_be_quoted){
-            $column = $quot . $column . $quot;
-        }
-
-    }
-
-    $self->{_STRING} = \do { join($sep, @part) . ( defined $self->{eol} ? $self->{eol} : '' ) };
-    $self->{_STATUS} = 1;
-
-    return $self->{_STATUS};
-}
 ################################################################################
 # parse
 ################################################################################
@@ -1625,6 +1564,77 @@ sub csv {
 # helper methods for Text::CSV_PP only
 #
 ################################################################################
+
+################################################################################
+# methods for combine
+################################################################################
+
+sub __combine {
+    my ($self, $dst, $fields, $useIO) = @_;
+
+    $self->{_ERROR_INPUT} = '';
+
+    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $escape_null, $quote_binary )
+            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space escape_null quote_binary/};
+
+    if(!defined $quot){ $quot = ''; }
+
+    if ($sep eq $esc or $sep eq $quot) {
+        $self->_set_error_diag(1001);
+        return 0;
+    }
+
+    my $re_esc;
+    if ($quot ne '') {
+      $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
+    } else {
+      $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$esc\E)/;
+    }
+
+    my $re_sp  = $self->{_re_comb_sp}->{$sep}->{$quote_space} ||= ( $quote_space ? qr/[\s\Q$sep\E]/ : qr/[\Q$sep\E]/ );
+
+    my $must_be_quoted;
+    for my $column (@$fields) {
+
+        unless (defined $column) {
+            $column = '';
+            next;
+        }
+        elsif ( !$binary ) {
+            $binary = 1 if utf8::is_utf8 $column;
+        }
+
+        if (!$binary and $column =~ /[^\x09\x20-\x7E]/) {
+            # an argument contained an invalid character...
+            $self->{_ERROR_INPUT} = $column;
+            $self->_set_error_diag(2110);
+            return 0;
+        }
+
+        $must_be_quoted = 0;
+
+        if($column =~ s/$re_esc/$esc$1/g and $quot ne ''){
+            $must_be_quoted++;
+        }
+        if($column =~ /$re_sp/){
+            $must_be_quoted++;
+        }
+
+        if( $binary and $escape_null ){
+            use bytes;
+            $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($quote_binary && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
+        }
+
+        if($always_quote or $must_be_quoted){
+            $column = $quot . $column . $quot;
+        }
+
+    }
+
+    $$dst = join($sep, @$fields) . ( defined $self->{eol} ? $self->{eol} : '' );
+
+    return 1;
+}
 
 ################################################################################
 # methods for parse
