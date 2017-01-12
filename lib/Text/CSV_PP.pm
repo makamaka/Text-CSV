@@ -1343,8 +1343,7 @@ sub __combine {
 
     $self->{_ERROR_INPUT} = '';
 
-    my ($always_quote, $binary, $quot, $sep, $esc, $empty_is_undef, $quote_space, $escape_null, $quote_binary )
-            = @{$self}{qw/always_quote binary quote_char sep_char escape_char empty_is_undef quote_space escape_null quote_binary/};
+    my ($binary, $quot, $sep, $esc, $quote_space) = @{$self}{qw/binary quote_char sep_char escape_char quote_space/};
 
     if(!defined $quot){ $quot = ''; }
 
@@ -1389,12 +1388,12 @@ sub __combine {
             $must_be_quoted++;
         }
 
-        if( $binary and $escape_null ){
+        if( $binary and $self->{escape_null} ){
             use bytes;
-            $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($quote_binary && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
+            $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($self->{quote_binary} && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
         }
 
-        if($always_quote or $must_be_quoted){
+        if($self->{always_quote} or $must_be_quoted){
             $column = $quot . $column . $quot;
         }
 
