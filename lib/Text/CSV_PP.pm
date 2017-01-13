@@ -1341,8 +1341,6 @@ sub csv {
 sub __combine {
     my ($self, $dst, $fields, $useIO) = @_;
 
-    $self->{_ERROR_INPUT} = '';
-
     my ($binary, $quot, $sep, $esc, $quote_space) = @{$self}{qw/binary quote_char sep_char escape_char quote_space/};
 
     if(!defined $quot){ $quot = ''; }
