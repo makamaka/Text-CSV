@@ -1357,11 +1357,6 @@ sub __combine {
 
     if(!defined $quot){ $quot = ''; }
 
-    if ($sep eq $esc or $sep eq $quot) {
-        $self->_set_error_diag(1001);
-        return 0;
-    }
-
     my $re_esc;
     if ($quot ne '') {
       $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
