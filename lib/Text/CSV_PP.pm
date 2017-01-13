@@ -1334,6 +1334,18 @@ sub csv {
 #
 ################################################################################
 
+sub _hook {
+    my ($self, $name, $fields) = @_;
+    return 0 unless $self->{callbacks};
+
+    my $cb = $self->{callbacks}{$name};
+    return 0 unless $cb && ref $cb eq 'CODE';
+
+    my $res = $cb->($self, $fields);
+    $res = 0 if $res eq "skip";
+    $res;
+}
+
 ################################################################################
 # methods for combine
 ################################################################################
@@ -1410,6 +1422,8 @@ sub print {
     if(ref($fields) ne 'ARRAY'){
         Carp::croak("Expected fields to be an array ref");
     }
+
+    $self->_hook(before_print => $fields);
 
     $self->_combine(@$fields) or return '';
 
