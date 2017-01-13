@@ -1366,49 +1366,53 @@ sub __combine {
 
     my $re_sp  = $self->{_re_comb_sp}->{$sep}->{$quote_space} ||= ( $quote_space ? qr/[\s\Q$sep\E]/ : qr/[\Q$sep\E]/ );
 
-    my $must_be_quoted;
-    for my $column (@$fields) {
+    my $n = @$fields - 1;
 
-        unless (defined $column) {
-            $column = '';
+    my $must_be_quoted;
+    my @results;
+    for(my $i = 0; $i <= $n; $i++) {
+        my $value = $fields->[$i];
+
+        unless (defined $value) {
+            push @results, '';
             next;
         }
         elsif ( !$binary ) {
-            $binary = 1 if utf8::is_utf8 $column;
+            $binary = 1 if utf8::is_utf8 $value;
         }
 
-        if (!$binary and $column =~ /[^\x09\x20-\x7E]/) {
+        if (!$binary and $value =~ /[^\x09\x20-\x7E]/) {
             # an argument contained an invalid character...
-            $self->{_ERROR_INPUT} = $column;
+            $self->{_ERROR_INPUT} = $value;
             $self->_set_error_diag(2110);
             return 0;
         }
 
         $must_be_quoted = 0;
-        if ($column eq '') {
+        if ($value eq '') {
             $must_be_quoted++ if $self->{quote_empty};
         }
         else {
-            if($column =~ s/$re_esc/$esc$1/g and $quot ne ''){
+            if($value =~ s/$re_esc/$esc$1/g and $quot ne ''){
                 $must_be_quoted++;
             }
-            if($column =~ /$re_sp/){
+            if($value =~ /$re_sp/){
                 $must_be_quoted++;
             }
 
             if( $binary and $self->{escape_null} ){
                 use bytes;
-                $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($self->{quote_binary} && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
+                $must_be_quoted++ if ( $value =~ s/\0/${esc}0/g || ($self->{quote_binary} && $value =~ /[\x00-\x1f\x7f-\xa0]/) );
             }
         }
 
         if($self->{always_quote} or $must_be_quoted){
-            $column = $quot . $column . $quot;
+            $value = $quot . $value . $quot;
         }
-
+        push @results, $value;
     }
 
-    $$dst = join($sep, @$fields) . ( defined $self->{eol} ? $self->{eol} : '' );
+    $$dst = join($sep, @results) . ( defined $self->{eol} ? $self->{eol} : '' );
 
     return 1;
 }
