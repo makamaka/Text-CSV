@@ -1405,15 +1405,15 @@ sub __combine {
 }
 
 sub print {
-    my ($self, $io, $cols) = @_;
+    my ($self, $io, $fields) = @_;
 
     require IO::Handle;
 
-    if(ref($cols) ne 'ARRAY'){
+    if(ref($fields) ne 'ARRAY'){
         Carp::croak("Expected fields to be an array ref");
     }
 
-    $self->_combine(@$cols) or return '';
+    $self->_combine(@$fields) or return '';
 
     local $\ = '';
 
