@@ -1154,7 +1154,7 @@ sub _csv_attr {
 
     defined $attr{auto_diag}   or $attr{auto_diag}   = 1;
     defined $attr{escape_null} or $attr{escape_null} = 0;
-    my $csv = delete $attr{csv} || Text::CSV_XS->new (\%attr)
+    my $csv = delete $attr{csv} || Text::CSV_PP->new (\%attr)
         or croak $last_error; # FIXME
 
     return {
@@ -1308,7 +1308,7 @@ sub csv {
         : # aoa
             $frag ? $csv->fragment ($fh, $frag)
                   : $csv->getline_all ($fh);
-    $ref or Text::CSV_XS->auto_diag;
+    $ref or Text::CSV_PP->auto_diag;
     $c->{cls} and close $fh;
     if ($ref and $c->{cbai} || $c->{cboi}) {
         foreach my $r (@{$ref}) {
