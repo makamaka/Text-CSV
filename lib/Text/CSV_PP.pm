@@ -1458,11 +1458,6 @@ sub __parse {
 
     my $quot_is_null = $quot eq "\0"; # in this case, any fields are not interpreted as quoted data.
 
-    if (($sep eq $esc or $sep eq $quot) and $sep ne "\0") {
-        $self->_set_error_diag(1001);
-        return;
-    }
-
     my $meta_flag      = $keep_meta_info ? [] : undef;
     my $re_split       = $self->{_re_split}->{$quot}->{$esc}->{$sep} ||= _make_regexp_split_column($esc, $quot, $sep);
     my $re_quoted       = $self->{_re_quoted}->{$quot}               ||= qr/^\Q$quot\E(.*)\Q$quot\E$/s;
