@@ -1385,17 +1385,21 @@ sub __combine {
         }
 
         $must_be_quoted = 0;
-
-        if($column =~ s/$re_esc/$esc$1/g and $quot ne ''){
-            $must_be_quoted++;
+        if ($column eq '') {
+            $must_be_quoted++ if $self->{quote_empty};
         }
-        if($column =~ /$re_sp/){
-            $must_be_quoted++;
-        }
+        else {
+            if($column =~ s/$re_esc/$esc$1/g and $quot ne ''){
+                $must_be_quoted++;
+            }
+            if($column =~ /$re_sp/){
+                $must_be_quoted++;
+            }
 
-        if( $binary and $self->{escape_null} ){
-            use bytes;
-            $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($self->{quote_binary} && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
+            if( $binary and $self->{escape_null} ){
+                use bytes;
+                $must_be_quoted++ if ( $column =~ s/\0/${esc}0/g || ($self->{quote_binary} && $column =~ /[\x00-\x1f\x7f-\xa0]/) );
+            }
         }
 
         if($self->{always_quote} or $must_be_quoted){

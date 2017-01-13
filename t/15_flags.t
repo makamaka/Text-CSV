@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 209;
+use Test::More tests => 217;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -244,6 +244,16 @@ ok (1, "Testing quote_space");
     ok ($csv->combine (1, " ", 3),	"Combine");
     is ($csv->string, q{1," ",3},	"String");
     is ($csv->quote_space, 1,		"Attr 1");
+    }
+
+ok (1, "Testing quote_empty");
+{   ok (my $csv = Text::CSV->new (),			"new (default)");
+    is ($csv->quote_empty, 0,				"default = 0");
+    ok ($csv->combine (1, undef, "", " ", 2),		"combine qe = 0");
+    is ($csv->string, qq{1,,," ",2},			"string");
+    is ($csv->quote_empty (1), 1,			"enable quote_empty");
+    ok ($csv->combine (1, undef, "", " ", 2),		"combine qe = 1");
+    is ($csv->string, qq{1,,""," ",2},			"string");
     }
 
 # https://rt.cpan.org/Public/Bug/Display.html?id=109097
