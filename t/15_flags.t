@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 217;
+use Test::More tests => 229;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -112,6 +112,28 @@ sub crnlsp {
     is (($csv->meta_info ())[1], 1,			"Hi! - meta_info () - field 2");
     is (($csv->fields ())[2], "",			"Hi! - fields () - field 3");
     is (($csv->meta_info ())[2], 0,			"Hi! - meta_info () - field 3");
+    }
+
+{   my $csv = Text::CSV->new ({
+	keep_meta_info => 1,
+	binary         => 1,
+	quote_space    => 0,
+	});
+    ok ($csv->parse (qq{1,,"", ," ",f,"g","h""h",h\xe9lp,"h\xeblp"}), "Parse");
+    ok (my @f = $csv->fields,				"fields");
+    is_deeply (\@f, [ 1, "", "", " ", " ", "f", "g", "h\"h",
+	"h\xe9lp", "h\xeblp" ],				"fields content");
+    ok ($csv->combine (@f),				"combine");
+    is ($csv->string,
+	qq{1,,, , ,f,g,"h""h",h\xe9lp,h\xeblp},		"string 1");
+    ok ($csv->parse (qq{1,,"", ," ",f,"g","h""h",h\xe9lp,"h\xeblp"}), "Parse");
+    is ($csv->keep_meta_info (11), 11,			"keep meta on out");
+    ok ($csv->combine (@f),				"combine");
+    is ($csv->string,
+	qq{1,,"", ," ",f,"g","h""h",h\xe9lp,"h\xeblp"},	"string 11");
+    ok ($csv->parse  (qq{1,,"1193-1",4,"",,6}),		"parse under 11");
+    ok ($csv->combine ($csv->fields),			"combine");
+    is ($csv->string, qq{1,,"1193-1",4,"",,6},		"return same");
     }
 
 {   my $csv = Text::CSV->new ({ keep_meta_info => 1, eol => "\r" });

@@ -1368,6 +1368,8 @@ sub __combine {
 
     my $n = @$fields - 1;
 
+    my $check_meta = ($self->{keep_meta_info} >= 10 and @{$self->{_FFLAGS} || []} >= $n) ? 1 : 0;
+
     my $must_be_quoted;
     my @results;
     for(my $i = 0; $i <= $n; $i++) {
@@ -1390,7 +1392,7 @@ sub __combine {
 
         $must_be_quoted = 0;
         if ($value eq '') {
-            $must_be_quoted++ if $self->{quote_empty};
+            $must_be_quoted++ if $self->{quote_empty} or ($check_meta && $self->is_quoted($i));
         }
         else {
             if($value =~ s/$re_esc/$esc$1/g and $quot ne ''){
@@ -1406,7 +1408,7 @@ sub __combine {
             }
         }
 
-        if($self->{always_quote} or $must_be_quoted){
+        if($self->{always_quote} or $must_be_quoted or ($check_meta && $self->is_quoted($i))){
             $value = $quot . $value . $quot;
         }
         push @results, $value;
