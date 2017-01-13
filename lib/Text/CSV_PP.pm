@@ -1404,6 +1404,22 @@ sub __combine {
     return 1;
 }
 
+sub print {
+    my ($self, $io, $cols) = @_;
+
+    require IO::Handle;
+
+    if(ref($cols) ne 'ARRAY'){
+        Carp::croak("Expected fields to be an array ref");
+    }
+
+    $self->_combine(@$cols) or return '';
+
+    local $\ = '';
+
+    $io->print( $self->_string ) or $self->_set_error_diag(2200);
+}
+
 ################################################################################
 # methods for parse
 ################################################################################
@@ -1756,22 +1772,6 @@ sub getline_all {
     }
 
     return \@list;
-}
-
-sub print {
-    my ($self, $io, $cols) = @_;
-
-    require IO::Handle;
-
-    if(ref($cols) ne 'ARRAY'){
-        Carp::croak("Expected fields to be an array ref");
-    }
-
-    $self->_combine(@$cols) or return '';
-
-    local $\ = '';
-
-    $io->print( $self->_string ) or $self->_set_error_diag(2200);
 }
 
 sub _make_regexp_split_column {
