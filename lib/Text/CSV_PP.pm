@@ -1940,7 +1940,7 @@ sub _set_diag {
     if ($error == 2012) { # EOF
         $self->{_EOF} = 1;
     }
-    if ($ctx->{auto_diag}) {
+    if ($self->{auto_diag}) { # FIXME: should use ctx
         $self->error_diag;
     }
     return $last_error;
