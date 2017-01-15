@@ -22,8 +22,12 @@ sub NV  { 2 }
 
 sub IS_QUOTED () { 0x0001; }
 sub IS_BINARY () { 0x0002; }
+sub IS_ERROR ()  { 0x0004; }
 sub IS_MISSING () { 0x0010; }
 
+sub HOOK_ERROR () { 0x0001; }
+sub HOOK_AFTER_PARSE () { 0x0002; }
+sub HOOK_BEFORE_PRINT () { 0x0004; }
 
 my $ERRORS = {
         # Generic errors
@@ -1342,6 +1346,123 @@ sub csv {
 #
 ################################################################################
 
+sub _setup_ctx {
+    my $self = shift;
+    my %ctx;
+    if ($self->{_CACHE}) {
+        %ctx = %{$self->{_CACHE}};
+    } else {
+        $ctx{self}  = $self;
+        $ctx{pself} = ref $self || $self;
+
+        $ctx{sep} = ',';
+        if (defined $self->{sep_char}) {
+            $ctx{sep} = $self->{sep_char};
+        }
+        if (defined $self->{sep}) {
+            $ctx{sep} = $self->{sep};
+            my $sep_len = length($ctx{sep});
+            $ctx{sep_len} = $sep_len if $sep_len > 1;
+        }
+
+        $ctx{quote} = '"';
+        if (exists $self->{quote_char}) {
+            my $quote_char = $self->{quote_char};
+            if (defined $quote_char and length $quote_char) {
+                $ctx{quote} = $quote_char;
+            } else {
+                $ctx{quote} = "\0";
+            }
+        }
+        if (defined $self->{quote}) {
+            $ctx{quo} = $self->{quote};
+            my $quote_len = length($ctx{quo});
+            $ctx{quo_len} = $quote_len if $quote_len > 1;
+        }
+
+        $ctx{escape_char} = '"';
+        if (exists $self->{escape_char}) {
+            my $escape_char = $self->{escape_char};
+            if (defined $escape_char and length $escape_char) {
+                $ctx{escape_char} = $escape_char;
+            } else {
+                $ctx{escape_char} = "\0";
+            }
+        }
+
+        if (defined $self->{eol}) {
+            my $eol = $self->{eol};
+            my $eol_len = length($eol);
+            $ctx{eol} = $eol;
+            $ctx{eol_len} = $eol_len;
+            if ($eol_len == 1 and $eol eq "\015") {
+                $ctx{eol_is_cr} = 1;
+            }
+        }
+
+        if (defined $self->{_types}) {
+            $ctx{types} = $self->{_types};
+            $ctx{types_len} = length($ctx{types});
+        }
+
+        if (defined $self->{is_bound}) {
+            $ctx{is_bound} = $self->{_is_bound};
+        }
+
+        if (defined $self->{callbacks}) {
+            my $cb = $self->{callbacks};
+            $ctx{has_hooks} = 0;
+            if (defined $cb->{after_parse} and ref $cb->{after_parse} eq 'CODE') {
+                $ctx{has_hooks} |= HOOK_AFTER_PARSE;
+            }
+            if (defined $cb->{before_print} and ref $cb->{before_print} eq 'CODE') {
+                $ctx{has_hooks} |= HOOK_BEFORE_PRINT;
+            }
+        }
+
+        for (qw/
+            binary decode_utf8 always_quote quote_empty quote_space
+            escape_null quote_binary allow_loose_quotes
+            allow_unquoted_escape allow_whitespace blank_is_undef
+            empty_is_undef verbatim auto_diag diag_verbose
+            keep_meta_info
+        /) {
+            $ctx{$_} = $self->{$_};
+        }
+        # FIXME: readonly
+        %{$self->{_CACHE} ||= {}} = %ctx;
+    }
+
+    $ctx{utf8} = 0;
+    $ctx{size} = 0;
+    $ctx{used} = 0;
+
+    if ($ctx{is_bound}) {
+        my $bound = $self->{_BOUND_COLUMNS};
+        if ($bound and ref $bound eq 'ARRAY') {
+            $ctx{bound} = $bound;
+        } else {
+            $ctx{is_bound} = 0;
+        }
+    }
+
+    $ctx{eol_pos} = -1;
+    $ctx{eolx} = $ctx{eol_len}
+        ? $ctx{verbatim} || $ctx{eol_len} >= 2
+            ? 1
+            : $ctx{eol} =~ /\A[\015|\012]/ ? 0 : 1
+        : 0;
+
+    if ($ctx{sep_len} and _is_valid_utf8($ctx{sep})) {
+        $ctx{utf8} = 1;
+    }
+    if ($ctx{quo_len} and _is_valid_utf8($ctx{quo})) {
+        $ctx{utf8} = 1;
+    }
+
+    \%ctx;
+}
+
 sub _hook {
     my ($self, $name, $fields) = @_;
     return 0 unless $self->{callbacks};
@@ -1938,7 +2059,7 @@ sub _set_diag {
     if ($error == 2012) { # EOF
         $self->{_EOF} = 1;
     }
-    if ($self->{auto_diag}) { # FIXME: should use ctx
+    if ($ctx->{auto_diag}) {
         $self->error_diag;
     }
     return $last_error;
@@ -1948,7 +2069,8 @@ sub SetDiag {
     my ($self, $error, $errstr) = @_;
     my $res;
     if (ref $self) {
-        $res = $self->_set_diag({}, $error);
+        my $ctx = $self->_setup_ctx;
+        $res = $self->_set_diag($ctx, $error);
 
     } else {
         $res = $self->_sv_diag($error);
