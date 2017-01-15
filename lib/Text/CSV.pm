@@ -114,31 +114,6 @@ sub is_pp {
 
 sub is_dynamic { $Is_Dynamic; }
 
-
-sub AUTOLOAD {
-    my $self = $_[0];
-    my $attr = $Text::CSV::AUTOLOAD;
-    $attr =~ s/.*:://;
-
-    return if $attr =~ /^[A-Z]+$/;
-    Carp::croak( "Can't locate method $attr" ) unless $attr =~ /^_/;
-
-    my $pkg = $Text::CSV::Worker;
-
-    my $method = "$pkg\::$attr";
-
-    $Text::CSV::DEBUG and Carp::carp("'$attr' is private method, so try to autoload...");
-
-    local $^W;
-    no strict qw(refs);
-
-    *{"Text::CSV::$attr"} = *{"$pkg\::$attr"};
-
-    goto &$attr;
-}
-
-
-
 sub _load_xs {
     my $opt = shift;
 
