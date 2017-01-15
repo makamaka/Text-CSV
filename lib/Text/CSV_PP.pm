@@ -371,6 +371,20 @@ my %_cache_id = ( # Only expose what is accessed from within PM
     _is_bound			=> 26,	# 26 .. 29
     );
 
+my %_hidden_cache_id = qw(
+    sep_len		38
+    eol_len		12
+    eol_is_cr		13
+    quo_len		16
+    _has_ahead		30
+    has_error_input		34
+);
+
+my %_reverse_cache_id = (
+    map({$_cache_id{$_} => $_} keys %_cache_id),
+    map({$_hidden_cache_id{$_} => $_} keys %_hidden_cache_id),
+);
+
 # A `character'
 sub _set_attr_C {
     my ($self, $name, $val, $ec) = @_;
@@ -379,6 +393,7 @@ sub _set_attr_C {
     $self->{$name} = $val;
     $ec = _check_sanity ($self) and
         croak ($self->SetDiag ($ec));
+    $self->_cache_set ($_cache_id{$name}, $val);
     }
 
 # A flag
@@ -386,12 +401,14 @@ sub _set_attr_X {
     my ($self, $name, $val) = @_;
     defined $val or $val = 0;
     $self->{$name} = $val;
+    $self->_cache_set ($_cache_id{$name}, 0 + $val);
     }
 
 # A number
 sub _set_attr_N {
     my ($self, $name, $val) = @_;
     $self->{$name} = $val;
+    $self->_cache_set ($_cache_id{$name}, 0 + $val);
     }
 
 # Accessor methods.
@@ -400,6 +417,7 @@ sub quote_char {
     my $self = shift;
     if (@_) {
         $self->_set_attr_C ("quote_char", shift);
+        $self->_cache_set ($_cache_id{quote}, "");
         }
     $self->{quote_char};
     }
@@ -423,6 +441,8 @@ sub quote {
 
         my $ec = _check_sanity ($self);
         $ec and croak ($self->SetDiag ($ec));
+
+        $self->_cache_set ($_cache_id{quote}, $quote);
         }
     my $quote = $self->{quote};
     defined $quote && length ($quote) ? $quote : $self->{quote_char};
@@ -438,6 +458,7 @@ sub sep_char {
     my $self = shift;
     if (@_) {
         $self->_set_attr_C ("sep_char", shift);
+        $self->_cache_set ($_cache_id{sep}, "");
         }
     $self->{sep_char};
 }
@@ -461,6 +482,8 @@ sub sep {
 
         my $ec = _check_sanity ($self);
         $ec and croak ($self->SetDiag ($ec));
+
+        $self->_cache_set ($_cache_id{sep}, $sep);
         }
     my $sep = $self->{sep};
     defined $sep && length ($sep) ? $sep : $self->{sep_char};
@@ -473,6 +496,7 @@ sub eol {
         defined $eol or $eol = "";
         length ($eol) > 16 and croak ($self->SetDiag (1005));
         $self->{eol} = $eol;
+        $self->_cache_set ($_cache_id{eol}, $eol);
         }
     $self->{eol};
     }
@@ -1365,13 +1389,13 @@ sub _setup_ctx {
             $ctx{sep_len} = $sep_len if $sep_len > 1;
         }
 
-        $ctx{quote} = '"';
+        $ctx{quo} = '"';
         if (exists $self->{quote_char}) {
             my $quote_char = $self->{quote_char};
             if (defined $quote_char and length $quote_char) {
-                $ctx{quote} = $quote_char;
+                $ctx{quo} = $quote_char;
             } else {
-                $ctx{quote} = "\0";
+                $ctx{quo} = "\0";
             }
         }
         if (defined $self->{quote}) {
@@ -1461,6 +1485,51 @@ sub _setup_ctx {
     }
 
     \%ctx;
+}
+
+sub _cache_set {
+    my ($self, $idx, $value) = @_;
+    return unless exists $self->{_CACHE};
+    my $cache = $self->{_CACHE};
+
+    my $key = $_reverse_cache_id{$idx};
+    if (!defined $key) {
+        warn (sprintf "Unknown cache index %d ignored\n", $idx);
+        return;
+    }
+
+    if ($key eq 'sep_char') {
+        $cache->{sep} = $value;
+        $cache->{sep_len} = 0;
+    }
+    elsif ($key eq 'quote_char') {
+        $cache->{quo} = $value;
+        $cache->{quo_len} = 0;
+    }
+    elsif ($key eq '_has_hooks') {
+        $cache->{has_hooks} = $value;
+    }
+    elsif ($key eq '_is_bound') {
+        $cache->{is_bound} = $value;
+    }
+    elsif ($key eq 'sep') {
+        $cache->{sep} = $value;
+        my $len = length($value);
+        $cache->{sep_len} = $len == 1 ? 0 : $len;
+    }
+    elsif ($key eq 'quote') {
+        $cache->{quo} = $value;
+        my $len = length($value);
+        $cache->{quo_len} = $len == 1 ? 0 : $len;
+    }
+    elsif ($key eq 'eol') {
+        $cache->{eol} = $value;
+        $cache->{eol_is_cr} = $value eq "\015" ? 1 : 0;
+    }
+    else {
+        $cache->{$key} = $value;
+    }
+    return 1;
 }
 
 sub _hook {
@@ -1573,6 +1642,8 @@ sub print {
 my %allow_eol = ("\r" => 1, "\r\n" => 1, "\n" => 1, "" => 1);
 sub __parse {
     my ($self, $str, $fields, $fflags) = @_;
+
+    my $ctx = $self->_setup_ctx;
 
     $self->{_ERROR_INPUT} = $str;
 
