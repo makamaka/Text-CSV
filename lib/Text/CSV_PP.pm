@@ -962,8 +962,8 @@ sub say {
 
 sub print_hr {
     my ($self, $io, $hr) = @_;
-    $self->{_COLUMN_NAMES} or $self->_set_error_diag(3009);
-    ref $hr eq "HASH"      or $self->_set_error_diag(3010);
+    $self->{_COLUMN_NAMES} or croak($self->SetDiag(3009));
+    ref $hr eq "HASH"      or croak($self->SetDiag(3010));
     $self->print ($io, [ map { $hr->{$_} } $self->column_names ]);
 }
 
@@ -1394,7 +1394,7 @@ sub __combine {
         if (!$binary and $value =~ /[^\x09\x20-\x7E]/) {
             # an argument contained an invalid character...
             $self->{_ERROR_INPUT} = $value;
-            $self->_set_error_diag(2110);
+            $self->SetDiag(2110);
             return 0;
         }
 
@@ -1671,14 +1671,14 @@ sub __parse {
             my ( $max, $count ) = ( scalar @vals, 0 );
 
             if ( @{ $self->{_BOUND_COLUMNS} } < $max ) {
-                $self->_set_error_diag(3006);
+                $self->SetDiag(3006);
                 return;
             }
 
             for ( my $i = 0; $i < $max; $i++ ) {
                 my $bind = $self->{_BOUND_COLUMNS}->[ $i ];
                 if ( Scalar::Util::readonly( $$bind ) ) {
-                    $self->_set_error_diag(3008);
+                    $self->SetDiag(3008);
                     return;
                 }
                 $$bind = $vals[ $i ];
