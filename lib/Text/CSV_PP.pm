@@ -1896,7 +1896,7 @@ sub _set_error_diag {
 
 sub error_input {
     my $self = shift;
-    if ($self and ref $self eq 'HASH') {
+    if ($self and ref $self) {
         return $self->{_ERROR_INPUT};
     }
     return;
