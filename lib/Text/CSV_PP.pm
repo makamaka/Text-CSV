@@ -1449,13 +1449,15 @@ sub _setup_ctx {
         }
 
         for (qw/
-            binary decode_utf8 always_quote quote_empty quote_space
-            escape_null quote_binary allow_loose_quotes
-            allow_unquoted_escape allow_whitespace blank_is_undef
-            empty_is_undef verbatim auto_diag diag_verbose
-            keep_meta_info
+            binary decode_utf8 always_quote quote_empty
+            allow_loose_quotes allow_unquoted_escape
+            allow_whitespace blank_is_undef empty_is_undef verbatim
+            auto_diag diag_verbose keep_meta_info
         /) {
-            $ctx{$_} = $self->{$_};
+            $ctx{$_} = defined $self->{$_} ? $self->{$_} : 0;
+        }
+        for (qw/quote_space escape_null quote_binary/) {
+            $ctx{$_} = defined $self->{$_} ? $self->{$_} : 1;
         }
         # FIXME: readonly
         $self->{_CACHE} = \%ctx;
