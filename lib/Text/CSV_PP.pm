@@ -1907,8 +1907,6 @@ sub _set_error_diag {
         $_[0]->{_ERROR_POS} = $pos;
     }
 
-    $self->error_diag() if ( $error and $self->{auto_diag} );
-
     return;
 }
 
