@@ -814,11 +814,11 @@ sub column_names {
         @columns = @{ $columns[0] };
     }
     elsif ( join "", map { defined $_ ? ref $_ : "" } @columns ) {
-        $self->SetDiag( 3001 );
+        croak $self->SetDiag( 3001 );
     }
 
     if ( $self->{_BOUND_COLUMNS} && @columns != @{$self->{_BOUND_COLUMNS}} ) {
-        $self->SetDiag( 3003 );
+        croak $self->SetDiag( 3003 );
     }
 
     $self->{_COLUMN_NAMES} = [ map { defined $_ ? $_ : "\cAUNDEF\cA" } @columns ];
@@ -912,11 +912,11 @@ sub bind_columns {
     @refs == 1 && ! defined $refs[0] and return $self->{_BOUND_COLUMNS} = undef;
 
     if ( $self->{_COLUMN_NAMES} && @refs != @{$self->{_COLUMN_NAMES}} ) {
-        $self->SetDiag( 3003 );
+        croak $self->SetDiag( 3003 );
     }
 
     if ( grep { ref $_ ne "SCALAR" } @refs ) { # why don't use grep?
-        $self->SetDiag( 3004 );
+        croak $self->SetDiag( 3004 );
     }
 
     $self->{_is_bound} = scalar @refs; #pack("C", scalar @refs);
@@ -943,7 +943,7 @@ sub getline_hr_all {
     my %hr;
 
     unless ( $self->{_COLUMN_NAMES} ) {
-        $self->SetDiag( 3002 );
+        croak $self->SetDiag( 3002 );
     }
 
     my @cn = @{$self->{_COLUMN_NAMES}};
