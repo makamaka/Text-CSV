@@ -1895,7 +1895,11 @@ sub _set_error_diag {
 }
 
 sub error_input {
-    $_[0]->{_ERROR_INPUT};
+    my $self = shift;
+    if ($self and ref $self eq 'HASH') {
+        return $self->{_ERROR_INPUT};
+    }
+    return;
 }
 
 sub _sv_diag {

@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 195;
+ use Test::More tests => 201;
 #use Test::More "no_plan";
 
 my %err;
@@ -102,6 +102,9 @@ is (Text::CSV->error_diag (), "INI - Unknown attribute 'ecs_char'",
 					"Last failure for new () - FAIL");
 is (Text::CSV::error_diag (bless {}, "Foo"), "INI - Unknown attribute 'ecs_char'",
 					"Last failure for new () - FAIL");
+$csv->SetDiag (1000);
+is (0 + $csv->error_diag (), 1000,			"Set error NUM");
+is (    $csv->error_diag (), "INI - constructor failed","Set error STR");
 $csv->SetDiag (0);
 is (0 + $csv->error_diag (),    0,			"Reset error NUM");
 is (    $csv->error_diag (),   "",			"Reset error STR");
@@ -130,6 +133,17 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
 {   ok ($csv->{auto_diag} = 2, "auto_diag = 2 to die");
     eval { $csv->parse ('"","') };
     like ($@, qr '^# CSV_PP ERROR: 2027 -', "2 - error message");
+    }
+
+{   my @warn;
+    local $SIG{__WARN__} = sub { push @warn, @_ };
+
+    # Invalid error_input calls
+    is (Text::CSV::error_input (undef), undef, "Bad error_input call");
+    is (Text::CSV::error_input (""),    undef, "Bad error_input call");
+    is (Text::CSV::error_input ([]),    undef, "Bad error_input call");
+    is (Text::CSV->error_input,         undef, "Bad error_input call");
+
     }
 
 {   my $csv = Text::CSV->new ();
