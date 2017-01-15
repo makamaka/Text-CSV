@@ -116,10 +116,28 @@ BEGIN {
             Carp::croak $@;
         }
         else {
+            my %tmap = qw(
+                B::NULL   SCALAR
+                B::HV     HASH
+                B::AV     ARRAY
+                B::CV     CODE
+                B::IO     IO
+                B::GV     GLOB
+                B::REGEXP REGEXP
+            );
+            *Scalar::Util::reftype = sub (\$) {
+                my $r = shift;
+                return undef unless length(ref($r));
+                my $t = ref(B::svref_2object($r));
+                return
+                    exists $tmap{$t} ? $tmap{$t}
+                  : length(ref($$r)) ? 'REF'
+                  :                    'SCALAR';
+            };
             *Scalar::Util::readonly = sub (\$) {
                 my $b = B::svref_2object( $_[0] );
                 $b->FLAGS & 0x00800000; # SVf_READONLY?
-            }
+            };
         }
     }
 }
@@ -1896,7 +1914,7 @@ sub _set_error_diag {
 
 sub error_input {
     my $self = shift;
-    if ($self and ref $self) {
+    if ($self and Scalar::Util::reftype $self eq 'HASH') {
         return $self->{_ERROR_INPUT};
     }
     return;
