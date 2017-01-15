@@ -1458,7 +1458,7 @@ sub _setup_ctx {
             $ctx{$_} = $self->{$_};
         }
         # FIXME: readonly
-        %{$self->{_CACHE} ||= {}} = %ctx;
+        $self->{_CACHE} = \%ctx;
     }
 
     $ctx{utf8} = 0;
