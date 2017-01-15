@@ -1532,6 +1532,61 @@ sub _cache_set {
     return 1;
 }
 
+sub _cache_diag {
+    my $self = shift;
+    unless (exists $self->{_CACHE}) {
+        warn ("CACHE: invalid\n");
+        return;
+    }
+
+    my $cache = $self->{_CACHE};
+    warn ("CACHE:\n");
+    $self->__cache_show_char(quote_char => $cache->{quo});
+    $self->__cache_show_char(escape_char => $cache->{escape_char});
+    $self->__cache_show_char(sep_char => $cache->{sep_char});
+    for (qw/
+        binary decode_utf8 allow_loose_escapes allow_loose_quotes
+        allow_whitespace always_quote quote_empty quote_space
+        escape_null quote_binary auto_diag diag_verbose
+        has_error_input blank_is_undef empty_is_undef has_ahead
+        keep_meta_info verbatim has_hooks eol_is_cr eol_len
+    /) {
+        $self->__cache_show_byte($_ => $cache->{$_});
+    }
+    $self->__cache_show_str(eol => $cache->{eol_len}, $cache->{eol});
+    $self->__cache_show_byte(sep_len => $cache->{sep_len});
+    if ($cache->{sep_len} and $cache->{sep_len} > 1) {
+        $self->__cache_show_str(sep => $cache->{sep_len}, $cache->{sep});
+    }
+    $self->__cache_show_byte(quo_len => $cache->{quo_len});
+    if ($cache->{quo_len} and $cache->{quo_len} > 1) {
+        $self->__cache_show_str(quote => $cache->{quo_len}, $cache->{quo});
+    }
+}
+
+sub __cache_show_byte {
+    my ($self, $key, $value) = @_;
+    warn (sprintf "  %-21s %02x:%3d\n", $key, $value, $value);
+}
+
+sub __cache_show_char {
+    my ($self, $key, $value) = @_;
+    warn (sprintf "  %-21s %02x:%s\n", $key, ord($value), $self->__pretty_str($value));
+}
+
+sub __cache_show_str {
+    my ($self, $key, $len, $value) = @_;
+    warn (sprintf "  %-21s %02l:%s\n", $key, $len, $self->__pretty_str($value));
+}
+
+sub __pretty_str { # FIXME
+    my ($self, $str) = @_;
+    return '' unless defined $str;
+    $str =~ s/"/\\"/g;
+    $str =~ s/([^\x20-\x7e])/sprintf "\\\\x%02x", ord($1)/eg;
+    qq{"$str"};
+}
+
 sub _hook {
     my ($self, $name, $fields) = @_;
     return 0 unless $self->{callbacks};

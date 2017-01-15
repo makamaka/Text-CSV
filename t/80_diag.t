@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 209;
+ use Test::More tests => 211;
 #use Test::More "no_plan";
 
 my %err;
@@ -144,7 +144,11 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     is (Text::CSV::error_input ([]),    undef, "Bad error_input call");
     is (Text::CSV->error_input,         undef, "Bad error_input call");
 
-     ok (my $csv = Text::CSV->new (), "new for cache diag");
+    ok (my $csv = Text::CSV->new (), "new for cache diag");
+    $csv->_cache_diag ();
+    ok (@warn == 1, "Got warn");
+    is ($warn[0], "CACHE: invalid\n", "Uninitialized cache");
+
     @warn = ();
     ok ($csv->parse ("1"), "parse"); # initialize cache
     $csv->_cache_set (987, 10);
