@@ -210,6 +210,7 @@ my %attr_alias = (
     );
 
 my $last_new_error = Text::CSV_PP->SetDiag(0);
+my $last_error;
 
 # NOT a method: is also used before bless
 sub _unhealthy_whitespace {
@@ -1372,6 +1373,9 @@ sub csv {
 
 sub _setup_ctx {
     my $self = shift;
+
+    $last_error = undef;
+
     my %ctx;
     if ($self->{_CACHE}) {
         %ctx = %{$self->{_CACHE}};
@@ -2171,7 +2175,6 @@ sub _sv_diag {
     bless [$error, $ERRORS->{$error}], 'Text::CSV::ErrorDiag';
 }
 
-my $last_error;
 sub _set_diag {
     my ($self, $ctx, $error) = @_;
 
