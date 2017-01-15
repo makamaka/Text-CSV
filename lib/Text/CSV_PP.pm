@@ -1543,7 +1543,7 @@ sub _cache_diag {
     warn ("CACHE:\n");
     $self->__cache_show_char(quote_char => $cache->{quo});
     $self->__cache_show_char(escape_char => $cache->{escape_char});
-    $self->__cache_show_char(sep_char => $cache->{sep_char});
+    $self->__cache_show_char(sep_char => $cache->{sep});
     for (qw/
         binary decode_utf8 allow_loose_escapes allow_loose_quotes
         allow_whitespace always_quote quote_empty quote_space
@@ -1566,22 +1566,23 @@ sub _cache_diag {
 
 sub __cache_show_byte {
     my ($self, $key, $value) = @_;
-    warn (sprintf "  %-21s %02x:%3d\n", $key, $value, $value);
+    warn (sprintf "  %-21s %02x:%3d\n", $key, defined $value ? ord($value) : 0, defined $value ? $value : 0);
 }
 
 sub __cache_show_char {
     my ($self, $key, $value) = @_;
-    warn (sprintf "  %-21s %02x:%s\n", $key, ord($value), $self->__pretty_str($value));
+    warn (sprintf "  %-21s %02x:%s\n", $key, defined $value ? ord($value) : 0, $self->__pretty_str($value, 1));
 }
 
 sub __cache_show_str {
     my ($self, $key, $len, $value) = @_;
-    warn (sprintf "  %-21s %02l:%s\n", $key, $len, $self->__pretty_str($value));
+    warn (sprintf "  %-21s %02d:%s\n", $key, $len, $self->__pretty_str($value, $len));
 }
 
 sub __pretty_str { # FIXME
-    my ($self, $str) = @_;
+    my ($self, $str, $len) = @_;
     return '' unless defined $str;
+    $str = substr($str, 0, $len);
     $str =~ s/"/\\"/g;
     $str =~ s/([^\x20-\x7e])/sprintf "\\\\x%02x", ord($1)/eg;
     qq{"$str"};

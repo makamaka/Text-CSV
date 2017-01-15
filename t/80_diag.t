@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 211;
+ use Test::More tests => 244;
 #use Test::More "no_plan";
 
 my %err;
@@ -201,6 +201,24 @@ foreach my $spec (
     is ($c_diag, 2013,	"Illegal RFC7111 spec");
     is ($p_diag, 0,	"Position");
     }
+
+my $diag_file = "_$$.out";
+open  EH,     ">&STDERR"      or die "STDERR: $!\n";
+open  STDERR, ">", $diag_file or die "STDERR: $!\n";
+# Trigger extra output for longer quote and sep
+is ($csv->sep   ("--"), "--", "set longer sep");
+is ($csv->quote ("^^"), "^^", "set longer quote");
+ok ($csv->_cache_diag,	"Cache debugging output");
+close STDERR;
+open  STDERR, ">&EH"          or die "STDERR: $!\n";
+open  EH,     "<", $diag_file or die "STDERR: $!\n";
+is (scalar <EH>, "CACHE:\n",	"Title");
+while (<EH>) {
+    like ($_, qr{^  \w+\s+[0-9a-f]+:(?:".*"|\s*[0-9]+)$}, "Content");
+note $_;
+    }
+close EH;
+unlink $diag_file;
 
 {   my $err = "";
     local $SIG{__DIE__} = sub { $err = shift; };
