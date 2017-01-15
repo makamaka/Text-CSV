@@ -187,8 +187,7 @@ my %attr_alias = (
     quote_null			=> "escape_null",
     );
 
-my $last_error = '';
-my $last_err_num;
+my $last_new_error = Text::CSV_PP->SetDiag(0);
 
 # NOT a method: is also used before bless
 sub _unhealthy_whitespace {
@@ -248,8 +247,8 @@ sub known_attributes {
     }
 
 sub new {
-    $last_error   = 'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);';
-    $last_err_num = 1000;
+    $last_new_error   = Text::CSV_PP->SetDiag(1000,
+        'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);');
 
     my $proto = shift;
     my $class = ref ($proto) || $proto	or  return;
@@ -278,8 +277,7 @@ sub new {
             next;
             }
 #        croak?
-        $last_error = "INI - Unknown attribute '$_'";
-        $last_err_num = 1000;
+        $last_new_error = Text::CSV_PP->SetDiag(1000, "INI - Unknown attribute '$_'");
         $attr{auto_diag} and error_diag ();
         return;
         }
@@ -306,8 +304,7 @@ sub new {
 
     my $self = { %def_attr, %attr };
     if (my $ec = _check_sanity ($self)) {
-        $last_error   = $ERRORS->{ $ec };
-        $last_err_num = $ec;
+        $last_new_error   = Text::CSV_PP->SetDiag($ec);
         $attr{auto_diag} and error_diag ();
         return;
         }
@@ -316,8 +313,7 @@ sub new {
         $self->{callbacks} = undef;
         }
 
-    $last_error = "";
-    $last_err_num = 0;
+    $last_new_error = Text::CSV_PP->SetDiag(0);
     defined $\ && !exists $attr{eol} and $self->{eol} = $\;
     bless $self, $class;
     defined $self->{types} and $self->types ($self->{types});
@@ -648,16 +644,12 @@ sub callbacks {
 
 sub error_diag {
     my $self = shift;
-    my @diag = (0, $last_error, 0, 0, 0);
-
-    unless ($self and ref $self) {    # Class method or direct call
-        $last_error and $diag[0] = defined $last_err_num ? $last_err_num : 1000;
-    }
+    my @diag = (0 + $last_new_error, $last_new_error, 0, 0, 0);
 
     if ($self && ref $self && # Not a class method or direct call
          $self->isa (__PACKAGE__) && defined $self->{_ERROR_DIAG}) {
         $diag[0] = 0 + $self->{_ERROR_DIAG};
-        $diag[1] = $ERRORS->{$self->{_ERROR_DIAG}};
+        $diag[1] =     $self->{_ERROR_DIAG};
         $diag[2] = 1 + $self->{_ERROR_POS} if exists $self->{_ERROR_POS};
         $diag[3] =     $self->{_RECNO};
         $diag[4] =     $self->{_ERROR_FLD} if exists $self->{_ERROR_FLD};
@@ -667,8 +659,6 @@ sub error_diag {
         }
 
     my $context = wantarray;
-
-    my $diagobj = bless \@diag, 'Text::CSV::ErrorDiag';
 
     unless (defined $context) {	# Void context, auto-diag
         if ($diag[0] && $diag[0] != 2012) {
@@ -706,7 +696,7 @@ sub error_diag {
         return;
         }
 
-    return $context ? @diag : $diagobj;
+    return $context ? @diag : $diag[1];
 }
 
 sub record_number {
@@ -1155,7 +1145,7 @@ sub _csv_attr {
     defined $attr{auto_diag}   or $attr{auto_diag}   = 1;
     defined $attr{escape_null} or $attr{escape_null} = 0;
     my $csv = delete $attr{csv} || Text::CSV_PP->new (\%attr)
-        or croak $last_error; # FIXME
+        or croak $last_new_error;
 
     return {
         csv  => $csv,
@@ -1893,7 +1883,7 @@ sub _is_valid_utf8 {
 sub _set_error_diag {
     my ( $self, $error, $pos ) = @_;
 
-    $self->{_ERROR_DIAG} = $error;
+    $self->SetDiag($error);
 
     if (defined $pos) {
         $_[0]->{_ERROR_POS} = $pos;
@@ -1908,15 +1898,45 @@ sub error_input {
     $_[0]->{_ERROR_INPUT};
 }
 
-sub SetDiag {
-    if ( defined $_[1] and $_[1] == 0 ) {
-        $_[0]->{_ERROR_DIAG} = undef;
-        $last_error = '';
-        return;
-    }
+sub _sv_diag {
+    my ($self, $error) = @_;
+    bless [$error, $ERRORS->{$error}], 'Text::CSV::ErrorDiag';
+}
 
-    $_[0]->_set_error_diag( $_[1] );
-    Carp::croak( $_[0]->error_diag . '' );
+my $last_error;
+sub _set_diag {
+    my ($self, $ctx, $error) = @_;
+
+    $last_error = $self->_sv_diag($error);
+    $self->{_ERROR_DIAG} = $last_error;
+    if ($error == 0) {
+        $self->{_ERROR_POS} = 0;
+        $self->{_ERROR_FLD} = 0;
+        $self->{_ERROR_INPUT} = undef;
+        $ctx->{has_error_input} = 0;
+    }
+    if ($error == 2012) { # EOF
+        $self->{_EOF} = 1;
+    }
+    if ($ctx->{auto_diag}) {
+        $self->error_diag;
+    }
+    return $last_error;
+}
+
+sub SetDiag {
+    my ($self, $error, $errstr) = @_;
+    my $res;
+    if (ref $self) {
+        $res = $self->_set_diag({}, $error);
+
+    } else {
+        $res = $self->_sv_diag($error);
+    }
+    if (defined $errstr) {
+        $res->[1] = $errstr;
+    }
+    $res;
 }
 
 ################################################################################

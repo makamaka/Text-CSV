@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 194;
+ use Test::More tests => 195;
 #use Test::More "no_plan";
 
 my %err;
@@ -63,6 +63,9 @@ parse_err 2037,  1, 11, 1, qq{\0 };
     ok (@warn == 1, "Got error message");
     like ($warn[0], qr{^# CSV_PP ERROR: 2037 - EIF}, "error content");
     }
+
+$csv->SetDiag (2012);
+is ($csv->eof, 1,  "EOF caused by 2012");
 
 is (Text::CSV->new ({ ecs_char => ":" }), undef, "Unsupported option");
 
