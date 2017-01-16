@@ -1450,9 +1450,10 @@ sub _setup_ctx {
 
         for (qw/
             binary decode_utf8 always_quote quote_empty
-            allow_loose_quotes allow_unquoted_escape
-            allow_whitespace blank_is_undef empty_is_undef verbatim
-            auto_diag diag_verbose keep_meta_info
+            allow_loose_quotes allow_loose_escapes
+            allow_unquoted_escape allow_whitespace blank_is_undef
+            empty_is_undef verbatim auto_diag diag_verbose
+            keep_meta_info
         /) {
             $ctx{$_} = defined $self->{$_} ? $self->{$_} : 0;
         }
