@@ -948,7 +948,7 @@ sub bind_columns {
         croak $self->SetDiag( 3004 );
     }
 
-    $self->{_is_bound} = scalar @refs; #pack("C", scalar @refs);
+    $self->_set_attr_N("_is_bound", scalar @refs);
     $self->{_BOUND_COLUMNS} = [ @refs ];
     @refs;
 }
