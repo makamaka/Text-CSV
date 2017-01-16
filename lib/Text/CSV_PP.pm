@@ -1433,7 +1433,7 @@ sub _setup_ctx {
             $ctx{types_len} = length($ctx{types});
         }
 
-        if (defined $self->{is_bound}) {
+        if (defined $self->{_is_bound}) {
             $ctx{is_bound} = $self->{_is_bound};
         }
 
