@@ -1516,17 +1516,17 @@ sub _cache_set {
         $cache->{is_bound} = $value;
     }
     elsif ($key eq 'sep') {
-        $cache->{sep} = $value;
         my $len = length($value);
+        $cache->{sep} = $value if $len;
         $cache->{sep_len} = $len == 1 ? 0 : $len;
     }
     elsif ($key eq 'quote') {
-        $cache->{quo} = $value;
         my $len = length($value);
+        $cache->{quo} = $value if $len;
         $cache->{quo_len} = $len == 1 ? 0 : $len;
     }
     elsif ($key eq 'eol') {
-        $cache->{eol} = $value;
+        $cache->{eol} = $value if length($value);
         $cache->{eol_is_cr} = $value eq "\015" ? 1 : 0;
     }
     else {
