@@ -1501,10 +1501,7 @@ sub _cache_set {
     my $key = $_reverse_cache_id{$idx};
     if (!defined $key) {
         warn (sprintf "Unknown cache index %d ignored\n", $idx);
-        return;
-    }
-
-    if ($key eq 'sep_char') {
+    } elsif ($key eq 'sep_char') {
         $cache->{sep} = $value;
         $cache->{sep_len} = 0;
     }
