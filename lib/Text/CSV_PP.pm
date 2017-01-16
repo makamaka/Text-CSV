@@ -1380,7 +1380,7 @@ sub _setup_ctx {
     if ($self->{_CACHE}) {
         %ctx = %{$self->{_CACHE}};
     } else {
-        $ctx{self}  = $self;
+        # $ctx{self}  = $self;
         $ctx{pself} = ref $self || $self;
 
         $ctx{sep} = ',';
