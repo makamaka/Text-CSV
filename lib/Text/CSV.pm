@@ -32,10 +32,6 @@ my @PublicMethods = qw/
     PV IV NV
 /;
 #
-my @UndocumentedXSMethods = qw/Combine Parse SetDiag/;
-
-my @UndocumentedPPMethods = qw//; # Currently empty
-
 
 # Check the environment variable to decide worker module.
 
@@ -163,19 +159,6 @@ sub _set_methods {
     for my $method (@PublicMethods) {
         *{"Text::CSV::$method"} = \&{"$class\::$method"};
     }
-
-    if ($Text::CSV::Worker eq $Module_XS) {
-        for my $method (@UndocumentedXSMethods) {
-            *{"Text::CSV::$method"} = \&{"$Module_XS\::$method"};
-        }
-    }
-
-    if ($Text::CSV::Worker eq $Module_PP) {
-        for my $method (@UndocumentedPPMethods) {
-            *{"Text::CSV::$method"} = \&{"$Module_PP\::$method"};
-        }
-    }
-
 }
 
 
