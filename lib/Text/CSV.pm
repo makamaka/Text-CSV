@@ -105,53 +105,30 @@ sub is_pp {
 
 sub is_dynamic { $Is_Dynamic; }
 
-sub _load_xs {
-    my $opt = shift;
+sub _load_xs { _load($Module_XS, $XS_Version) }
 
-    $Text::CSV::DEBUG and Carp::carp "Load $Module_XS.";
+sub _load_pp { _load($Module_PP) }
 
-    eval qq| use $Module_XS $XS_Version |;
+sub _load {
+    my ($module, $version) = @_;
+    $version ||= '';
 
-    return if $@;
+    $Text::CSV::DEBUG and Carp::carp "Load $module.";
 
-    push @Text::CSV::ISA, 'Text::CSV_XS';
-
-    _set_methods( $Text::CSV::Worker = $Module_XS );
-
-    return 1;
-};
-
-
-sub _load_pp {
-    my $opt = shift;
-
-    $Text::CSV::DEBUG and Carp::carp "Load $Module_PP.";
-
-    eval qq| require $Module_PP |;
+    eval qq| use $module $version |;
 
     return if $@;
 
-    push @Text::CSV::ISA, 'Text::CSV_PP';
-
-    _set_methods( $Text::CSV::Worker = $Module_PP );
-
-    return 1;
-};
-
-
-
-
-sub _set_methods {
-    my $class = shift;
-
-    #return;
+    push @Text::CSV::ISA, $module;
+    $Text::CSV::Worker = $module;
 
     local $^W;
     no strict qw(refs);
 
     for my $method (@PublicMethods) {
-        *{"Text::CSV::$method"} = \&{"$class\::$method"};
+        *{"Text::CSV::$method"} = \&{"$module\::$method"};
     }
+    return 1;
 }
 
 
