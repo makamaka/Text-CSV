@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 1076;
+use Test::More tests => 1082;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -257,6 +257,12 @@ $/ = $def_rs;
 
 {   ok (my $csv = Text::CSV->new ({ auto_diag => 1, binary => 1 }), "new csv");
     ok ($csv->eol ("--"), "eol = --");
+    ok ($csv->parse (qq{1,"2--3",4}),			"no eol");
+    is_deeply ([$csv->fields], [ "1", "2--3", 4 ],	"parse");
+    ok ($csv->parse (qq{1,"2--3",4--}),			"eol");
+    is_deeply ([$csv->fields], [ "1", "2--3", 4 ],	"parse");
+    ok ($csv->parse (qq{1,"2--3",4,--}),		",eol");
+    is_deeply ([$csv->fields], [ "1", "2--3", 4, "" ],	"parse");
 
     open my $fh, ">", $tfn or die "$tfn: $!\n";
     print   $fh qq{1,"2--3",4--};

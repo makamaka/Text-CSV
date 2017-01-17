@@ -1803,7 +1803,7 @@ sub ____parse { # cx_Parse
     my ($value, $v_ref);
     $ctx->{fld_idx} = my $fnum = 0;
 
-    my $re_str = join '|', map({quotemeta($_)} grep defined, $sep, $quot, $esc), "\015", "\012", "\x09", " ";
+    my $re_str = join '|', map({quotemeta($_)} grep {defined $_ and $_ ne '' and $_ ne "\0"} $sep, $quot, $esc, $eol), "\015", "\012", "\x09", " ";
     my $re = qr/$re_str|[^\x09\x20-\x7E]|$/;
     $ctx->{_length} = length $str;
     my $p = pos($str) = 0;
@@ -2070,7 +2070,7 @@ RESTART:
                 return;
             }
         }
-        elsif (defined $c and ($c eq "\012" or $c eq '')) { # EOL
+        elsif (defined $c and ($c eq "\012" or $c eq '' or (defined $eol and $c eq $eol and $eol ne "\015"))) { # EOL
 EOLX:
             if ($waitingForField) {
                 # ,1,"foo, 3",,bar,
