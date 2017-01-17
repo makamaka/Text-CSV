@@ -15,7 +15,7 @@ BEGIN {
 	plan skip_all => "No reliable perlIO available";
 	}
     else {
-	plan tests => 105;
+	plan tests => 117;
 	}
     }
 
@@ -116,6 +116,23 @@ for (0 .. 5) {
     }
 is ($csv->getline ($io), undef,				"Fetch field 6");
 is ($csv->eof, 1,					"EOF");
+
+{   ok (my $csv = Text::CSV->new ({ binary => 1, eol => "\n" }), "new csv");
+    my ($out1, $out2, @fld, $fh) = ("", "", qw( 1 aa 3.14 ahhrg ));
+    open $fh, ">", \$out1 or die "IO: $!";
+    ok ($csv->print ($fh, \@fld), "Add line $_") for 1..3;
+    close $fh;
+    $csv->bind_columns (\(@fld));
+    open $fh, ">", \$out2 or die "IO: $!";
+    ok ($csv->print ($fh, \@fld), "Add line $_") for 1..3;
+    close $fh;
+    is ($out2, $out1, "ignoring bound columns");
+    $out2 = "";
+    open $fh, ">", \$out2 or die "IO: $!";
+    ok ($csv->print ($fh, undef), "Add line $_") for 1..3;
+    close $fh;
+    is ($out2, $out1, "using bound columns");
+    }
 
 # Edge cases
 $csv = Text::CSV->new ({ escape_char => "+" });

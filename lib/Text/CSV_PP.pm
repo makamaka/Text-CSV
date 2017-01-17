@@ -1627,14 +1627,29 @@ sub __combine {
 
     my $re_sp  = $self->{_re_comb_sp}->{$sep}->{$quote_space} ||= ( $quote_space ? qr/[\s\Q$sep\E]/ : qr/[\Q$sep\E]/ );
 
+    my $bound = 0;
     my $n = @$fields - 1;
+    if ($n < 0 and $ctx->{is_bound}) {
+        $n = $ctx->{is_bound} - 1;
+        $bound = 1;
+    }
 
     my $check_meta = ($ctx->{keep_meta_info} >= 10 and @{$self->{_FFLAGS} || []} >= $n) ? 1 : 0;
 
     my $must_be_quoted;
     my @results;
     for(my $i = 0; $i <= $n; $i++) {
-        my $value = $fields->[$i];
+        my $v_ref;
+        if ($bound) {
+            $v_ref = $self->__bound_field($ctx, $i, 1);
+        } else {
+            if (@$fields > $i) {
+                $v_ref = \($fields->[$i]);
+            }
+        }
+        next unless $v_ref;
+
+        my $value = $$v_ref;
 
         unless (defined $value) {
             push @results, '';
