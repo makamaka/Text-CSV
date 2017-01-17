@@ -20,8 +20,6 @@ my $XS_Version = '1.02';
 
 my $Is_Dynamic = 0;
 
-# used in _load_xs and _load_pp
-my $Install_Dont_Die = 1; # When _load_xs fails to load XS, don't die.
 my @PublicMethods = qw/
     version types quote_char escape_char sep_char eol always_quote binary allow_whitespace
     keep_meta_info allow_loose_quotes allow_loose_escapes verbatim meta_info is_quoted is_binary eof
@@ -40,20 +38,20 @@ unless ($Text::CSV::Worker) {
 
     if ( exists $ENV{PERL_TEXT_CSV} ) {
         if ($ENV{PERL_TEXT_CSV} eq '0' or $ENV{PERL_TEXT_CSV} eq 'Text::CSV_PP') {
-            _load_pp();
+            _load_pp() or Carp::croak $@;
         }
         elsif ($ENV{PERL_TEXT_CSV} eq '1' or $ENV{PERL_TEXT_CSV} =~ /Text::CSV_XS\s*,\s*Text::CSV_PP/) {
-            _load_xs($Install_Dont_Die) or _load_pp();
+            _load_xs() or _load_pp() or Carp::croak $@;
         }
         elsif ($ENV{PERL_TEXT_CSV} eq '2' or $ENV{PERL_TEXT_CSV} eq 'Text::CSV_XS') {
-            _load_xs();
+            _load_xs() or Carp::croak $@;
         }
         else {
             Carp::croak "The value of environmental variable 'PERL_TEXT_CSV' is invalid.";
         }
     }
     else {
-        _load_xs($Install_Dont_Die) or _load_pp();
+        _load_xs() or _load_pp() or Carp::croak $@;
     }
 
 }
@@ -114,13 +112,7 @@ sub _load_xs {
 
     eval qq| use $Module_XS $XS_Version |;
 
-    if ($@) {
-        if (defined $opt and $opt & $Install_Dont_Die) {
-            $Text::CSV::DEBUG and Carp::carp "Can't load $Module_XS...($@)";
-            return 0;
-        }
-        Carp::croak $@;
-    }
+    return if $@;
 
     push @Text::CSV::ISA, 'Text::CSV_XS';
 
@@ -136,13 +128,14 @@ sub _load_pp {
     $Text::CSV::DEBUG and Carp::carp "Load $Module_PP.";
 
     eval qq| require $Module_PP |;
-    if ($@) {
-        Carp::croak $@;
-    }
+
+    return if $@;
 
     push @Text::CSV::ISA, 'Text::CSV_PP';
 
     _set_methods( $Text::CSV::Worker = $Module_PP );
+
+    return 1;
 };
 
 
