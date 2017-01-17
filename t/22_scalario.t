@@ -15,9 +15,9 @@ BEGIN {
 	plan skip_all => "No reliable perlIO available";
 	}
     else {
-        plan tests => 105;
+	plan tests => 105;
+	}
     }
-}
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -85,7 +85,7 @@ ok ($csv->print ($io, [ "id", "name"			]), "Bad character");
 ok ($csv->print ($io, [   1,  "Alligator Descartes"	]), "Name 1");
 ok ($csv->print ($io, [  "3", "Jochen Wiedmann"		]), "Name 2");
 ok ($csv->print ($io, [   2,  "Tim Bunce"		]), "Name 3");
-ok ($csv->print ($io, [ " 4", "Andreas König"		]), "Name 4");
+ok ($csv->print ($io, [ " 4", "Andreas Köîig"		]), "Name 4");
 ok ($csv->print ($io, [   5				]), "Name 5");
 close $io;
 
@@ -94,7 +94,7 @@ id,name\015
 1,"Alligator Descartes"\015
 3,"Jochen Wiedmann"\015
 2,"Tim Bunce"\015
-" 4","Andreas König"\015
+" 4","Andreas Köîig"\015
 5\015
 CONTENTS
 
@@ -150,7 +150,6 @@ for ([  1, 1,    0, "\n"		],
     my @err  = $csv->error_diag;
     my $sstr = _readable ($str);
     ok ($valid ? $row : !$row, "$tst - getline ESC +, '$sstr'");
-#    is ($err[0], $err, "Error expected $err");
-	ok ($err[0] >= 0, "Error $err[0] but in CSV_XS $err" . ($err[0] == $err ? " * same in PP and XS *" : "") );
+    is ($err[0], $err, "Error expected $err");
     }
 

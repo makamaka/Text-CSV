@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 244;
+ use Test::More tests => 270;
 #use Test::More "no_plan";
 
 my %err;
@@ -37,33 +37,36 @@ sub parse_err {
     is ($c_diag, $n_err,	"$n_err - Num diag in list context");
     is ($s_diag, $s_err,	"$n_err - Str diag in list context");
     is ($p_diag, $p_err,	"$n_err - Pos diag in list context");
+    is ($r_diag, $r_err,	"$n_err - Rec diag in list context");
+    is ($f_diag, $f_err,	"$n_err - Fld diag in list context");
     } # parse_err
 
-parse_err 2027, 5,  1, 2, qq{2023,",2008-04-05,"Foo, Bar",\n}; # "
+parse_err 2023, 19,  1, 2, qq{2023,",2008-04-05,"Foo, Bar",\n}; # "
 
 $csv = Text::CSV->new ({ escape_char => "+", eol => "\n" });
 is ($csv->error_diag (), "",		"No errors yet");
 
 parse_err 2010,  3,  1, 1, qq{"x"\r};
-parse_err 2011,  3,  2, 1, qq{"x"x};
+parse_err 2011,  4,  2, 1, qq{"x"x};
 
 parse_err 2021,  2,  3, 1, qq{"\n"};
 parse_err 2022,  2,  4, 1, qq{"\r"};
-parse_err 2025,  3,  5, 1, qq{"+ "};
-parse_err 2026,  3,  6, 1, qq{"\0 "};
+parse_err 2025,  2,  5, 1, qq{"+ "};
+parse_err 2026,  2,  6, 1, qq{"\0 "};
 parse_err 2027,  1,  7, 1,   '"';
 parse_err 2031,  1,  8, 1, qq{\r };
 parse_err 2032,  2,  9, 1, qq{ \r};
-parse_err 2034,  2, 10, 2, qq{1, "bar",2};
+parse_err 2034,  4, 10, 2, qq{1, "bar",2};
 parse_err 2037,  1, 11, 1, qq{\0 };
 
 {   my @warn;
     local $SIG{__WARN__} = sub { push @warn, @_ };
     $csv->error_diag ();
     ok (@warn == 1, "Got error message");
-    like ($warn[0], qr{^# CSV_PP ERROR: 2037 - EIF}, "error content");
+    like ($warn[0], qr{^# CSV_(PP|XS) ERROR: 2037 - EIF}, "error content");
     }
 
+is ($csv->eof, "", "No EOF");
 $csv->SetDiag (2012);
 is ($csv->eof, 1,  "EOF caused by 2012");
 
@@ -73,13 +76,13 @@ is (Text::CSV->new ({ ecs_char => ":" }), undef, "Unsupported option");
     local $SIG{__WARN__} = sub { push @warn, @_ };
     Text::CSV::error_diag ();
     ok (@warn == 1, "Error_diag in void context ::");
-    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    like ($warn[0], qr{^# CSV_(PP|XS) ERROR: 1000 - INI}, "error content");
     }
 {   my @warn;
     local $SIG{__WARN__} = sub { push @warn, @_ };
     Text::CSV->error_diag ();
     ok (@warn == 1, "Error_diag in void context ->");
-    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    like ($warn[0], qr{^# CSV_(PP|XS) ERROR: 1000 - INI}, "error content");
     }
 
 {   my @warn;
@@ -93,7 +96,7 @@ is (Text::CSV->new ({ ecs_char => ":" }), undef, "Unsupported option");
     is (Text::CSV->new ({ auto_diag => 1, ecs_char => ":" }), undef,
 	"Unsupported option");
     ok (@warn == 1, "Error_diag in from new ({ auto_diag => 1})");
-    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    like ($warn[0], qr{^# CSV_(PP|XS) ERROR: 1000 - INI}, "error content");
     }
 
 is (Text::CSV::error_diag (), "INI - Unknown attribute 'ecs_char'",
@@ -116,7 +119,7 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     is ($csv->{_RECNO}, 0, "No records read yet");
     is ($csv->parse ('"","'), 0, "1 - bad parse");
     ok (@warn == 1, "1 - One error");
-    like ($warn[0], qr '^# CSV_PP ERROR: 2027 -', "1 - error message");
+    like ($warn[0], qr '^# CSV_(PP|XS) ERROR: 2027 -', "1 - error message");
     is ($csv->{_RECNO}, 1, "One record read");
     }
 {   my @warn;
@@ -126,8 +129,9 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     ok (@warn == 1, "1 - One error");
     @warn = split m/\n/ => $warn[0];
     ok (@warn == 3, "1 - error plus two lines");
-    like ($warn[0], qr '^# CSV_PP ERROR: 2027 -', "1 - error message");
+    like ($warn[0], qr '^# CSV_(PP|XS) ERROR: 2027 -', "1 - error message");
     like ($warn[1], qr '^"","',                   "1 - input line");
+    like ($warn[2], qr '^   \^',                 "1 - position indicator");
     is ($csv->{_RECNO}, 2, "Another record read");
     }
 {   ok ($csv->{auto_diag} = 2, "auto_diag = 2 to die");
@@ -215,7 +219,6 @@ open  EH,     "<", $diag_file or die "STDERR: $!\n";
 is (scalar <EH>, "CACHE:\n",	"Title");
 while (<EH>) {
     like ($_, qr{^  \w+\s+[0-9a-f]+:(?:".*"|\s*[0-9]+)$}, "Content");
-note $_;
     }
 close EH;
 unlink $diag_file;

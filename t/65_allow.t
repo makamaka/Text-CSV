@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
-use Test::More tests => 1115;
+ use Test::More tests => 1117;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -59,17 +59,11 @@ ok (1, "Allow loose quotes inside quoted");
 	$csv = Text::CSV->new ();
 	ok ($csv,			"$tst - new (alq => 0)");
 	is ($csv->parse ($bad), $valid,	"$tst - parse () fail");
-#	is (0 + $csv->error_diag, $err,		"$tst - error $err");
-	ok (($csv->error_diag + 0) >= 0,
-        "Error " . ($csv->error_diag + 0) . " but in CSV_XS $err"
-                . (($csv->error_diag + 0) == $err ? " * same in PP and XS *" : "") );
+	is (0 + $csv->error_diag, $err,		"$tst - error $err");
 
 	$csv->allow_loose_quotes (1);
 	is ($csv->parse ($bad), $valid,	"$tst - parse () fail with lq");
-#	is (0 + $csv->error_diag, $err,		"$tst - error $err");
-	ok (($csv->error_diag + 0) >= 0,
-        "Error " . ($csv->error_diag + 0) . " but in CSV_XS $err"
-                . (($csv->error_diag + 0) == $err ? " * same in PP and XS *" : "") );
+	is (0 + $csv->error_diag, $err,		"$tst - error $err");
 
 	$csv->escape_char (undef);
 	ok ($csv->parse ($bad),		"$tst - parse () pass");
@@ -97,21 +91,13 @@ ok (1, "Allow loose escapes");
 	$csv = Text::CSV->new ({ escape_char => "\\" });
 	ok ($csv,			"$tst - new (ale => 0)");
 	is ($csv->parse ($bad), $valid,	"$tst - parse () fail");
-#	is (0 + $csv->error_diag, $err,		"$tst - error $err");
-	ok (($csv->error_diag + 0) >= 0,
-        "Error " . ($csv->error_diag + 0) . " but in CSV_XS $err"
-                . (($csv->error_diag + 0) == $err ? " * same in PP and XS *" : "") );
+	is (0 + $csv->error_diag, $err,		"$tst - error $err");
 
 	$csv->allow_loose_escapes (1);
 	if ($tst >= 8) {
 	    # Should always fail
 	    ok (!$csv->parse ($bad),	"$tst - parse () fail");
-#	    is (0 + $csv->error_diag, $err,		"$tst - error $err");
-	   ok (($csv->error_diag + 0) >= 0,
-            "Error " . ($csv->error_diag + 0) . " but in CSV_XS $err"
-                    . (($csv->error_diag + 0) == $err ? " * same in PP and XS *" : "") );
-
-
+	    is (0 + $csv->error_diag, $err,		"$tst - error $err");
 	    }
 	else {
 	    ok ($csv->parse ($bad),	"$tst - parse () pass");
@@ -146,10 +132,7 @@ ok (1, "Allow whitespace");
 	    $csv = Text::CSV->new ({ eol => $eol, binary => 1 });
 	    ok ($csv,				"$s_eol / $tst - new - '$bad')");
 	    is ($csv->parse ($bad), $ok,	"$s_eol / $tst - parse () fail");
-#	    is (0 + $csv->error_diag, $err,			"$tst - error $err");
-	   ok (($csv->error_diag + 0) >= 0,
-            "Error " . ($csv->error_diag + 0) . " but in CSV_XS $err"
-                    . (($csv->error_diag + 0) == $err ? " * same in PP and XS *" : "") );
+	    is (0 + $csv->error_diag, $err,			"$tst - error $err");
 
 	    $csv->allow_whitespace (1);
 	    ok ($csv->parse ("$bad$eol"),	"$s_eol / $tst - parse () pass");
@@ -192,11 +175,7 @@ ok (1, "Allow whitespace");
 		});
 	    ok ($csv,				"$s_eol / $tst - new - '$bad')");
 	    is ($csv->parse ($bad), $ok,	"$s_eol / $tst - parse () fail");
-#	    is (0 + $csv->error_diag, $err,			"$tst - error $err");
-	   ok (($csv->error_diag + 0) >= 0,
-            "Error " . ($csv->error_diag + 0) . " but in CSV_XS $err"
-                    . (($csv->error_diag + 0) == $err ? " * same in PP and XS *" : "") );
-
+	    is (0 + $csv->error_diag, $err,			"$tst - error $err");
 
 	    $csv->allow_whitespace (1);
 	    ok ($csv->parse ("$bad$eol"),	"$s_eol / $tst - parse () pass");
@@ -280,18 +259,11 @@ foreach my $bin (0, 1) {
 	    my ($tst, $bad) = @$arg;
 	    my $ok = ($bin << 1) | ($eol ? 1 : 0);
 	    is ($csv->parse ($bad), $pass[$ok],	"$tst $ok - parse () default");
-#	    is (0 + $csv->error_diag, $fail[$ok],		"$tst $ok - error $fail[$ok]");
-	   ok (($csv->error_diag + 0) >= 0,
-            "Error " . ($csv->error_diag + 0) . " but in CSV_XS $fail[$ok]"
-                    . (($csv->error_diag + 0) == $fail[$ok] ? " * same in PP and XS *" : "") );
-
+	    is (0 + $csv->error_diag, $fail[$ok],		"$tst $ok - error $fail[$ok]");
 
 	    $csv->allow_whitespace (1);
 	    is ($csv->parse ($bad), $pass[$ok],	"$tst $ok - parse () allow");
-#	    is (0 + $csv->error_diag, $fail[$ok],		"$tst $ok - error $fail[$ok]");
-	   ok (($csv->error_diag + 0) >= 0,
-            "Error " . ($csv->error_diag + 0) . " but in CSV_XS $fail[$ok]"
-                    . (($csv->error_diag + 0) == $fail[$ok] ? " * same in PP and XS *" : "") );
+	    is (0 + $csv->error_diag, $fail[$ok],		"$tst $ok - error $fail[$ok]");
 	    }
 	}
     }
@@ -435,11 +407,21 @@ foreach my $bin (0, 1) {
     #                                ^
 
     is ( $csv->parse ($s2023), 0,		"Parse 2023");
-    is (($csv->error_diag)[0], 2027,		"Fail code 2027, but 2023 in CSV_XS");
-    is (($csv->error_diag)[2], 5,		"Fail position");
+    is (($csv->error_diag)[0], 2023,		"Fail code 2023");
+    is (($csv->error_diag)[2], 19,		"Fail position");
 
     is ( $csv->allow_whitespace (1), 1,		"Allow whitespace");
     is ( $csv->parse ($s2023), 0,		"Parse 2023");
-    is (($csv->error_diag)[0], 2027,		"Fail code 2027, but 2023 in CSV_XS");
-    is (($csv->error_diag)[2], 5,		"Space is eaten now");
+    is (($csv->error_diag)[0], 2023,		"Fail code 2023");
+    is (($csv->error_diag)[2], 22,		"Space is eaten now");
+    }
+
+{   my $csv = Text::CSV->new ({ allow_unquoted_escape => 1, escape_char => "=" });
+    my $str = q{1,3,=};
+    is ( $csv->parse ($str),   0,		"Parse trailing ESC");
+    is (($csv->error_diag)[0], 2035,		"Fail code 2035");
+
+    $str .= "0";
+    is ( $csv->parse ($str),   1,		"Parse trailing ESC");
+    is_deeply ([ $csv->fields ], [ 1,3,"\0" ],	"Parse passed");
     }

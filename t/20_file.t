@@ -147,7 +147,6 @@ for ([  1, 1,    0, "\n"		],
 	$tst == 10 && $] >= 5.008 && $] < 5.008003 && $UTF8 and
 	    skip "Be reasonable, this perl version does not do Unicode reliable", 2;
 	ok ($valid ? $row : !$row, "$tst - getline ESC +, '$sstr'");
-#	is ($err[0], $err, "Error expected $err");
-	ok ($err[0] >= 0, "Error $err[0] but in CSV_XS $err" . ($err[0] == $err ? " * same in PP and XS *" : "") );
+	is ($err[0], $err, "Error expected $err");
 	}
     }
