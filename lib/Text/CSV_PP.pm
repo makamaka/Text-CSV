@@ -1727,7 +1727,7 @@ sub __parse { # cx_xsParse
     my $ctx = $self->_setup_ctx;
     my $state = $self->___parse($ctx, $fields, $fflags, $src, $useIO);
     if ($state and ($ctx->{has_hooks} || 0) & HOOK_AFTER_PARSE) {
-        $self->hook(after_parse => $fields);
+        $self->_hook(after_parse => $fields);
     }
     return $state || !$last_error;
 }
