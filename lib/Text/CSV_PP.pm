@@ -1699,248 +1699,626 @@ sub print {
 # methods for parse
 ################################################################################
 
-my %allow_eol = ("\r" => 1, "\r\n" => 1, "\n" => 1, "" => 1);
-sub __parse {
-    my ($self, $str, $fields, $fflags) = @_;
+
+sub __parse { # cx_xsParse
+    my ($self, $fields, $fflags, $src, $useIO) = @_;
 
     my $ctx = $self->_setup_ctx;
-
-    $self->{_ERROR_INPUT} = $str;
-
-    my ($binary, $quot, $sep, $esc, $types, $keep_meta_info, $allow_whitespace, $eol, $blank_is_undef, $empty_is_undef, $unquot_esc, $decode_utf8)
-         = @{$self}{
-            qw/binary quote_char sep_char escape_char types keep_meta_info allow_whitespace eol blank_is_undef empty_is_undef allow_unquoted_escape decode_utf8/
-           };
-
-    $sep  = ',' unless (defined $sep);
-    $esc  = "\0" unless (defined $esc);
-    $quot = "\0" unless (defined $quot);
-
-    my $quot_is_null = $quot eq "\0"; # in this case, any fields are not interpreted as quoted data.
-
-    my $meta_flag      = $keep_meta_info ? [] : undef;
-    my $re_split       = $self->{_re_split}->{$quot}->{$esc}->{$sep} ||= _make_regexp_split_column($esc, $quot, $sep);
-    my $re_quoted       = $self->{_re_quoted}->{$quot}               ||= qr/^\Q$quot\E(.*)\Q$quot\E$/s;
-    my $re_in_quot_esp1 = $self->{_re_in_quot_esp1}->{$esc}          ||= qr/\Q$esc\E(.)/;
-    my $re_in_quot_esp2 = $self->{_re_in_quot_esp2}->{$quot}->{$esc} ||= qr/[\Q$quot$esc$sep\E0]/;
-    my $re_quot_char    = $self->{_re_quot_char}->{$quot}            ||= qr/\Q$quot\E/;
-    my $re_esc          = $self->{_re_esc}->{$quot}->{$esc}          ||= qr/\Q$esc\E(\Q$quot\E|\Q$esc\E|\Q$sep\E|0)/;
-    my $re_invalid_quot = $self->{_re_invalid_quot}->{$quot}->{$esc} ||= qr/^$re_quot_char|[^\Q$re_esc\E]$re_quot_char/;
-
-    if ($allow_whitespace) {
-        $re_split = $self->{_re_split_allow_sp}->{$quot}->{$esc}->{$sep}
-                     ||= _make_regexp_split_column_allow_sp($esc, $quot, $sep);
+    my $state = $self->___parse($ctx, $fields, $fflags, $src, $useIO);
+    if ($state and ($ctx->{has_hooks} || 0) & HOOK_AFTER_PARSE) {
+        $self->hook(after_parse => $fields);
     }
-    if ($unquot_esc) {
-        $re_split = $self->{_re_split_allow_unqout_esc}->{$quot}->{$esc}->{$sep}
-                     ||= _make_regexp_split_column_allow_unqout_esc($esc, $quot, $sep);
+    return $state || !$last_error;
+}
+
+sub ___parse { # cx_c_xsParse
+    my ($self, $ctx, $fields, $fflags, $src, $useIO) = @_;
+
+    local $/ = $ctx->{eol} if $ctx->{eolx} or $ctx->{eol_is_cr};
+
+    if ($ctx->{useIO} = $useIO) {
+        require IO::Handle;
+
+        # TODO: ahead
+
+    } else {
+        $ctx->{tmp} = $src;
+        $ctx->{utf8} = utf8::is_utf8($src);
+    }
+    if ($ctx->{has_error_input}) {
+        $self->{_ERROR_INPUT} = undef;
+        $ctx->{has_error_input} = 0;
     }
 
-    my $palatable = 1;
+    my $result = $self->____parse($ctx, $src, $fields, $fflags);
+    $self->{_RECNO} = ++($ctx->{recno});
+    $self->{_EOF} = '';
+    if ($ctx->{useIO}) {
+        if (0) {
+            # TODO: ahead
+        } else {
+            if (0) {
+                $self->{_EOF} = 1;
+            }
+        }
+        %{$ctx->{cache}} = %$ctx;
 
-    my $i = 0;
-    my $flag;
-
-    if (defined $eol and $eol eq "\r") {
-        $str =~ s/[\r ]*\r[ ]*$//;
-    }
-
-    if ($self->{verbatim}) {
-        $str .= $sep;
+        if ($fflags) {
+            if ($ctx->{keep_meta_info}) {
+                $self->{_FFLAGS} = $fflags;
+            } else {
+                undef $fflags;
+            }
+        }
     }
     else {
-        if (defined $eol and !$allow_eol{$eol}) {
-            $str .= $sep;
-        }
-        else {
-            $str =~ s/(?:\x0D\x0A|\x0A)?$|(?:\x0D\x0A|\x0A)[ ]*$/$sep/;
+        %{$ctx->{cache}} = %$ctx;
+    }
+
+    if ($result and $ctx->{types}) {
+        my $len = @$fields;
+        for(my $i = 0; $i <= $len && $i <= $ctx->{types_len}; $i++) {
+            my $value = $fields->[$i];
+            next unless defined $value;
+            my $type = ord(substr($ctx->{types}, $i, 1));
+            if ($type == IV) {
+                $fields->[$i] = int($value);
+            } elsif ($type == NV) {
+                $fields->[$i] = $value + 0.0;
+            }
         }
     }
 
-    my $pos = 0;
+    $result;
+}
 
-    my $utf8 = 1 if $decode_utf8 and utf8::is_utf8( $str ); # if decode_utf8 is true(default) and UTF8 marked, flag on.
+sub ____parse { # cx_Parse
+    my ($self, $ctx, $str, $fields, $fflags) = @_;
 
-    for my $col ( $str =~ /$re_split/g ) {
+    my ($quot, $sep, $esc, $eol) = @{$ctx}{qw/quo sep escape_char eol/};
+    my $seenSomething =  0;
+    my $waitingForField = 1;
+    my $flag = 0;
+    my ($value, $v_ref);
+    $ctx->{fld_idx} = my $fnum = 0;
 
-        if ($keep_meta_info) {
-            $flag = 0x0000;
-            $flag |= IS_BINARY if ($col =~ /[^\x09\x20-\x7E]/);
-        }
+    my $re_str = join '|', map({quotemeta($_)} grep defined, $sep, $quot, $esc), "\015", "\012", "\x09", " ";
+    my $re = qr/$re_str|[^\x09\x20-\x7E]|$/;
+    $ctx->{_length} = length $str;
+    my $p = pos($str) = 0;
+    while($str =~ /\G(.*?)($re)/g) {
+        my ($hit, $c) = ($1, $2);
+        $p = pos($str);
+        last if $seenSomething and $hit eq '' and $c eq ''; # EOF
 
-        $pos += length $col;
-
-        if ( ( !$binary and !$utf8 ) and $col =~ /[^\x09\x20-\x7E]/) { # Binary character, binary off
-            if ( not $quot_is_null and $col =~ $re_quoted ) {
-                $self->_set_error_diag(
-                      $col =~ /\n([^\n]*)/ ? (2021, $pos - 1 - length $1)
-                    : $col =~ /\r([^\r]*)/ ? (2022, $pos - 1 - length $1)
-                    : (2026, $pos -2) # Binary character inside quoted field, binary off
-                );
+        # new field
+        if (!$v_ref) {
+            if ($ctx->{is_bound}) {
+                $v_ref = $self->__bound_field($ctx, $fnum++, 0);
+            } else {
+                $value = '';
+                $v_ref = \$value;
             }
-            else {
-                $self->_set_error_diag(
-                      $col =~ /\Q$quot\E(.*)\Q$quot\E\r$/   ? (2010, $pos - 2)
-                    : $col =~ /\n/                          ? (2030, $pos - length $col)
-                    : $col =~ /^\r/                         ? (2031, $pos - length $col)
-                    : $col =~ /\r([^\r]*)/                  ? (2032, $pos - 1 - length $1)
-                    : (2037, $pos - length $col) # Binary character in unquoted field, binary off
-                );
+            return unless $v_ref;
+            $flag = 0;	
+            $ctx->{fld_idx}++;
+        }
+
+        $seenSomething = 1;
+
+        if (defined $hit and $hit ne '') {
+            if ($waitingForField) {
+                $waitingForField = 0;
             }
-            $palatable = 0;
-            last;
+            if ($hit =~ /[^\x09\x20-\x7E]/) {
+                $flag |= IS_BINARY;
+            }
+            $$v_ref .= $hit;
         }
 
-        if ( ($utf8 and !$binary) and  $col =~ /\n|\0/ ) { # \n still needs binary (Text::CSV_XS 0.51 compat)
-            $self->_set_error_diag(2021, $pos);
-            $palatable = 0;
-            last;
+RESTART:
+
+
+        if (defined $c and defined $sep and $sep ne "\0" and $c eq $sep) {
+            if ($waitingForField) {
+                # ,1,"foo, 3",,bar,
+                # ^           ^
+                if ($ctx->{blank_is_undef} or $ctx->{empty_is_undef}) {
+                    $$v_ref = undef;
+                } else {
+                    $$v_ref = "";
+                }
+                unless ($ctx->{is_bound}) {
+                    push @$fields, $$v_ref;
+                }
+                $v_ref = undef;
+                if ($ctx->{keep_meta_info} and $fflags) {
+                    push @$fflags, $flag;
+                }
+            } elsif ($flag & IS_QUOTED) {
+                # ,1,"foo, 3",,bar,
+                #        ^
+                $$v_ref .= $c;
+            } else {
+                # ,1,"foo, 3",,bar,
+                #   ^        ^    ^
+                $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                $v_ref = undef;
+                $waitingForField = 1;
+            }
         }
+        elsif (defined $c and defined $quot and $quot ne "\0" and $c eq $quot) {
+            if ($waitingForField) {
+                # ,1,"foo, 3",,bar,\r\n
+                #    ^
+                $flag |= IS_QUOTED;
+                $waitingForField = 0;
+                next;
+            }
+            if ($flag & IS_QUOTED) {
+                # ,1,"foo, 3",,bar,\r\n
+                #           ^
+                my $quoesc = 0;
+                my $c2 = $self->__get($ctx, $str, $p);
 
-        if ( not $quot_is_null and $col =~ $re_quoted ) {
-            $flag |= IS_QUOTED if ($keep_meta_info);
-            $col = $1;
-
-            my $flag_in_quot_esp;
-            while ( $col =~ /$re_in_quot_esp1/g ) {
-                my $str = $1;
-                $flag_in_quot_esp = 1;
-
-                if ($str !~ $re_in_quot_esp2) {
-
-                    unless ($self->{allow_loose_escapes}) {
-                        $self->_set_error_diag( 2025, $pos - 2 ); # Needless ESC in quoted field
-                        $palatable = 0;
-                        last;
-                    }
-
-                    unless ($self->{allow_loose_quotes}) {
-                        $col =~ s/\Q$esc\E(.)/$1/g;
+                if ($ctx->{allow_whitespace}) {
+                    # , 1 , "foo, 3" , , bar , \r\n
+                    #               ^
+                    while($self->__is_whitespace($ctx, $c2)) {
+                        if ($ctx->{allow_loose_quotes} and !(defined $esc and $c2 eq $esc)) {
+                            $$v_ref .= $c;
+                            $c = $c2;
+                        }
+                        pos($str) = $p = $p + 1;
+                        $c2 = $self->__get($ctx, $str, $p);
                     }
                 }
 
-            }
-
-            last unless ( $palatable );
-
-            unless ( $flag_in_quot_esp ) {
-                if ($col =~ /(?<!\Q$esc\E)\Q$esc\E/) {
-                    $self->_set_error_diag( 4002, $pos - 1 ); # No escaped ESC in quoted field
-                    $palatable = 0;
-                    last;
+                if (!defined $c2) { # EOF
+                    # ,1,"foo, 3"
+                    #            ^
+                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                    return 1;
                 }
-            }
 
-            $col =~ s{$re_esc}{$1 eq '0' ? "\0" : $1}eg;
+                if (defined $c2 and defined $sep and $c2 eq $sep) {
+                    # ,1,"foo, 3",,bar,\r\n
+                    #            ^
+                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                    $v_ref = undef;
+                    pos($str) = $p = $p + 1;
+                    $waitingForField = 1;
+                    next;
+                }
+                if (defined $c2 and $c2 eq "\012") { # FIXME: EOLX
+                    # ,1,"foo, 3",,"bar"\n
+                    #                   ^
+                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                    return 1;
+                }
 
-            if ( $empty_is_undef and length($col) == 0 ) {
-                $col = undef;
-            }
+                if (defined $esc and $c eq $esc) {
+                    $quoesc = 1;
+                    if (defined $c2 and $c2 eq '0') {
+                        # ,1,"foo, 3"056",,bar,\r\n
+                        #            ^
+                        $$v_ref .= "\0";
+                        pos($str) = $p = $p + 1;
+                        next;
+                    }
+                    if (defined $c2 and defined $quot and $c2 eq $quot) {
+                        # ,1,"foo, 3""56",,bar,\r\n
+                        #            ^
+                        if ($ctx->{utf8}) {
+                            $flag |= IS_BINARY;
+                        }
+                        $$v_ref .= $c2;
+                        pos($str) = $p = $p + 1;
+                        next;
+                    }
+                    if ($ctx->{allow_loose_escapes} and defined $c2 and $c2 ne "\015") {
+                        # ,1,"foo, 3"56",,bar,\r\n
+                        #            ^
+                        $$v_ref .= $c;
+                        $c = $c2;
+                        pos($str) = $p = $p + 1;
+                        goto RESTART;
+                    }
+                }
+                if (defined $c2 and $c2 eq "\015") {
+                    if ($ctx->{eol_is_cr}) {
+                        # ,1,"foo, 3"\r
+                        #            ^
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                        return 1;
+                    }
 
-            if ($types and $types->[$i]) { # IV or NV
-                _check_type(\$col, $types->[$i]);
-            }
+                    my $c3 = $self->__get($ctx, $str, $p + 1);
+                    if (defined $c3 and $c3 eq "\012") {
+                        # ,1,"foo, 3"\r\n
+                        #              ^
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                        return 1;
+                    }
 
-        }
+                    # FIXME: useIO
 
-        # quoted but invalid
-
-        elsif ( not $quot_is_null and $col =~ $re_invalid_quot ) {
-
-            unless ($self->{allow_loose_quotes} and $col =~ /$re_quot_char/) {
-                $self->_set_error_diag(
-                      $col =~ /^\Q$quot\E(.*)\Q$quot\E.$/s  ? (2011, $pos - 2)
-                    : $col =~ /^$re_quot_char/              ? (2027, $pos - 1)
-                    : (2034, $pos - length $col) # Loose unescaped quote
-                );
-                $palatable = 0;
-                last;
-            }
-
-        }
-
-        elsif ($types and $types->[$i]) { # IV or NV
-            _check_type(\$col, $types->[$i]);
-        }
-
-        # unquoted
-
-        else {
-
-            if (!$self->{verbatim} and $col =~ /\r\n|\n/) {
-                $col =~ s/(?:\r\n|\n).*$//sm;
-            }
-
-            if ($col =~ /\Q$esc\E\r$/) { # for t/15_flags : test 165 'ESC CR' at line 203
-                $self->_set_error_diag( 4003, $pos );
-                $palatable = 0;
-                last;
-            }
-
-            if ($col =~ /.\Q$esc\E$/) { # for t/65_allow : test 53-54 parse('foo\') at line 62, 65
-                $self->_set_error_diag( 4004, $pos );
-                $palatable = 0;
-                last;
-            }
-
-            if ( $col eq '' and $blank_is_undef ) {
-                $col = undef;
-            }
-
-            if ( $empty_is_undef and defined $col and length($col) == 0 ) {
-                $col = undef;
-            }
-
-            if ( $unquot_esc ) {
-                $col =~ s/\Q$esc\E(.)/$1/g;
-            }
-
-        }
-
-        if ( defined $col ) {
-            utf8::encode($col) if $utf8;
-            if ( $decode_utf8 && _is_valid_utf8($col) ) {
-                utf8::decode($col);
-            }
-        }
-
-        push @$fields,$col;
-        push @{$meta_flag}, $flag if ($keep_meta_info);
-        $self->{ _RECNO }++;
-
-        $i++;
-    }
-
-    if ($palatable and ! @$fields) {
-        $palatable = 0;
-    }
-
-    if ($palatable) {
-        $self->{_ERROR_INPUT} = undef;
-
-        if ( $self->{_BOUND_COLUMNS} ) {
-            my @vals  = @$fields;
-            my ( $max, $count ) = ( scalar @vals, 0 );
-
-            if ( @{ $self->{_BOUND_COLUMNS} } < $max ) {
-                $self->SetDiag(3006);
-                return;
-            }
-
-            for ( my $i = 0; $i < $max; $i++ ) {
-                my $bind = $self->{_BOUND_COLUMNS}->[ $i ];
-                if ( Scalar::Util::readonly( $$bind ) ) {
-                    $self->SetDiag(3008);
+                    $self->__parse_error($ctx, $quoesc ? 2023 : 2010, $p - 1);
                     return;
                 }
-                $$bind = $vals[ $i ];
+
+                if ($ctx->{allow_loose_quotes} and !$quoesc) {
+                    # ,1,"foo, 3"456",,bar,\r\n
+                    #            ^
+                    $$v_ref .= $c;
+                    $c = $c2;
+                    pos($str) = $p = $p + 1;
+                    goto RESTART;
+                }
+                # 1,"foo" ",3
+                #        ^
+                if ($quoesc) {
+                    $self->__parse_error($ctx, 2023, $p - 1);
+                    return;
+                }
+                $self->__parse_error($ctx, 2011, $p);
+                return;
+            }
+            # !waitingForField, !InsideQuotes
+            if ($ctx->{allow_loose_quotes}) { # 1,foo "boo" d'uh,1
+                $flag |= IS_ERROR;
+                $$v_ref .= $c;
+            } else {
+                $self->__parse_error($ctx, 2034, $p - 1);
+                return;
+            }
+        }
+        elsif (defined $c and defined $esc and $esc ne "\0" and $c eq $esc) {
+            # This means quote_char != escape_char
+            if ($waitingForField) {
+                $waitingForField = 0;
+                if ($ctx->{allow_unquoted_escape}) {
+                    # The escape character is the first character of an
+                    # unquoted field
+                    # ... get and store next character
+                    my $c2 = $self->__get($ctx, $str, $p);
+                    $$v_ref = "";
+
+                    if (!defined $c2) { # EOF
+                        $self->__parse_error($ctx, 2035, $p);
+                        return;
+                    }
+                    if ($c2 eq '0') {
+                        $$v_ref .= "\0";
+                        pos($str) = $p = $p + 1;
+                    }
+                    elsif (
+                        (defined $quot and $c2 eq $quot) or
+                        (defined $sep and $c2 eq $sep) or
+                        (defined $esc and $c2 eq $esc) or
+                        $ctx->{allow_loose_escapes}
+                    ) {
+                        if ($ctx->{utf8}) {
+                            $flag |= IS_BINARY;
+                        }
+                        $$v_ref .= $c2;
+                        pos($str) = $p = $p + 1;
+                    } else {
+                        $self->__parse_error($ctx, 2025, $p);
+                        return;
+                    }
+                }
+            }
+            elsif ($flag & IS_QUOTED) {
+                my $c2 = $self->__get($ctx, $str, $p);
+                if (!defined $c2) { # EOF
+                    $self->__parse_error($ctx, 2024, $p);
+                    return;
+                }
+                if ($c2 eq '0') {
+                    $$v_ref .= "\0";
+                    pos($str) = $p = $p + 1;
+                }
+                elsif (
+                    (defined $quot and $c2 eq $quot) or
+                    (defined $sep and $c2 eq $sep) or
+                    (defined $esc and $c2 eq $esc) or
+                    $ctx->{allow_loose_escapes}
+                ) {
+                    if ($ctx->{utf8}) {
+                        $flag |= IS_BINARY;
+                    }
+                    $$v_ref .= $c2;
+                    pos($str) = $p = $p + 1;
+                } else {
+                    $self->__parse_error($ctx, 2025, $p - 1);
+                    return;
+                }
+            }
+            elsif ($v_ref) {
+                my $c2 = $self->__get($ctx, $str, $p);
+                if (!defined $c2) { # EOF
+                    $self->__parse_error($ctx, 2035, $p);
+                    return;
+                }
+                $$v_ref .= $c2;
+                pos($str) = $p = $p + 1;
+            }
+            else {
+                $self->__parse_error($ctx, 2036, $p);
+                return;
+            }
+        }
+        elsif (defined $c and ($c eq "\012" or $c eq '')) { # EOL
+EOLX:
+            if ($waitingForField) {
+                # ,1,"foo, 3",,bar,
+                #                  ^
+                if ($ctx->{blank_is_undef} or $ctx->{empty_is_undef}) {
+                    $$v_ref = undef;
+                } else {
+                    $$v_ref = "";
+                }
+                unless ($ctx->{is_bound}) {
+                    push @$fields, $$v_ref;
+                }
+                if ($ctx->{keep_meta_info} and $fflags) {
+                    push @$fflags, $flag;
+                }
+                return 1;
+            }
+            if ($flag & IS_QUOTED) {
+                # ,1,"foo\n 3",,bar,
+                #        ^
+                $flag |= IS_BINARY;
+                unless ($ctx->{binary}) {
+                    $self->__parse_error($ctx, 2021, $p - 1);
+                    return;
+                }
+                $$v_ref .= $c;
+            }
+            elsif ($ctx->{verbatim}) {
+                # ,1,foo\n 3,,bar,
+                # This feature should be deprecated
+                $flag |= IS_BINARY;
+                unless ($ctx->{binary}) {
+                    $self->__parse_error($ctx, 2030, $p);
+                    return;
+                }
+                $$v_ref .= $c;
+            }
+            else {
+                # sep=,
+                #      ^
+                # FIXME or fix getline
+
+                # ,1,"foo\n 3",,bar
+                #                  ^
+                $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                return 1;
+            }
+        }
+        elsif (defined $c and $c eq "\015" and !$ctx->{verbatim}) {
+            if ($waitingForField) {
+                $waitingForField = 0;
+                if ($ctx->{eol_is_cr}) {
+                    # ,1,"foo\n 3",,bar,\r
+                    #                   ^
+                    $c = "\012";
+                    goto RESTART;
+                }
+
+                my $c2 = $self->__get($ctx, $str, $p);
+                if (!defined $c2) { # EOF
+                    # ,1,"foo\n 3",,bar,\r
+                    #                     ^
+                    $c = undef;
+                    # pos($str) = $p = $p + 1;
+                    goto RESTART;
+                }
+                if ($c2 eq "\012") { # \r is not optional before EOLX!
+                    # ,1,"foo\n 3",,bar,\r\n
+                    #                     ^
+                    $c = $c2;
+                    pos($str) = $p = $p + 1;
+                    goto RESTART;
+                }
+
+                # FIXME: useIO
+
+                # ,1,"foo\n 3",,bar,\r\t
+                #                     ^
+                $self->__parse_error($ctx, 2031, $p - 1);
+                return;
+            }
+            if ($flag & IS_QUOTED) {
+                # ,1,"foo\r 3",,bar,\r\t
+                #        ^
+                $flag |= IS_BINARY;
+                unless ($ctx->{binary}) {
+                    $self->__parse_error($ctx, 2022, $p - 1);
+                    return;
+                }
+                $$v_ref .= $c;
+            }
+            else {
+                if ($ctx->{eol_is_cr}) {
+                    # ,1,"foo\n 3",,bar\r
+                    #                  ^
+                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                    return 1;
+                }
+
+                my $c2 = $self->__get($ctx, $str, $p);
+                if (defined $c2 and $c2 eq "\012") { # \r is not optional before EOLX!
+                    # ,1,"foo\n 3",,bar\r\n
+                    #                    ^
+                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+                    return 1;
+                }
+
+                # FIXME: useIO
+
+                # ,1,"foo\n 3",,bar\r\t
+                #                    ^
+                $self->__parse_error($ctx, 2032, $p - 1);
+                return;
+            }
+        }
+        else {
+            if ($ctx->{eolx} and $c eq $eol) {
+                $c = '';
+                goto EOLX;
+            }
+
+            if ($waitingForField) {
+                if ($ctx->{allow_whitespace} and $self->__is_whitespace($ctx, $c)) {
+                    do {
+                        $c = $self->__get($ctx, $str, $p);
+                        pos($str) = $p = $p + 1;
+                        last if !defined $c;
+                    } while $self->__is_whitespace($ctx, $c);
+                    goto RESTART;
+                }
+                $waitingForField = 0;
+                goto RESTART;
+            }
+            if ($flag & IS_QUOTED) {
+                if (!defined $c or $c =~ /[^\x09\x20-\x7E]/) {
+                    $flag |= IS_BINARY;
+                    unless ($ctx->{binary} or $ctx->{utf8}) {
+                        $self->__parse_error($ctx, 2026, $p - 1);
+                        return;
+                    }
+                }
+                $$v_ref .= $c;
+            } else {
+                if (!defined $c or $c =~ /[^\x09\x20-\x7E]/) {
+                    $flag |= IS_BINARY;
+                    unless ($ctx->{binary} or $ctx->{utf8}) {
+                        $self->__parse_error($ctx, 2037, $p - 1);
+                        return;
+                    }
+                }
+                $$v_ref .= $c;
+            }
+        }
+        # FIXME: useIO
+    }
+
+    if ($waitingForField) {
+        if ($seenSomething) { # FIXME: useIO
+            # new field
+            if (!$v_ref) {
+                if ($ctx->{is_bound}) {
+                    $v_ref = $self->__bound_field($ctx, $fnum++, 0);
+                } else {
+                    $value = '';
+                    $v_ref = \$value;
+                }
+                return unless $v_ref;
+                $flag = 0;
+                $ctx->{fld_idx}++;
+            }
+            if ($ctx->{blank_is_undef} or $ctx->{empty_is_undef}) {
+                $$v_ref = undef;
+            } else {
+                $$v_ref = "";
+            }
+            unless ($ctx->{is_bound}) {
+                push @$fields, $$v_ref;
+            }
+            if ($ctx->{keep_meta_info} and $fflags) {
+                push @$fflags, $flag;
+            }
+            return 1;
+        }
+        $self->SetDiag(2012);
+        return;
+    }
+
+    if ($flag & IS_QUOTED) {
+        $self->__parse_error($ctx, 2027, $p - 1);
+        return;
+    }
+
+    if ($v_ref) {
+        $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
+    }
+    return 1;
+}
+
+sub __bound_field {
+    my ($self, $ctx, $i, $keep) = @_;
+    if ($i >= $ctx->{is_bound}) {
+        $self->SetDiag(3006);
+        return;
+    }
+    if (ref $ctx->{bound} eq 'ARRAY') {
+        my $ref = $ctx->{bound}[$i];
+        if (ref $ref) {
+            if ($keep) {
+                return $ref;
+            }
+            unless (Scalar::Util::readonly($$ref)) {
+                $$ref = "";
+                return $ref;
             }
         }
     }
+    $self->SetDiag(3008);
+    return;
+}
 
-    @$fflags = $keep_meta_info ? @$meta_flag : ();
+sub __get {
+    my ($self, $ctx, $str, $p) = @_;
+    return unless defined $p;
+    return if $p >= $ctx->{_length};
+    substr($str, $p, 1);
+}
 
-    return $palatable;
+sub __parse_error {
+    my ($self, $ctx, $error, $pos) = @_;
+    $self->{_ERROR_POS} = $pos;
+    $self->{_ERROR_FLD} = $ctx->{fld_idx};
+    $self->{_ERROR_INPUT} = $ctx->{tmp} if $ctx->{tmp};
+    $self->SetDiag($error);
+    return;
+}
+
+sub __is_whitespace {
+    my ($self, $ctx, $c) = @_;
+    return unless defined $c;
+    return (
+        (!defined $ctx->{sep} or $c ne $ctx->{sep}) &&
+        (!defined $ctx->{quo} or $c ne $ctx->{quo}) &&
+        (!defined $ctx->{escape_char} or $c ne $ctx->{escape_char}) &&
+        ($c eq " " or $c eq "\t")
+    );
+}
+
+sub __push_value { # AV_PUSH (part of)
+    my ($self, $ctx, $v_ref, $fields, $fflags, $flag) = @_;
+    utf8::encode($$v_ref) if $ctx->{utf8};
+    if (
+        (!defined $$v_ref or $$v_ref eq '') and
+        ($ctx->{empty_is_undef} or (!($flag & IS_QUOTED) and $ctx->{blank_is_undef}))
+    ) {
+        $$v_ref = undef;
+    } else {
+        if ($ctx->{allow_whitespace} && !($flag & IS_QUOTED)) {
+            $$v_ref =~ s/[ \t]+$//;
+        }
+        if ($flag & IS_BINARY and $ctx->{decode_utf8} and ($ctx->{utf8} || _is_valid_utf8($$v_ref))) {
+            utf8::decode($$v_ref);
+        }
+    }
+    unless ($ctx->{is_bound}) {
+        push @$fields, $$v_ref;
+    }
+    if ($ctx->{keep_meta_info} and $fflags) {
+        push @$fflags, $flag;
+    }
 }
 
 sub getline {
@@ -2044,92 +2422,6 @@ sub getline_all {
     }
 
     return \@list;
-}
-
-sub _make_regexp_split_column {
-    my ($esc, $quot, $sep) = @_;
-
-    if ( $quot eq '' ) {
-        return qr/([^\Q$sep\E]*)\Q$sep\E/s;
-    }
-
-   return qr/(
-        \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E0][^\Q$quot$esc\E]*)*
-        \Q$quot\E
-        | # or
-        \Q$quot\E
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
-        \Q$quot\E
-        | # or
-        [^\Q$sep\E]*
-       )
-       \Q$sep\E
-    /xs;
-}
-
-sub _make_regexp_split_column_allow_unqout_esc {
-    my ($esc, $quot, $sep) = @_;
-
-   return qr/(
-        \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot$esc\E0][^\Q$quot$esc\E]*)*
-        \Q$quot\E
-        | # or
-        \Q$quot\E
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
-        \Q$quot\E
-        | # or
-            (?:\Q$esc\E[\Q$quot$esc$sep\E0]|[^\Q$quot$esc$sep\E])*
-        | # or
-        [^\Q$sep\E]*
-       )
-       \Q$sep\E
-    /xs;
-}
-
-sub _make_regexp_split_column_allow_sp {
-    my ($esc, $quot, $sep) = @_;
-
-    # if separator is space or tab, don't count that separator
-    # as whitespace  --- patched by Mike O'Sullivan
-    my $ws = $sep eq ' '  ? '[\x09]'
-           : $sep eq "\t" ? '[\x20]'
-           : '[\x20\x09]'
-           ;
-
-    if ( $quot eq '' ) {
-        return qr/$ws*([^\Q$sep\E]?)$ws*\Q$sep\E$ws*/s;
-    }
-
-    qr/$ws*
-       (
-        \Q$quot\E
-            [^\Q$quot$esc\E]*(?:\Q$esc\E[\Q$quot\E][^\Q$quot$esc\E]*)*
-        \Q$quot\E
-        | # or
-        [^\Q$sep\E]*?
-       )
-       $ws*\Q$sep\E$ws*
-    /xs;
-}
-
-# _check_type
-#  take an arg as scalar reference.
-#  if not numeric, make the value 0. otherwise INTEGERized.
-
-sub _check_type {
-    my ($col_ref, $type) = @_;
-    unless ($$col_ref =~ /^[+-]?(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/) {
-        Carp::carp sprintf("Argument \"%s\" isn't numeric in subroutine entry",$$col_ref);
-        $$col_ref = 0;
-    }
-    elsif ($type == NV) {
-        $$col_ref = sprintf("%G",$$col_ref);
-    }
-    else {
-        $$col_ref = sprintf("%d",$$col_ref);
-    }
 }
 
 sub _is_valid_utf8 {
