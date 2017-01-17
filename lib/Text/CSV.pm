@@ -22,9 +22,6 @@ my $Is_Dynamic = 0;
 
 # used in _load_xs and _load_pp
 my $Install_Dont_Die = 1; # When _load_xs fails to load XS, don't die.
-my $Install_Only     = 2; # Don't call _set_methods()
-
-
 my @PublicMethods = qw/
     version types quote_char escape_char sep_char eol always_quote binary allow_whitespace
     keep_meta_info allow_loose_quotes allow_loose_escapes verbatim meta_info is_quoted is_binary eof
@@ -131,9 +128,7 @@ sub _load_xs {
 
     push @Text::CSV::ISA, 'Text::CSV_XS';
 
-    unless (defined $opt and $opt & $Install_Only) {
-        _set_methods( $Text::CSV::Worker = $Module_XS );
-    }
+    _set_methods( $Text::CSV::Worker = $Module_XS );
 
     return 1;
 };
@@ -151,9 +146,7 @@ sub _load_pp {
 
     push @Text::CSV::ISA, 'Text::CSV_PP';
 
-    unless (defined $opt and $opt & $Install_Only) {
-        _set_methods( $Text::CSV::Worker = $Module_PP );
-    }
+    _set_methods( $Text::CSV::Worker = $Module_PP );
 };
 
 
