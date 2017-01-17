@@ -1590,7 +1590,6 @@ sub __pretty_str { # FIXME
     return '' unless defined $str;
     $str = substr($str, 0, $len);
     $str =~ s/"/\\"/g;
-    $str =~ s/([^\x20-\x7e])/sprintf "\\\\x%02x", ord($1)/eg;
     qq{"$str"};
 }
 
