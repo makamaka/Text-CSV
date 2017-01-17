@@ -820,7 +820,7 @@ sub _parse {
     my $fields = [];
     my $fflags = [];
     $self->{_STRING} = \$str;
-    if (defined $str && $self->__parse ($str, $fields, $fflags)) {
+    if (defined $str && $self->__parse ($fields, $fflags, $str, 0)) {
         $self->{_FIELDS} = $fields;
         $self->{_FFLAGS} = $fflags;
         $self->{_STATUS} = 1;
