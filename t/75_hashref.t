@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 99;
+ use Test::More tests => 102;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -132,11 +132,16 @@ ok ($csv->column_names (sort keys %$hr),	"set column names");
 ok ($csv->eol ("\n"),				"set eol for output");
 ok ($csv->print ($fh, [ $csv->column_names ]),	"print header");
 ok ($csv->print_hr ($fh, $hr),			"print_hr");
+ok ($csv->print ($fh, []),			"empty print");
 close $fh;
 ok ($csv->keep_meta_info (1),			"keep meta info");
 open $fh, "<", $tfn or die "$tfn: $!\n";
 ok ($csv->column_names ($csv->getline ($fh)),	"get column names");
 is_deeply ($csv->getline_hr ($fh), $hr,		"compare to written hr");
+
+is_deeply ($csv->getline_hr ($fh),
+    { c_foo => "", foo => undef, zebra => undef },	"compare to written hr");
+is ($csv->is_missing (1), 1,			"No col 1");
 close $fh;
 
 open $fh, ">", $tfn or die "$tfn: $!\n";

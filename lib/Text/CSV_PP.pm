@@ -1683,17 +1683,20 @@ sub print {
 
     require IO::Handle;
 
-    if(ref($fields) ne 'ARRAY'){
+    if (!defined $fields) {
+        $fields = [];
+    } elsif(ref($fields) ne 'ARRAY'){
         Carp::croak("Expected fields to be an array ref");
     }
 
     $self->_hook(before_print => $fields);
 
-    $self->_combine(@$fields) or return '';
+    my $str = "";
+    $self->__combine(\$str, $fields, 1) or return '';
 
     local $\ = '';
 
-    $io->print( $self->_string ) or $self->_set_error_diag(2200);
+    $io->print( $str ) or $self->_set_error_diag(2200);
 }
 
 ################################################################################
