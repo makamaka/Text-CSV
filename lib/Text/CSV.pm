@@ -21,11 +21,7 @@ my $XS_Version = '1.02';
 my $Is_Dynamic = 0;
 
 my @PublicMethods = qw/
-    version types quote_char escape_char sep_char eol always_quote binary allow_whitespace
-    keep_meta_info allow_loose_quotes allow_loose_escapes verbatim meta_info is_quoted is_binary eof
-    getline print parse combine fields string error_diag error_input status blank_is_undef empty_is_undef
-    getline_hr column_names bind_columns auto_diag quote_space quote_null getline_all getline_hr_all
-    is_missing quote_binary record_number print_hr
+    version new error_diag error_input
     known_attributes csv
     PV IV NV
 /;
