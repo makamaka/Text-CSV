@@ -1612,9 +1612,11 @@ sub _hook {
 sub __combine {
     my ($self, $dst, $fields, $useIO) = @_;
 
-    my ($binary, $quot, $sep, $esc, $quote_space) = @{$self}{qw/binary quote_char sep_char escape_char quote_space/};
+    my $ctx = $self->_setup_ctx;
 
-    if(!defined $quot){ $quot = ''; }
+    my ($binary, $quot, $sep, $esc, $quote_space) = @{$ctx}{qw/binary quo sep escape_char quote_space/};
+
+    if(!defined $quot or $quot eq "\0"){ $quot = ''; }
 
     my $re_esc;
     if ($quot ne '') {
@@ -1627,7 +1629,7 @@ sub __combine {
 
     my $n = @$fields - 1;
 
-    my $check_meta = ($self->{keep_meta_info} >= 10 and @{$self->{_FFLAGS} || []} >= $n) ? 1 : 0;
+    my $check_meta = ($ctx->{keep_meta_info} >= 10 and @{$self->{_FFLAGS} || []} >= $n) ? 1 : 0;
 
     my $must_be_quoted;
     my @results;
@@ -1651,7 +1653,7 @@ sub __combine {
 
         $must_be_quoted = 0;
         if ($value eq '') {
-            $must_be_quoted++ if $self->{quote_empty} or ($check_meta && $self->is_quoted($i));
+            $must_be_quoted++ if $ctx->{quote_empty} or ($check_meta && $self->is_quoted($i));
         }
         else {
             if($value =~ s/$re_esc/$esc$1/g and $quot ne ''){
@@ -1661,19 +1663,19 @@ sub __combine {
                 $must_be_quoted++;
             }
 
-            if( $binary and $self->{escape_null} ){
+            if( $binary and $ctx->{escape_null} ){
                 use bytes;
-                $must_be_quoted++ if ( $value =~ s/\0/${esc}0/g || ($self->{quote_binary} && $value =~ /[\x00-\x1f\x7f-\xa0]/) );
+                $must_be_quoted++ if ( $value =~ s/\0/${esc}0/g || ($ctx->{quote_binary} && $value =~ /[\x00-\x1f\x7f-\xa0]/) );
             }
         }
 
-        if($self->{always_quote} or $must_be_quoted or ($check_meta && $self->is_quoted($i))){
+        if($ctx->{always_quote} or $must_be_quoted or ($check_meta && $self->is_quoted($i))){
             $value = $quot . $value . $quot;
         }
         push @results, $value;
     }
 
-    $$dst = join($sep, @results) . ( defined $self->{eol} ? $self->{eol} : '' );
+    $$dst = join($sep, @results) . ( defined $ctx->{eol} ? $ctx->{eol} : '' );
 
     return 1;
 }
