@@ -1805,11 +1805,11 @@ sub ____parse { # cx_Parse
 
     my $re_str = join '|', map({quotemeta($_)} grep {defined $_ and $_ ne '' and $_ ne "\0"} $sep, $quot, $esc, $eol), "\015", "\012", "\x09", " ";
     my $re = qr/$re_str|[^\x09\x20-\x7E]|$/;
-    $ctx->{_length} = length $str;
-    my $p = pos($str) = 0;
+    $ctx->{size} = length $str;
+    $ctx->{used} = pos($str) = 0;
     while($str =~ /\G(.*?)($re)/g) {
         my ($hit, $c) = ($1, $2);
-        $p = pos($str);
+        $ctx->{used} = pos($str);
         last if $seenSomething and $hit eq '' and $c eq ''; # EOF
 
         # new field
@@ -1880,7 +1880,7 @@ RESTART:
                 # ,1,"foo, 3",,bar,\r\n
                 #           ^
                 my $quoesc = 0;
-                my $c2 = $self->__get($ctx, $str, $p);
+                my $c2 = $self->__get($ctx, \$str);
 
                 if ($ctx->{allow_whitespace}) {
                     # , 1 , "foo, 3" , , bar , \r\n
@@ -1890,8 +1890,7 @@ RESTART:
                             $$v_ref .= $c;
                             $c = $c2;
                         }
-                        pos($str) = $p = $p + 1;
-                        $c2 = $self->__get($ctx, $str, $p);
+                        $c2 = $self->__get($ctx, \$str);
                     }
                 }
 
@@ -1907,7 +1906,6 @@ RESTART:
                     #            ^
                     $self->__push_value($ctx, $v_ref, $fields, $fflags, $flag);
                     $v_ref = undef;
-                    pos($str) = $p = $p + 1;
                     $waitingForField = 1;
                     next;
                 }
@@ -1924,7 +1922,6 @@ RESTART:
                         # ,1,"foo, 3"056",,bar,\r\n
                         #            ^
                         $$v_ref .= "\0";
-                        pos($str) = $p = $p + 1;
                         next;
                     }
                     if (defined $c2 and defined $quot and $c2 eq $quot) {
@@ -1934,7 +1931,6 @@ RESTART:
                             $flag |= IS_BINARY;
                         }
                         $$v_ref .= $c2;
-                        pos($str) = $p = $p + 1;
                         next;
                     }
                     if ($ctx->{allow_loose_escapes} and defined $c2 and $c2 ne "\015") {
@@ -1942,7 +1938,6 @@ RESTART:
                         #            ^
                         $$v_ref .= $c;
                         $c = $c2;
-                        pos($str) = $p = $p + 1;
                         goto RESTART;
                     }
                 }
@@ -1954,7 +1949,7 @@ RESTART:
                         return 1;
                     }
 
-                    my $c3 = $self->__get($ctx, $str, $p + 1);
+                    my $c3 = $self->__get($ctx, \$str);
                     if (defined $c3 and $c3 eq "\012") {
                         # ,1,"foo, 3"\r\n
                         #              ^
@@ -1964,7 +1959,7 @@ RESTART:
 
                     # FIXME: useIO
 
-                    $self->__parse_error($ctx, $quoesc ? 2023 : 2010, $p - 1);
+                    $self->__parse_error($ctx, $quoesc ? 2023 : 2010, $ctx->{used} - 2);
                     return;
                 }
 
@@ -1973,16 +1968,16 @@ RESTART:
                     #            ^
                     $$v_ref .= $c;
                     $c = $c2;
-                    pos($str) = $p = $p + 1;
                     goto RESTART;
                 }
                 # 1,"foo" ",3
                 #        ^
                 if ($quoesc) {
-                    $self->__parse_error($ctx, 2023, $p - 1);
+                    $ctx->{used}--;
+                    $self->__error_inside_quotes($ctx, 2023);
                     return;
                 }
-                $self->__parse_error($ctx, 2011, $p);
+                $self->__error_inside_quotes($ctx, 2011);
                 return;
             }
             # !waitingForField, !InsideQuotes
@@ -1990,7 +1985,7 @@ RESTART:
                 $flag |= IS_ERROR;
                 $$v_ref .= $c;
             } else {
-                $self->__parse_error($ctx, 2034, $p - 1);
+                $self->__error_inside_field($ctx, 2034);
                 return;
             }
         }
@@ -2002,16 +1997,16 @@ RESTART:
                     # The escape character is the first character of an
                     # unquoted field
                     # ... get and store next character
-                    my $c2 = $self->__get($ctx, $str, $p);
+                    my $c2 = $self->__get($ctx, \$str);
                     $$v_ref = "";
 
                     if (!defined $c2) { # EOF
-                        $self->__parse_error($ctx, 2035, $p);
+                        $ctx->{used}--;
+                        $self->__error_inside_field($ctx, 2035);
                         return;
                     }
                     if ($c2 eq '0') {
                         $$v_ref .= "\0";
-                        pos($str) = $p = $p + 1;
                     }
                     elsif (
                         (defined $quot and $c2 eq $quot) or
@@ -2023,22 +2018,21 @@ RESTART:
                             $flag |= IS_BINARY;
                         }
                         $$v_ref .= $c2;
-                        pos($str) = $p = $p + 1;
                     } else {
-                        $self->__parse_error($ctx, 2025, $p);
+                        $self->__parse_inside_quotes($ctx, 2025);
                         return;
                     }
                 }
             }
             elsif ($flag & IS_QUOTED) {
-                my $c2 = $self->__get($ctx, $str, $p);
+                my $c2 = $self->__get($ctx, \$str);
                 if (!defined $c2) { # EOF
-                    $self->__parse_error($ctx, 2024, $p);
+                    $ctx->{used}--;
+                    $self->__error_inside_quotes($ctx, 2024);
                     return;
                 }
                 if ($c2 eq '0') {
                     $$v_ref .= "\0";
-                    pos($str) = $p = $p + 1;
                 }
                 elsif (
                     (defined $quot and $c2 eq $quot) or
@@ -2050,23 +2044,23 @@ RESTART:
                         $flag |= IS_BINARY;
                     }
                     $$v_ref .= $c2;
-                    pos($str) = $p = $p + 1;
                 } else {
-                    $self->__parse_error($ctx, 2025, $p - 1);
+                    $ctx->{used}--;
+                    $self->__error_inside_quotes($ctx, 2025);
                     return;
                 }
             }
             elsif ($v_ref) {
-                my $c2 = $self->__get($ctx, $str, $p);
+                my $c2 = $self->__get($ctx, \$str);
                 if (!defined $c2) { # EOF
-                    $self->__parse_error($ctx, 2035, $p);
+                    $ctx->{used}--;
+                    $self->__error_inside_field($ctx, 2035);
                     return;
                 }
                 $$v_ref .= $c2;
-                pos($str) = $p = $p + 1;
             }
             else {
-                $self->__parse_error($ctx, 2036, $p);
+                $self->__error_inside_field($ctx, 2036);
                 return;
             }
         }
@@ -2093,7 +2087,7 @@ EOLX:
                 #        ^
                 $flag |= IS_BINARY;
                 unless ($ctx->{binary}) {
-                    $self->__parse_error($ctx, 2021, $p - 1);
+                    $self->__error_inside_quotes($ctx, 2021);
                     return;
                 }
                 $$v_ref .= $c;
@@ -2103,7 +2097,7 @@ EOLX:
                 # This feature should be deprecated
                 $flag |= IS_BINARY;
                 unless ($ctx->{binary}) {
-                    $self->__parse_error($ctx, 2030, $p);
+                    $self->__error_inside_field($ctx, 2030);
                     return;
                 }
                 $$v_ref .= $c;
@@ -2129,19 +2123,17 @@ EOLX:
                     goto RESTART;
                 }
 
-                my $c2 = $self->__get($ctx, $str, $p);
+                my $c2 = $self->__get($ctx, \$str);
                 if (!defined $c2) { # EOF
                     # ,1,"foo\n 3",,bar,\r
                     #                     ^
                     $c = undef;
-                    # pos($str) = $p = $p + 1;
                     goto RESTART;
                 }
                 if ($c2 eq "\012") { # \r is not optional before EOLX!
                     # ,1,"foo\n 3",,bar,\r\n
                     #                     ^
                     $c = $c2;
-                    pos($str) = $p = $p + 1;
                     goto RESTART;
                 }
 
@@ -2149,7 +2141,8 @@ EOLX:
 
                 # ,1,"foo\n 3",,bar,\r\t
                 #                     ^
-                $self->__parse_error($ctx, 2031, $p - 1);
+                $ctx->{used}--;
+                $self->__error_inside_field($ctx, 2031);
                 return;
             }
             if ($flag & IS_QUOTED) {
@@ -2157,7 +2150,7 @@ EOLX:
                 #        ^
                 $flag |= IS_BINARY;
                 unless ($ctx->{binary}) {
-                    $self->__parse_error($ctx, 2022, $p - 1);
+                    $self->__error_inside_quotes($ctx, 2022);
                     return;
                 }
                 $$v_ref .= $c;
@@ -2170,7 +2163,7 @@ EOLX:
                     return 1;
                 }
 
-                my $c2 = $self->__get($ctx, $str, $p);
+                my $c2 = $self->__get($ctx, \$str);
                 if (defined $c2 and $c2 eq "\012") { # \r is not optional before EOLX!
                     # ,1,"foo\n 3",,bar\r\n
                     #                    ^
@@ -2182,7 +2175,7 @@ EOLX:
 
                 # ,1,"foo\n 3",,bar\r\t
                 #                    ^
-                $self->__parse_error($ctx, 2032, $p - 1);
+                $self->__error_inside_field($ctx, 2032);
                 return;
             }
         }
@@ -2195,8 +2188,7 @@ EOLX:
             if ($waitingForField) {
                 if ($ctx->{allow_whitespace} and $self->__is_whitespace($ctx, $c)) {
                     do {
-                        $c = $self->__get($ctx, $str, $p);
-                        pos($str) = $p = $p + 1;
+                        $c = $self->__get($ctx, \$str);
                         last if !defined $c;
                     } while $self->__is_whitespace($ctx, $c);
                     goto RESTART;
@@ -2208,7 +2200,7 @@ EOLX:
                 if (!defined $c or $c =~ /[^\x09\x20-\x7E]/) {
                     $flag |= IS_BINARY;
                     unless ($ctx->{binary} or $ctx->{utf8}) {
-                        $self->__parse_error($ctx, 2026, $p - 1);
+                        $self->__error_inside_quotes($ctx, 2026);
                         return;
                     }
                 }
@@ -2217,7 +2209,7 @@ EOLX:
                 if (!defined $c or $c =~ /[^\x09\x20-\x7E]/) {
                     $flag |= IS_BINARY;
                     unless ($ctx->{binary} or $ctx->{utf8}) {
-                        $self->__parse_error($ctx, 2037, $p - 1);
+                        $self->__error_inside_field($ctx, 2037);
                         return;
                     }
                 }
@@ -2259,7 +2251,7 @@ EOLX:
     }
 
     if ($flag & IS_QUOTED) {
-        $self->__parse_error($ctx, 2027, $p - 1);
+        $self->__error_inside_quotes($ctx, 2027);
         return;
     }
 
@@ -2292,10 +2284,22 @@ sub __bound_field {
 }
 
 sub __get {
-    my ($self, $ctx, $str, $p) = @_;
-    return unless defined $p;
-    return if $p >= $ctx->{_length};
-    substr($str, $p, 1);
+    my ($self, $ctx, $str_r) = @_;
+    return unless defined $ctx->{used};
+    return if $ctx->{used} >= $ctx->{size};
+    my $c = substr($$str_r, $ctx->{used}++, 1);
+    pos($$str_r) = $ctx->{used};
+    $c;
+}
+
+sub __error_inside_quotes {
+    my ($self, $ctx, $error) = @_;
+    $self->__parse_error($ctx, $error, $ctx->{used} - 1);
+}
+
+sub __error_inside_field {
+    my ($self, $ctx, $error) = @_;
+    $self->__parse_error($ctx, $error, $ctx->{used} - 1);
 }
 
 sub __parse_error {
