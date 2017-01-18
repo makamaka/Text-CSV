@@ -1796,7 +1796,7 @@ sub ___parse { # cx_c_xsParse
 }
 
 sub ____parse { # cx_Parse
-    my ($self, $ctx, $str, $fields, $fflags) = @_;
+    my ($self, $ctx, $src, $fields, $fflags) = @_;
 
     my ($quot, $sep, $esc, $eol) = @{$ctx}{qw/quo sep escape_char eol/};
     my $seenSomething =  0;
@@ -1807,9 +1807,9 @@ sub ____parse { # cx_Parse
 
     my $re_str = join '|', map({quotemeta($_)} grep {defined $_ and $_ ne '' and $_ ne "\0"} $sep, $quot, $esc, $eol), "\015", "\012", "\x09", " ";
     my $re = qr/$re_str|[^\x09\x20-\x7E]|$/;
-    while($str =~ /\G(.*?)($re)/g) {
+    while($ctx->{tmp} =~ /\G(.*?)($re)/g) {
         my ($hit, $c) = ($1, $2);
-        $ctx->{used} = pos($str);
+        $ctx->{used} = pos($ctx->{tmp});
         last if $seenSomething and $hit eq '' and $c eq ''; # EOF
 
         # new field
@@ -1880,7 +1880,7 @@ RESTART:
                 # ,1,"foo, 3",,bar,\r\n
                 #           ^
                 my $quoesc = 0;
-                my $c2 = $self->__get($ctx, \$str);
+                my $c2 = $self->__get($ctx);
 
                 if ($ctx->{allow_whitespace}) {
                     # , 1 , "foo, 3" , , bar , \r\n
@@ -1890,7 +1890,7 @@ RESTART:
                             $$v_ref .= $c;
                             $c = $c2;
                         }
-                        $c2 = $self->__get($ctx, \$str);
+                        $c2 = $self->__get($ctx);
                     }
                 }
 
@@ -1949,7 +1949,7 @@ RESTART:
                         return 1;
                     }
 
-                    my $c3 = $self->__get($ctx, \$str);
+                    my $c3 = $self->__get($ctx);
                     if (defined $c3 and $c3 eq "\012") {
                         # ,1,"foo, 3"\r\n
                         #              ^
@@ -1997,7 +1997,7 @@ RESTART:
                     # The escape character is the first character of an
                     # unquoted field
                     # ... get and store next character
-                    my $c2 = $self->__get($ctx, \$str);
+                    my $c2 = $self->__get($ctx);
                     $$v_ref = "";
 
                     if (!defined $c2) { # EOF
@@ -2025,7 +2025,7 @@ RESTART:
                 }
             }
             elsif ($flag & IS_QUOTED) {
-                my $c2 = $self->__get($ctx, \$str);
+                my $c2 = $self->__get($ctx);
                 if (!defined $c2) { # EOF
                     $ctx->{used}--;
                     $self->__error_inside_quotes($ctx, 2024);
@@ -2051,7 +2051,7 @@ RESTART:
                 }
             }
             elsif ($v_ref) {
-                my $c2 = $self->__get($ctx, \$str);
+                my $c2 = $self->__get($ctx);
                 if (!defined $c2) { # EOF
                     $ctx->{used}--;
                     $self->__error_inside_field($ctx, 2035);
@@ -2123,7 +2123,7 @@ EOLX:
                     goto RESTART;
                 }
 
-                my $c2 = $self->__get($ctx, \$str);
+                my $c2 = $self->__get($ctx);
                 if (!defined $c2) { # EOF
                     # ,1,"foo\n 3",,bar,\r
                     #                     ^
@@ -2163,7 +2163,7 @@ EOLX:
                     return 1;
                 }
 
-                my $c2 = $self->__get($ctx, \$str);
+                my $c2 = $self->__get($ctx);
                 if (defined $c2 and $c2 eq "\012") { # \r is not optional before EOLX!
                     # ,1,"foo\n 3",,bar\r\n
                     #                    ^
@@ -2188,7 +2188,7 @@ EOLX:
             if ($waitingForField) {
                 if ($ctx->{allow_whitespace} and $self->__is_whitespace($ctx, $c)) {
                     do {
-                        $c = $self->__get($ctx, \$str);
+                        $c = $self->__get($ctx);
                         last if !defined $c;
                     } while $self->__is_whitespace($ctx, $c);
                     goto RESTART;
@@ -2284,11 +2284,11 @@ sub __bound_field {
 }
 
 sub __get {
-    my ($self, $ctx, $str_r) = @_;
+    my ($self, $ctx) = @_;
     return unless defined $ctx->{used};
     return if $ctx->{used} >= $ctx->{size};
-    my $c = substr($$str_r, $ctx->{used}++, 1);
-    pos($$str_r) = $ctx->{used};
+    my $c = substr($ctx->{tmp}, $ctx->{used}++, 1);
+    pos($ctx->{tmp}) = $ctx->{used};
     $c;
 }
 
