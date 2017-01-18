@@ -1744,6 +1744,8 @@ sub ___parse { # cx_c_xsParse
 
     } else {
         $ctx->{tmp} = $src;
+        $ctx->{size} = length $src;
+        $ctx->{used} = 0;
         $ctx->{utf8} = utf8::is_utf8($src);
     }
     if ($ctx->{has_error_input}) {
@@ -1805,8 +1807,6 @@ sub ____parse { # cx_Parse
 
     my $re_str = join '|', map({quotemeta($_)} grep {defined $_ and $_ ne '' and $_ ne "\0"} $sep, $quot, $esc, $eol), "\015", "\012", "\x09", " ";
     my $re = qr/$re_str|[^\x09\x20-\x7E]|$/;
-    $ctx->{size} = length $str;
-    $ctx->{used} = pos($str) = 0;
     while($str =~ /\G(.*?)($re)/g) {
         my ($hit, $c) = ($1, $2);
         $ctx->{used} = pos($str);
