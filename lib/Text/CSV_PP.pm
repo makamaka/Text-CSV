@@ -1579,7 +1579,12 @@ sub __cache_show_byte {
 
 sub __cache_show_char {
     my ($self, $key, $value) = @_;
-    warn (sprintf "  %-21s %02x:%s\n", $key, defined $value ? ord($value) : 0, $self->__pretty_str($value, 1));
+    my $v = $value;
+    if (defined $value) {
+        my @b = unpack "U0C*", $value;
+        $v = pack "U*", $b[0];
+    }
+    warn (sprintf "  %-21s %02x:%s\n", $key, defined $v ? ord($v) : 0, $self->__pretty_str($v, 1));
 }
 
 sub __cache_show_str {
@@ -1592,6 +1597,7 @@ sub __pretty_str { # FIXME
     return '' unless defined $str;
     $str = substr($str, 0, $len);
     $str =~ s/"/\\"/g;
+    $str =~ s/([^\x09\x20-\x7e])/sprintf '\\x{%x}', ord($1)/eg;
     qq{"$str"};
 }
 
