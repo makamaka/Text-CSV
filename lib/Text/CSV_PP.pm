@@ -2141,7 +2141,15 @@ RESTART:
                 else {
                     # sep=,
                     #      ^
-                    # FIXME or fix getline
+                    if (!$ctx->{recno} and $ctx->{fld_idx} == 1 and $ctx->{useIO} and $hit =~ /^sep=(.{1,16})$/i) {
+                        $ctx->{sep} = $1;
+                        use bytes;
+                        my $len = length $ctx->{sep};
+                        if ($len <= 16) {
+                            $ctx->{sep_len} = $len == 1 ? 0 : $len;
+                            return $self->____parse($ctx, $src, $fields, $fflags);
+                        }
+                    }
 
                     # ,1,"foo\n 3",,bar
                     #                  ^

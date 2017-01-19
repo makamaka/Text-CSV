@@ -15,7 +15,7 @@ BEGIN {
 	plan skip_all => "No reliable perlIO available";
 	}
     else {
-	plan tests => 117;
+	plan tests => 132;
 	}
     }
 
@@ -85,7 +85,7 @@ ok ($csv->print ($io, [ "id", "name"			]), "Bad character");
 ok ($csv->print ($io, [   1,  "Alligator Descartes"	]), "Name 1");
 ok ($csv->print ($io, [  "3", "Jochen Wiedmann"		]), "Name 2");
 ok ($csv->print ($io, [   2,  "Tim Bunce"		]), "Name 3");
-ok ($csv->print ($io, [ " 4", "Andreas Köîig"		]), "Name 4");
+ok ($csv->print ($io, [ " 4", "Andreas König"		]), "Name 4");
 ok ($csv->print ($io, [   5				]), "Name 5");
 close $io;
 
@@ -94,7 +94,7 @@ id,name\015
 1,"Alligator Descartes"\015
 3,"Jochen Wiedmann"\015
 2,"Tim Bunce"\015
-" 4","Andreas Köîig"\015
+" 4","Andreas König"\015
 5\015
 CONTENTS
 
@@ -170,3 +170,37 @@ for ([  1, 1,    0, "\n"		],
     is ($err[0], $err, "Error expected $err");
     }
 
+{   ok (my $csv = Text::CSV->new, "new for sep=");
+    open my $fh, "<", \qq{sep=;\n"a b";3\n} or die "IO: $!";
+    is_deeply ($csv->getline_all ($fh), [["a b", 3]], "valid sep=");
+    is (($csv->error_diag)[0], 2012, "EOF");
+    }
+
+{   ok (my $csv = Text::CSV->new, "new for sep=");
+    open my $fh, "<", \qq{sep=;\n"a b",3\n} or die "IO: $!";
+    is_deeply (eval { $csv->getline_all ($fh); }, [], "invalid sep=");
+    is (($csv->error_diag)[0], 2023, "error");
+    }
+
+{   ok (my $csv = Text::CSV->new, "new for sep=");
+    open my $fh, "<", \qq{sep=XX\n"a b"XX3\n} or die "IO: $!";
+    is_deeply (eval { $csv->getline_all ($fh); },
+	[["a b", 3]], "multibyte sep=");
+    is (($csv->error_diag)[0], 2012, "error");
+    }
+
+{   ok (my $csv = Text::CSV->new, "new for sep=");
+    # To check that it is *only* supported on the first line
+    open my $fh, "<", \qq{sep=;\n"a b";3\nsep=,\n"a b",3\n} or die "IO: $!";
+    is_deeply ($csv->getline_all ($fh),
+	[["a b","3"],["sep=,"]], "sep= not on 1st line");
+    is (($csv->error_diag)[0], 2023, "error");
+    }
+
+{   ok (my $csv = Text::CSV->new, "new for sep=");
+    my $sep = "#" x 80;
+    open my $fh, "<", \qq{sep=$sep\n"a b",3\n2,3\n} or die "IO: $!";
+    my $r = $csv->getline_all ($fh);
+    is_deeply ($r, [["sep=$sep"],["a b","3"],[2,3]], "sep= too long");
+    is (($csv->error_diag)[0], 2012, "EOF");
+    }
