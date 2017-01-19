@@ -19,6 +19,7 @@ BEGIN {
         }
     }
 
+BEGIN { $ENV{PERL_TEXT_CSV} = 0; }
 use Text::CSV;
 my $csv = Text::CSV->new ();
 
