@@ -838,7 +838,7 @@ sub _parse {
 sub column_names {
     my ( $self, @columns ) = @_;
 
-    @columns or return defined $self->{_COLUMN_NAMES} ? @{$self->{_COLUMN_NAMES}} : undef;
+    @columns or return defined $self->{_COLUMN_NAMES} ? @{$self->{_COLUMN_NAMES}} : ();
     @columns == 1 && ! defined $columns[0] and return $self->{_COLUMN_NAMES} = undef;
 
     if ( @columns == 1 && ref $columns[0] eq "ARRAY" ) {
