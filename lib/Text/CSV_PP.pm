@@ -1825,9 +1825,10 @@ sub ____parse { # cx_Parse
     $ctx->{fld_idx} = my $fnum = 0;
     $ctx->{flag} = 0;
 
-    my $re_str = join '|', map({quotemeta($_)} sort {length $b <=> length $a} grep {defined $_ and $_ ne '' and $_ ne "\0"} $sep, $quot, $esc, $eol), "\015", "\012", "\x09", " ";
+    my $re_str = join '|', map({$_ eq "\0" ? '[\\0]' : quotemeta($_)} sort {length $b <=> length $a} grep {defined $_ and $_ ne ''} $sep, $quot, $esc, $eol), "\015", "\012", "\x09", " ";
     $ctx->{_re} = qr/$re_str/;
     my $re = qr/$re_str|[^\x09\x20-\x7E]|$/;
+
 LOOP:
     while($self->__get_from_src($ctx, $src)) {
         while($ctx->{tmp} =~ /\G(.*?)($re)/gs) {
@@ -1866,7 +1867,7 @@ LOOP:
             }
 
 RESTART:
-            if (defined $c and defined $sep and $sep ne "\0" and $c eq $sep) {
+            if (defined $c and defined $sep and $c eq $sep) {
                 if ($waitingForField) {
                     # ,1,"foo, 3",,bar,
                     # ^           ^

@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 17739;
+use Test::More tests => 25107;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -74,6 +74,31 @@ sub combi {
 
     my $ret = $csv->combine (@input);
 
+    ok ($ret, "combine");
+    ok (my $str = $csv->string, "string");
+    SKIP: {
+	ok (my $ok = $csv->parse ($str), "parse");
+
+	unless ($ok) {
+	    $fail{parse}{$combi} = $csv->error_input;
+	    skip "parse () failed",  3;
+	    }
+
+	ok (my @ret = $csv->fields, "fields");
+	unless (@ret) {
+	    $fail{fields}{$combi} = $csv->error_input;
+	    skip "fields () failed", 2;
+	    }
+
+	is (scalar @ret, $ninput,   "$ninput fields");
+	unless (scalar @ret == $ninput) {
+	    $fail{'$#fields'}{$combi} = $str;
+	    skip "# fields failed",  1;
+	    }
+
+	my $ret = join "=", "", @ret, "";
+	is ($ret, $string,          "content");
+	}
     } # combi
 
 foreach my $aw (0, 1) {
