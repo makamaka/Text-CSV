@@ -1,3 +1,4 @@
+print STDERR "# PERL_TEXT_CSV: ", (defined $ENV{PERL_TEXT_CSV} ? "$ENV{PERL_TEXT_CSV}" : "undef"), "\n";
 #!/usr/bin/perl
 
 use strict;
