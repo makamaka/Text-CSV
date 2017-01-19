@@ -1219,7 +1219,7 @@ sub _csv_attr {
     }
 
 sub csv {
-    @_ && ref $_[0] eq __PACKAGE__ and splice @_, 0, 0, "csv";
+    @_ && (ref $_[0] eq __PACKAGE__ or ref $_[0] eq 'Text::CSV') and splice @_, 0, 0, "csv";
     @_ or croak $csv_usage;
 
     my $c = _csv_attr (@_);
