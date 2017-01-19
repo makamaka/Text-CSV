@@ -1389,7 +1389,7 @@ sub _setup_ctx {
         if (defined $self->{sep_char}) {
             $ctx{sep} = $self->{sep_char};
         }
-        if (defined $self->{sep}) {
+        if (defined $self->{sep} and $self->{sep} ne '') {
             use bytes;
             $ctx{sep} = $self->{sep};
             my $sep_len = length($ctx{sep});
@@ -1405,7 +1405,7 @@ sub _setup_ctx {
                 $ctx{quo} = "\0";
             }
         }
-        if (defined $self->{quote}) {
+        if (defined $self->{quote} and $self->{quote} ne '') {
             use bytes;
             $ctx{quo} = $self->{quote};
             my $quote_len = length($ctx{quo});
