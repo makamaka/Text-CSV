@@ -1610,9 +1610,11 @@ sub _hook {
     my $cb = $self->{callbacks}{$name};
     return 0 unless $cb && ref $cb eq 'CODE';
 
-    my $res = $cb->($self, $fields);
-    $res = 0 if $res eq "skip";
-    $res;
+    my (@res) = $cb->($self, $fields);
+    if (@res) {
+        return 0 if ref $res[0] eq 'SCALAR' and ${$res[0]} eq "skip";
+    }
+    scalar @res;
 }
 
 ################################################################################
