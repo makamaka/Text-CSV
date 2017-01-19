@@ -48,11 +48,12 @@ BEGIN {
 	[ "bytes up :encoding(UTF-8)", ":encoding(UTF-8)", $bytes_up,  "utf8",   "no warn", ],
 	);
 
-    plan tests => 11 + 6 * @tests;
     my $builder = Test::More->builder;
     binmode $builder->output,         ":encoding(utf8)";
     binmode $builder->failure_output, ":encoding(utf8)";
     binmode $builder->todo_output,    ":encoding(utf8)";
+
+    plan tests => 11 + 6 * @tests + 4 * 22 + 6;
     }
 
 BEGIN {
@@ -143,4 +144,75 @@ for (@tests) {
 	is_deeply ([ map { utf8::is_utf8 ($_) } @read ],
 	    [ "", "", 1, "", "", "", 1, "" ], "UTF8 flags");
 	}
+    }
+
+my $sep = "\x{2665}";#"\N{INVISIBLE SEPARATOR}";
+my $quo = "\x{2661}";#"\N{FULLWIDTH QUOTATION MARK}";
+foreach my $new (0, 1, 2, 3) {
+    my %attr = (
+	binary       => 1,
+	always_quote => 1,
+	);;
+    $new & 1 and $attr{sep}   = $sep;
+    $new & 2 and $attr{quote} = $quo;
+    my $csv = Text::CSV->new (\%attr);
+
+    my $s = $attr{sep}   || ',';
+    my $q = $attr{quote} || '"';
+
+    note ("Test SEP: '$s', QUO: '$q'") if $Test::More::VERSION > 0.81;
+    is ($csv->sep,   $s, "sep");
+    is ($csv->quote, $q, "quote");
+
+    foreach my $data (
+	    [ 1,		2		],
+	    [ "\N{EURO SIGN}",	"\N{SNOWMAN}"	],
+#	    [ $sep,		$quo		],
+	    ) {
+
+	my $exp8 = join $s => map { qq{$q$_$q} } @$data;
+	utf8::encode (my $expb = $exp8);
+	my @exp = ($expb, $exp8);
+
+	ok ($csv->combine (@$data),		"combine");
+	my $x = $csv->string;
+	is ($csv->string, $exp8,		"string");
+
+	open my $fh, ">:encoding(utf8)", \(my $out = "") or die "IO: $!\n";
+	ok ($csv->print ($fh, $data),		"print with UTF8 sep");
+	close $fh;
+
+	is ($out, $expb,			"output");
+
+	ok ($csv->parse ($expb),		"parse");
+	is_deeply ([ $csv->fields ],    $data,	"fields");
+
+	open $fh, "<", \$expb or die "IO: $!\n"; binmode $fh;
+	is_deeply ($csv->getline ($fh), $data,	"data from getline ()");
+	close $fh;
+
+	$expb =~ tr/"//d;
+
+	ok ($csv->parse ($expb),		"parse");
+	is_deeply ([ $csv->fields ],    $data,	"fields");
+
+	open $fh, "<", \$expb or die "IO: $!\n"; binmode $fh;
+	is_deeply ($csv->getline ($fh), $data,	"data from getline ()");
+	close $fh;
+	}
+    }
+
+{   my $h = "\N{WHITE HEART SUIT}";
+    my $H = "\N{BLACK HEART SUIT}";
+    my $str = "${h}I$h$H${h}L\"${h}ve$h$H${h}Perl$h";
+    utf8::encode ($str);
+    ok (my $aoa = csv (in => \$str, sep => $H, quote => $h),	"Hearts");
+    is_deeply ($aoa, [[ "I", "L${h}ve", "Perl"]],		"I $H Perl");
+
+    ok (my $csv = Text::CSV->new ({
+			binary => 1, sep => $H, quote => $h }),	"new hearts");
+    ok ($csv->combine (@{$aoa->[0]}),				"combine");
+    ok ($str = $csv->string,					"string");
+    utf8::decode ($str);
+    is ($str, "I${H}${h}L\"${h}ve${h}${H}Perl", "Correct quotation");
     }
