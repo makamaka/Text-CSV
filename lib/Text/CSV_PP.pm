@@ -1523,12 +1523,14 @@ sub _cache_set {
         $cache->{is_bound} = $value;
     }
     elsif ($key eq 'sep') {
-        my $len = length($value);
+        use bytes;
+        my $len = bytes::length($value);
         $cache->{sep} = $value if $len;
         $cache->{sep_len} = $len == 1 ? 0 : $len;
     }
     elsif ($key eq 'quote') {
-        my $len = length($value);
+        use bytes;
+        my $len = bytes::length($value);
         $cache->{quo} = $value if $len;
         $cache->{quo_len} = $len == 1 ? 0 : $len;
     }
