@@ -1837,8 +1837,7 @@ LOOP:
             my ($hit, $c) = ($1, $2);
             $ctx->{used} = pos($ctx->{tmp});
             if (!$waitingForField and $c eq '' and $hit ne '' and $ctx->{useIO} and !($ctx->{useIO} & useIO_EOF)) {
-                $self->{_AHEAD} = $hit;
-                $ctx->{has_ahead} = 1;
+                $self->{_LEFT} = $hit;
                 last;
             }
             last if $seenSomething and $hit eq '' and $c eq ''; # EOF
@@ -2346,6 +2345,16 @@ sub __get_from_src {
         $ctx->{utf8} = 1 if utf8::is_utf8($res);
         pos($ctx->{tmp}) = 0;
         return 1 if $ctx->{size};
+    } elsif (defined $self->{_LEFT}) {
+        $ctx->{tmp} = delete $self->{_LEFT};
+        $ctx->{size} = length $ctx->{tmp};
+        $ctx->{ahead} = 0;
+        $ctx->{useIO} |= useIO_EOF;
+        if ($ctx->{size}) {
+            pos($ctx->{tmp}) = 0;
+ 
+           return 1;
+        }
     }
     $ctx->{tmp} = '' unless defined $ctx->{tmp};
     $ctx->{useIO} |= useIO_EOF;
