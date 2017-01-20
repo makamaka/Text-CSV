@@ -1,35 +1,41 @@
+.perltidyrc
 Changes
-files/macosx.csv		A CSV files exported on MacOSX
-files/utf8.csv			A UTF-8 encode test file
+files/macosx.csv
+files/utf8.csv
 lib/Text/CSV.pm
 lib/Text/CSV_PP.pm
 Makefile.PL
-MANIFEST
+MANIFEST			This list of files
 README.md
-t/00_pod.t			Check if pod is valid
-t/10_base.t			Base tests (combine and parse only)
-t/12_acc.t			Accessor methods
-t/15_flags.t			Basic flag tests
-t/20_file.t			IO tests (print and getline) global  handles
-t/21_lexicalio.t		IO tests (print and getline) lexical handles
-t/22_scalario.t			IO tests (print and getline) scalar io (perlio)
-t/30_types.t			Tests for the "types" attribute.
-t/40_misc.t			Binary mode tests
-t/41_null.t			NULL test in combination with line endings
-t/45_eol.t			Embedded EOL
-t/46_eol_si.t			Embedded EOL using scalar io (perlio)
-t/50_utf8.t			Unicode stress tests
-t/51_utf8.t			Unicode IO encoding tests
-t/55_combi.t			Different CSV character combinations
-t/60_samples.t			Miscellaneous problems from the modules history.
-t/65_allow.t			Allow bad formats
-t/70_rt.t			Tests based on RT reports (for Text::CSV_XS)
-t/71_pp.t			Tests for bug report fixes or patches (for Text::CSV_PP)
-t/75_hashref.t			getline_hr related tests
-t/76_magic.t			array_ref from magig (useless for Text::CSV_PP)
-t/77_getall.t			gat all rows at once
-t/80_diag.t			Error diagnostics
-t/81_subclass.t			Subclassed
-t/fields_containing_0.t		Tests
+t/00_pod.t
+t/10_base.t
+t/12_acc.t
+t/15_flags.t
+t/20_file.t
+t/21_lexicalio.t
+t/22_scalario.t
+t/30_types.t
+t/40_misc.t
+t/41_null.t
+t/45_eol.t
+t/46_eol_si.t
+t/50_utf8.t
+t/51_utf8.t
+t/55_combi.t
+t/60_samples.t
+t/65_allow.t
+t/70_rt.t
+t/71_pp.t
+t/75_hashref.t
+t/76_magic.t
+t/77_getall.t
+t/78_fragment.t
+t/79_callbacks.t
+t/80_diag.t
+t/81_subclass.t
+t/85_util.t
+t/90_csv.t
+t/91_csv_cb.t
+t/fields_containing_0.t
 t/rt99774.t
-t/util.pl			Extra test utilities
+t/util.pl

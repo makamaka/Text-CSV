@@ -14,3 +14,6 @@ tmp/
 META.yml
 ex/
 t_xs/
+^MYMETA\.
+^author/
+^xt/
