@@ -109,6 +109,7 @@ BEGIN {
         no strict 'refs';
         *{"utf8::is_utf8"} = sub { 0; };
         *{"utf8::decode"}  = sub { };
+        *{"utf8::encode"}  = sub { };
     }
     elsif ( !defined &utf8::is_utf8 ) {
        require Encode;
