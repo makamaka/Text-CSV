@@ -1378,77 +1378,78 @@ sub _setup_ctx {
 
     $last_error = undef;
 
-    my %ctx;
+    my $ctx;
     if ($self->{_CACHE}) {
-        %ctx = %{$self->{_CACHE}};
+        $ctx = $self->{_CACHE};
     } else {
-        # $ctx{self}  = $self;
-        $ctx{pself} = ref $self || $self;
+        $ctx ||= {};
+        # $ctx->{self}  = $self;
+        $ctx->{pself} = ref $self || $self;
 
-        $ctx{sep} = ',';
+        $ctx->{sep} = ',';
         if (defined $self->{sep_char}) {
-            $ctx{sep} = $self->{sep_char};
+            $ctx->{sep} = $self->{sep_char};
         }
         if (defined $self->{sep} and $self->{sep} ne '') {
             use bytes;
-            $ctx{sep} = $self->{sep};
-            my $sep_len = length($ctx{sep});
-            $ctx{sep_len} = $sep_len if $sep_len > 1;
+            $ctx->{sep} = $self->{sep};
+            my $sep_len = length($ctx->{sep});
+            $ctx->{sep_len} = $sep_len if $sep_len > 1;
         }
 
-        $ctx{quo} = '"';
+        $ctx->{quo} = '"';
         if (exists $self->{quote_char}) {
             my $quote_char = $self->{quote_char};
             if (defined $quote_char and length $quote_char) {
-                $ctx{quo} = $quote_char;
+                $ctx->{quo} = $quote_char;
             } else {
-                $ctx{quo} = "\0";
+                $ctx->{quo} = "\0";
             }
         }
         if (defined $self->{quote} and $self->{quote} ne '') {
             use bytes;
-            $ctx{quo} = $self->{quote};
-            my $quote_len = length($ctx{quo});
-            $ctx{quo_len} = $quote_len if $quote_len > 1;
+            $ctx->{quo} = $self->{quote};
+            my $quote_len = length($ctx->{quo});
+            $ctx->{quo_len} = $quote_len if $quote_len > 1;
         }
 
-        $ctx{escape_char} = '"';
+        $ctx->{escape_char} = '"';
         if (exists $self->{escape_char}) {
             my $escape_char = $self->{escape_char};
             if (defined $escape_char and length $escape_char) {
-                $ctx{escape_char} = $escape_char;
+                $ctx->{escape_char} = $escape_char;
             } else {
-                $ctx{escape_char} = "\0";
+                $ctx->{escape_char} = "\0";
             }
         }
 
         if (defined $self->{eol}) {
             my $eol = $self->{eol};
             my $eol_len = length($eol);
-            $ctx{eol} = $eol;
-            $ctx{eol_len} = $eol_len;
+            $ctx->{eol} = $eol;
+            $ctx->{eol_len} = $eol_len;
             if ($eol_len == 1 and $eol eq "\015") {
-                $ctx{eol_is_cr} = 1;
+                $ctx->{eol_is_cr} = 1;
             }
         }
 
         if (defined $self->{_types}) {
-            $ctx{types} = $self->{_types};
-            $ctx{types_len} = length($ctx{types});
+            $ctx->{types} = $self->{_types};
+            $ctx->{types_len} = length($ctx->{types});
         }
 
         if (defined $self->{_is_bound}) {
-            $ctx{is_bound} = $self->{_is_bound};
+            $ctx->{is_bound} = $self->{_is_bound};
         }
 
         if (defined $self->{callbacks}) {
             my $cb = $self->{callbacks};
-            $ctx{has_hooks} = 0;
+            $ctx->{has_hooks} = 0;
             if (defined $cb->{after_parse} and ref $cb->{after_parse} eq 'CODE') {
-                $ctx{has_hooks} |= HOOK_AFTER_PARSE;
+                $ctx->{has_hooks} |= HOOK_AFTER_PARSE;
             }
             if (defined $cb->{before_print} and ref $cb->{before_print} eq 'CODE') {
-                $ctx{has_hooks} |= HOOK_BEFORE_PRINT;
+                $ctx->{has_hooks} |= HOOK_BEFORE_PRINT;
             }
         }
 
@@ -1459,45 +1460,43 @@ sub _setup_ctx {
             empty_is_undef verbatim auto_diag diag_verbose
             keep_meta_info
         /) {
-            $ctx{$_} = defined $self->{$_} ? $self->{$_} : 0;
+            $ctx->{$_} = defined $self->{$_} ? $self->{$_} : 0;
         }
         for (qw/quote_space escape_null quote_binary/) {
-            $ctx{$_} = defined $self->{$_} ? $self->{$_} : 1;
+            $ctx->{$_} = defined $self->{$_} ? $self->{$_} : 1;
         }
         # FIXME: readonly
-        my $cache = \%ctx;
-        $ctx{cache} = $cache;
-        $self->{_CACHE} = $cache;
+        $self->{_CACHE} = $ctx;
     }
 
-    $ctx{utf8} = 0;
-    $ctx{size} = 0;
-    $ctx{used} = 0;
+    $ctx->{utf8} = 0;
+    $ctx->{size} = 0;
+    $ctx->{used} = 0;
 
-    if ($ctx{is_bound}) {
+    if ($ctx->{is_bound}) {
         my $bound = $self->{_BOUND_COLUMNS};
         if ($bound and ref $bound eq 'ARRAY') {
-            $ctx{bound} = $bound;
+            $ctx->{bound} = $bound;
         } else {
-            $ctx{is_bound} = 0;
+            $ctx->{is_bound} = 0;
         }
     }
 
-    $ctx{eol_pos} = -1;
-    $ctx{eolx} = $ctx{eol_len}
-        ? $ctx{verbatim} || $ctx{eol_len} >= 2
+    $ctx->{eol_pos} = -1;
+    $ctx->{eolx} = $ctx->{eol_len}
+        ? $ctx->{verbatim} || $ctx->{eol_len} >= 2
             ? 1
-            : $ctx{eol} =~ /\A[\015|\012]/ ? 0 : 1
+            : $ctx->{eol} =~ /\A[\015|\012]/ ? 0 : 1
         : 0;
 
-    if ($ctx{sep_len} and _is_valid_utf8($ctx{sep})) {
-        $ctx{utf8} = 1;
+    if ($ctx->{sep_len} and _is_valid_utf8($ctx->{sep})) {
+        $ctx->{utf8} = 1;
     }
-    if ($ctx{quo_len} and _is_valid_utf8($ctx{quo})) {
-        $ctx{utf8} = 1;
+    if ($ctx->{quo_len} and _is_valid_utf8($ctx->{quo})) {
+        $ctx->{utf8} = 1;
     }
 
-    \%ctx;
+    $ctx;
 }
 
 sub _cache_set {
@@ -1783,7 +1782,6 @@ sub ___parse { # cx_c_xsParse
                 $self->{_EOF} = 1;
             }
         }
-        %{$ctx->{cache}} = %$ctx;
 
         if ($fflags) {
             if ($ctx->{keep_meta_info}) {
@@ -1792,9 +1790,6 @@ sub ___parse { # cx_c_xsParse
                 undef $fflags;
             }
         }
-    }
-    else {
-        %{$ctx->{cache}} = %$ctx;
     }
 
     if ($result and $ctx->{types}) {
@@ -2372,7 +2367,6 @@ sub __set_eol_is_cr {
     $ctx->{eol_is_cr} = 1;
     $ctx->{eol_len} = 1;
 
-    %{$ctx->{cache}} = %$ctx;
     $self->{eol} = $ctx->{eol};
 }
 
