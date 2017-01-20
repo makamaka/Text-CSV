@@ -2551,7 +2551,7 @@ sub _set_error_diag {
 
 sub error_input {
     my $self = shift;
-    if ($self and (Scalar::Util::reftype($self) || '') eq 'HASH') {
+    if ($self and (Scalar::Util::reftype($self) || '') =~ /HASH|REF/) {
         return $self->{_ERROR_INPUT};
     }
     return;
