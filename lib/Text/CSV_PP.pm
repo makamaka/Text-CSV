@@ -1839,7 +1839,9 @@ LOOP:
             my ($hit, $c) = ($1, $2);
             $ctx->{used} = pos($ctx->{tmp});
             if (!$waitingForField and $c eq '' and $hit ne '' and $ctx->{useIO} and !($ctx->{useIO} & useIO_EOF)) {
-                $self->{_LEFT} = $hit;
+                $self->{_AHEAD} = $hit;
+                $ctx->{has_ahead} = 1;
+                $ctx->{has_leftover} = 1;
                 last;
             }
             last if $seenSomething and $hit eq '' and $c eq ''; # EOF
@@ -2338,24 +2340,25 @@ sub __get_from_src {
             $ctx->{tmp} = $self->{_AHEAD};
             $ctx->{tmp} .= $ctx->{eol} if $ctx->{eol_len};
             $ctx->{tmp} .= $res;
-            $ctx->{ahead} = 0;
+            $ctx->{has_ahead} = 0;
         } else {
             $ctx->{tmp} = $res;
         }
-        $ctx->{used} = -1;
-        $ctx->{size} = length $res;
-        $ctx->{utf8} = 1 if utf8::is_utf8($res);
-        pos($ctx->{tmp}) = 0;
-        return 1 if $ctx->{size};
-    } elsif (defined $self->{_LEFT}) {
-        $ctx->{tmp} = delete $self->{_LEFT};
-        $ctx->{size} = length $ctx->{tmp};
-        $ctx->{ahead} = 0;
-        $ctx->{useIO} |= useIO_EOF;
-        if ($ctx->{size}) {
+        if ($ctx->{size} = length $ctx->{tmp}) {
+            $ctx->{used} = -1;
+            $ctx->{utf8} = 1 if utf8::is_utf8($ctx->{tmp});
             pos($ctx->{tmp}) = 0;
- 
-           return 1;
+            return 1;
+        }
+    } elsif (delete $ctx->{has_leftover}) {
+        $ctx->{tmp} = $self->{_AHEAD};
+        $ctx->{has_ahead} = 0;
+        $ctx->{useIO} |= useIO_EOF;
+        if ($ctx->{size} = length $ctx->{tmp}) {
+            $ctx->{used} = -1;
+            $ctx->{utf8} = 1 if utf8::is_utf8($ctx->{tmp});
+            pos($ctx->{tmp}) = 0;
+            return 1;
         }
     }
     $ctx->{tmp} = '' unless defined $ctx->{tmp};
