@@ -1,5 +1,8 @@
 Revision history for Perl extension Text::CSV.
 
+1.91  2017-01-28
+    - production release
+
 1.90_01  2017-01-20
 	- Text::CSV_PP is totally refactored using the code/doc of
 	  Text::CSV_XS 1.27. Almost all the code/docs in CSV_XS.pm are
