@@ -2426,7 +2426,8 @@ completed the documentation, fixed some RT bugs. See ChangeLog releases
 Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt> wrote Text::CSV_PP
 which is the pure-Perl version of Text::CSV_XS.
 
-New Text::CSV (since 0.99) is maintained by Makamaka.
+New Text::CSV (since 0.99) is maintained by Makamaka, and Kenichi Ishigaki
+since 1.91.
 
 
 =head1 COPYRIGHT AND LICENSE
@@ -2435,16 +2436,18 @@ Text::CSV
 
 Copyright (C) 1997 Alan Citterman. All rights reserved.
 Copyright (C) 2007-2015 Makamaka Hannyaharamitu.
-
+Copyright (C) 2017- Kenichi Ishigaki
+A large portion of the doc is taken from Text::CSV_XS. See below.
 
 Text::CSV_PP:
 
 Copyright (C) 2005-2015 Makamaka Hannyaharamitu.
-
+Copyright (C) 2017- Kenichi Ishigaki
+A large portion of the code/doc are also taken from Text::CSV_XS. See below.
 
 Text:CSV_XS:
 
-Copyright (C) 2007-2015 H.Merijn Brand for PROCURA B.V.
+Copyright (C) 2007-2016 H.Merijn Brand for PROCURA B.V.
 Copyright (C) 1998-2001 Jochen Wiedmann. All rights reserved.
 Portions Copyright (C) 1997 Alan Citterman. All rights reserved.
 

@@ -4835,10 +4835,11 @@ X<3010>
 
 L<Text::CSV_XS>, L<Text::CSV>
 
-I got many regexp bases from L<http://www.din.or.jp/~ohzaki/perl.htm>
+Older versions took many regexp from L<http://www.din.or.jp/~ohzaki/perl.htm>
 
 =head1 AUTHOR
 
+Kenichi Ishigaki, E<lt>ishigaki[at]cpan.orgE<gt>
 Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
 
 Text::CSV_XS was written by E<lt>joe[at]ispsoft.deE<gt>
@@ -4846,9 +4847,9 @@ and maintained by E<lt>h.m.brand[at]xs4all.nlE<gt>.
 
 Text::CSV was written by E<lt>alan[at]mfgrtl.comE<gt>.
 
-
 =head1 COPYRIGHT AND LICENSE
 
+Copyright 2017- by Kenichi Ishigaki, E<lt>ishigaki[at]cpan.orgE<gt>
 Copyright 2005-2015 by Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>
 
 Most of the code and doc is directly taken from the pure perl part of
