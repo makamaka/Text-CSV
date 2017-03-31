@@ -23,7 +23,7 @@ BEGIN {
 
     use_ok "Text::CSV", "csv";
     require Encode;
-    require "t/util.pl";
+    require "./t/util.pl";
     }
 
 $| = 1;

@@ -12,7 +12,7 @@ BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     require_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
-    require "t/util.pl";
+    require "./t/util.pl";
 
     open PP, "< lib/Text/CSV_PP.pm" or die "Cannot read error messages from PP\n";
     while (<PP>) {

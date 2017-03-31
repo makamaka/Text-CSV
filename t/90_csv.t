@@ -11,7 +11,7 @@ BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV", ("csv");
     plan skip_all => "Cannot load Text::CSV" if $@;
-    require "t/util.pl";
+    require "./t/util.pl";
     }
 
 my $tfn  = "_90test.csv"; END { -f $tfn and unlink $tfn }
