@@ -49,6 +49,9 @@ my $ERRORS = {
         1013 => "INI - the header contains nun-unique fields",
         1014 => "INI - header called on undefined stream",
 
+        # Syntax errors
+        1500 => "PRM - Invalid/unsupported arguments(s)",
+
         # Parse errors
         2010 => "ECR - QUO char inside quotes followed by CR not part of EOL",
         2011 => "ECR - Characters after end of quoted field",
@@ -819,6 +822,8 @@ sub _combine {
 *parse = \&_parse;
 sub _parse {
     my ($self, $str) = @_;
+
+    ref $str and croak ($self->SetDiag (1500));
 
     my $fields = [];
     my $fflags = [];
@@ -3421,6 +3426,9 @@ argument.
 You may use the L</types>  method for setting column types.  See L</types>'
 description below.
 
+The C<$line> argument is supposed to be a simple scalar. Everything else is
+supposed to croak and set error 1500.
+
 =head2 fragment
 
 This function tries to implement RFC7111  (URI Fragment Identifiers for the
@@ -4676,6 +4684,12 @@ fields.
 X<1014>
 
 The header line cannot be parsed from an undefined sources.
+
+=item *
+1500 "PRM - Invalid/unsupported argument(s)"
+X<1500>
+
+Function or method called with invalid argument(s) or parameter(s).
 
 =item *
 2010 "ECR - QUO char inside quotes followed by CR not part of EOL"

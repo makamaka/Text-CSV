@@ -969,6 +969,9 @@ argument.
 You may use the L</types>  method for setting column types.  See L</types>'
 description below.
 
+The C<$line> argument is supposed to be a simple scalar. Everything else is
+supposed to croak and set error 1500.
+
 =head2 fragment
 
 This function tries to implement RFC7111  (URI Fragment Identifiers for the
@@ -2243,6 +2246,12 @@ fields.
 X<1014>
 
 The header line cannot be parsed from an undefined sources.
+
+=item *
+1500 "PRM - Invalid/unsupported argument(s)"
+X<1500>
+
+Function or method called with invalid argument(s) or parameter(s).
 
 =item *
 2010 "ECR - QUO char inside quotes followed by CR not part of EOL"
