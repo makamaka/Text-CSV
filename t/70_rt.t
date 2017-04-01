@@ -4,13 +4,13 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 20460;
+ use Test::More tests => 20465;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV", ();
     plan skip_all => "Cannot load Text::CSV" if $@;
-    require "t/util.pl";
+    require "./t/util.pl";
     }
 
 my $tfn = "_70test.csv"; END { unlink $tfn, "_$tfn"; }
@@ -471,6 +471,17 @@ SKIP: {	# http://rt.cpan.org/Ticket/Display.html?id=80680
     is_deeply ([ $csv->fields ], [ q{foo "bar" baz} ], "Data");
     }
 
+{   # http://rt.cpan.org/Ticket/Display.html?id=115953
+    $rt = 120655; # bind_columns with strange behavior / length() from old value
+    my $csv = Text::CSV->new ({ binary => 1 });
+    my %row;
+    ok ($csv->bind_columns (\$row{c1}),		"Bind columns");
+    ok ($csv->parse ("pr\x{c3}\x{b6}blem"),	"Parse utf-8 content");
+    is (length $row{c1}, 7,			"Length");
+    ok ($csv->parse (""),			"Parse empty line");
+    is (length $row{c1}, 0,			"Length");
+    }
+
 __END__
 «24386» - \t doesn't work in _XS, works in _PP
 VIN	StockNumber	Year	Make	Model	MD	Engine	EngineSize	Transmission	DriveTrain	Trim	BodyStyle	CityFuel	HWYFuel	Mileage	Color	InteriorColor	InternetPrice	RetailPrice	Notes	ShortReview	Certified	NewUsed	Image_URLs	Equipment
@@ -534,3 +545,4 @@ B:035_03_	fission, one	horns	@p 03-035.bmp	@p 03-035.bmp			obsolete Heising ex
 foo "bar"
 «115953» - Space stripped from middle of field value with allow_whitespace and allow_loose_quotes
 "foo "bar" baz"
+«120655» - bind_columns with strange behavior / length() from old value

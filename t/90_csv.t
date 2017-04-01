@@ -11,7 +11,7 @@ BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     use_ok "Text::CSV", ("csv");
     plan skip_all => "Cannot load Text::CSV" if $@;
-    require "t/util.pl";
+    require "./t/util.pl";
     }
 
 my $tfn  = "_90test.csv"; END { -f $tfn and unlink $tfn }
@@ -113,9 +113,13 @@ csv (in => [{ a => 1 }], out => $fh, headers => "auto");
 csv (in => [{ a => 1 }], out => $fh, headers => ["a"]);
 csv (in => [{ b => 1 }], out => $fh, headers => { b => "a" });
 close $fh;
-open  $fh, "<", $tfn or die "$tfn: $!\n";
-is (do {local $/; <$fh>}, "a\r\n1\r\n" x 5, "AoH to out");
-close $fh;
+{   open  $fh, "<", $tfn or die "$tfn: $!\n";
+    my $dta = do {local $/; <$fh>};
+    my @layers = eval { PerlIO::get_layers ($fh); };
+    close $fh;
+    grep m/crlf/ => @layers and $dta =~ s/\n/\r\n/g;
+    is ($dta, "a\r\n1\r\n" x 5, "AoH to out");
+    }
 
 # check internal defaults
 {
@@ -175,10 +179,10 @@ eval {
     my $ofn = "_STDOUT.csv";
     open STDOUT, ">", $ofn or die "$ofn: $!\n";
     csv (in => $tfn, quote_always => 1, fragment => "row=1-2",
-	on_in => sub { splice @{$_[1]}, 1; });
+	on_in => sub { splice @{$_[1]}, 1; }, eol => "\n");
     close STDOUT;
     open my $oh, "<", $ofn or die "$ofn: $!\n";
-    is (do { local (@ARGV, $/) = $ofn; <> },
-	qq{"a"\r\n"1"\r\n}, "Chained csv call inherited attributes");
+    my $dta = do { local (@ARGV, $/) = $ofn; <> };
+    is ($dta, qq{"a"\n"1"\n}, "Chained csv call inherited attributes");
     unlink $ofn;
     }

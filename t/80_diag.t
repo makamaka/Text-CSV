@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 270;
+ use Test::More tests => 279;
 #use Test::More "no_plan";
 
 my %err;
@@ -12,7 +12,7 @@ BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
     require_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
-    require "t/util.pl";
+    require "./t/util.pl";
 
     open PP, "< lib/Text/CSV_PP.pm" or die "Cannot read error messages from PP\n";
     while (<PP>) {
@@ -254,6 +254,15 @@ unlink $diag_file;
     is (0 + $csv->error_diag, 1014, "Cannot read header from undefined source");
     eval { $csv->header (*STDIN, "foo"); };
     like ($@, qr/^usage:/, "Illegal header call");
+    }
+
+{   my $csv = Text::CSV->new;
+    foreach my $arg ([], sub {}, Text::CSV->new, {}) {
+	eval { $csv->parse ($arg) };
+	my @diag = $csv->error_diag;
+	is   ($diag[0], 1500, "Invalid parameters (code)");
+	like ($diag[1], qr{^PRM - Invalid/unsupported argument}, "Invalid parameters (msg)");
+	}
     }
 
 1;
