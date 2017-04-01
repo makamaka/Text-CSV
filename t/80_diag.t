@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 279;
+ use Test::More tests => 278;
 #use Test::More "no_plan";
 
 my %err;
