@@ -1,5 +1,8 @@
 Revision history for Perl extension Text::CSV.
 
+1.93  2017-04-04
+    - Fix a test for perl without doc in @INC (kentnl++)
+
 1.92  2017-04-01
     - Imported tests/fixes from Text::CSV_XS 1.28
       - Fix crlf issue for csv () on Windows (RT#120466)
