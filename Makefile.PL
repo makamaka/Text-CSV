@@ -52,7 +52,7 @@ WriteMakefile(
     'AUTHOR'     => 'Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>',
     'PREREQ_PM' => {
 		      "IO::Handle"	=> 0,
-		      "Test::More"	=> 0,
+		      "Test::More"	=> '0.71',
 		      "Test::Harness"	=> 0,
     },
     ( $ExtUtils::MakeMaker::VERSION >= 6.3002 ? ('LICENSE' => 'perl', ) : () ),
