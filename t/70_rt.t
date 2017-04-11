@@ -462,24 +462,30 @@ SKIP: {	# http://rt.cpan.org/Ticket/Display.html?id=80680
 
 {   # http://rt.cpan.org/Ticket/Display.html?id=115953
     $rt = 115953; # Space stripped from middle of field value with allow_whitespace and allow_loose_quotes
-    my $csv = Text::CSV->new ({
-	allow_loose_quotes => 1,
-	escape_char        => undef,
-	allow_whitespace   => 1,
-	});
-    ok ($csv->parse ($input{$rt}[0]),		"parse valid content");
-    is_deeply ([ $csv->fields ], [ q{foo "bar" baz} ], "Data");
+    SKIP: {
+	$] < 5.006002 and skip "unreliable in perl $]", 2;
+	my $csv = Text::CSV->new ({
+	    allow_loose_quotes => 1,
+	    escape_char        => undef,
+	    allow_whitespace   => 1,
+	    });
+	ok ($csv->parse ($input{$rt}[0]),	"parse valid content");
+	is_deeply ([ $csv->fields ], [ q{foo "bar" baz} ], "Data");
+	}
     }
 
 {   # http://rt.cpan.org/Ticket/Display.html?id=115953
     $rt = 120655; # bind_columns with strange behavior / length() from old value
-    my $csv = Text::CSV->new ({ binary => 1 });
-    my %row;
-    ok ($csv->bind_columns (\$row{c1}),		"Bind columns");
-    ok ($csv->parse ("pr\x{c3}\x{b6}blem"),	"Parse utf-8 content");
-    is (length $row{c1}, 7,			"Length");
-    ok ($csv->parse (""),			"Parse empty line");
-    is (length $row{c1}, 0,			"Length");
+    SKIP: {
+	$] < 5.008002 and skip "UTF8 unreliable in perl $]", 5;
+	my $csv = Text::CSV->new ({ binary => 1 });
+	my %row;
+	ok ($csv->bind_columns (\$row{c1}),	"Bind columns");
+	ok ($csv->parse ("pr\x{c3}\x{b6}blem"),	"Parse utf-8 content");
+	is (length $row{c1}, 7,			"Length");
+	ok ($csv->parse (""),			"Parse empty line");
+	is (length $row{c1}, 0,			"Length");
+	}
     }
 
 __END__
