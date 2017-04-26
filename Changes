@@ -1,5 +1,8 @@
 Revision history for Perl extension Text::CSV.
 
+1.95  2017-04-27
+    - import "strict" attribute introduced in Text::CSV_XS 1.29
+
 1.94  2017-04-11
     - Fix 5.6.2 issues
 
