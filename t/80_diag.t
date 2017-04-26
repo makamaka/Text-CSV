@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 278;
+ use Test::More tests => 286;
 #use Test::More "no_plan";
 
 my %err;
@@ -247,6 +247,18 @@ unlink $diag_file;
     is (0 + $csv->error_diag, 1008, "Can set sep to undef");
     eval { $csv->sep ("="); };
     is (0 + $csv->error_diag, 1001, "Cannot set sep to current sep");
+    }
+
+{   my $csv = Text::CSV->new ({ strict => 1 });
+    ok ($csv->parse ("1,2,3"), "Set strict to 3 columns");
+    ok ($csv->parse ("a,b,c"), "3 columns should be correct");
+    is ($csv->parse ("3,4"), 0, "Not enough columns");
+    is (0 + $csv->error_diag, 2014, "Error set correctly");
+    }
+{   my $csv = Text::CSV->new ({ strict => 1 });
+    ok ($csv->parse ("1,2,3"), "Set strict to 3 columns");
+    is ($csv->parse ("3,4,5,6"), 0, "Too many columns");
+    is (0 + $csv->error_diag, 2014, "Error set correctly");
     }
 
 {   my $csv = Text::CSV->new;

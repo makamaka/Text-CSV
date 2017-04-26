@@ -82,7 +82,7 @@ EOT
 
             $content =~ s!CSV_(PP|XS) ERROR!CSV_PP ERROR!g;
 
-            $content =~ s/tests => 279/tests => 278/;
+            $content =~ s/tests => 287/tests => 286/;
         }
 
         if ($basename =~ /81_subclass/) {

@@ -57,6 +57,7 @@ my $ERRORS = {
         2011 => "ECR - Characters after end of quoted field",
         2012 => "EOF - End of data in parsing input stream",
         2013 => "ESP - Specification error for fragments RFC7111",
+        2014 => "ENF - Inconsistent number of fields",
 
         # EIQ - Error Inside Quotes
         2021 => "EIQ - NL char inside quotes, binary off",
@@ -181,6 +182,7 @@ my %def_attr = (
     decode_utf8			=> 1,
     auto_diag			=> 0,
     diag_verbose		=> 0,
+    strict              => 0,
     blank_is_undef		=> 0,
     empty_is_undef		=> 0,
     allow_whitespace		=> 0,
@@ -376,6 +378,7 @@ my %_cache_id = ( # Only expose what is accessed from within PM
     decode_utf8			=> 35,
     _has_hooks			=> 36,
     _is_bound			=> 26,	# 26 .. 29
+    strict   			=> 58,
     );
 
 my %_hidden_cache_id = qw(
@@ -544,6 +547,12 @@ sub binary {
     my $self = shift;
     @_ and $self->_set_attr_X ("binary", shift);
     $self->{binary};
+    }
+
+sub strict {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("strict", shift);
+    $self->{strict};
     }
 
 sub decode_utf8 {
@@ -1463,7 +1472,7 @@ sub _setup_ctx {
         }
 
         for (qw/
-            binary decode_utf8 always_quote quote_empty
+            binary decode_utf8 always_quote strict quote_empty
             allow_loose_quotes allow_loose_escapes
             allow_unquoted_escape allow_whitespace blank_is_undef
             empty_is_undef verbatim auto_diag diag_verbose
@@ -1567,7 +1576,7 @@ sub _cache_diag {
     for (qw/
         binary decode_utf8 allow_loose_escapes allow_loose_quotes
         allow_whitespace always_quote quote_empty quote_space
-        escape_null quote_binary auto_diag diag_verbose
+        escape_null quote_binary auto_diag diag_verbose strict
         has_error_input blank_is_undef empty_is_undef has_ahead
         keep_meta_info verbatim has_hooks eol_is_cr eol_len
     /) {
@@ -1782,6 +1791,15 @@ sub ___parse { # cx_c_xsParse
     my $result = $self->____parse($ctx, $src, $fields, $fflags);
     $self->{_RECNO} = ++($ctx->{recno});
     $self->{_EOF} = '';
+
+    if ($ctx->{strict}) {
+        $ctx->{strict_n} ||= $ctx->{fld_idx};
+        if ($ctx->{strict_n} != $ctx->{fld_idx}) {
+            $self->__parse_error($ctx, 2014, $ctx->{used});
+            return;
+        }
+    }
+
     if ($ctx->{useIO}) {
         if (defined $ctx->{tmp} and $ctx->{used} < $ctx->{size} and $ctx->{has_ahead}) {
             $self->{_AHEAD} = substr($ctx->{tmp}, $ctx->{used}, $ctx->{size} - $ctx->{used});
@@ -2888,6 +2906,15 @@ binary characters other than C<CR> and C<NL> are encountered.   Note that a
 simple string like C<"\x{00a0}"> might still be binary, but not marked UTF8,
 so setting C<< { binary => 1 } >> is still a wise option.
 
+=head3 strict
+
+ my $csv = Text::CSV_PP->new ({ strict => 1 });
+         $csv->strict (0);
+ my $f = $csv->strict;
+
+If this attribute is set to C<1>, any row that parses to a different number
+of fields than the previous row will cause the parser to throw error 2014.
+
 =head3 decode_utf8
 
  my $csv = Text::CSV_PP->new ({ decode_utf8 => 1 });
@@ -3709,7 +3736,8 @@ current bindings or C<undef> if no binds are active.
 Note that in parsing with  C<bind_columns>,  the fields are set on the fly.
 That implies that if the third field  of a row  causes an error,  the first
 two fields already have been assigned the values of the current row,  while
-the rest will still hold the values of the previous row.
+the rest of the fields will still hold the values of the previous row.
+If you want the parser to fail in these cases, use the L<C<strict>|/strict> attribute.
 
 =head2 eof
 
@@ -4721,6 +4749,12 @@ strings that are not required to have a trailing L<C<eol>|/eol>.
 X<2013>
 
 Invalid specification for URI L</fragment> specification.
+
+=item *
+2014 "ENF - Inconsistent number of fields"
+X<2014>
+
+Inconsistent number of fields under strict parsing.
 
 =item *
 2021 "EIQ - NL char inside quotes, binary off"

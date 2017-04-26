@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 194;
+use Test::More tests => 196;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -32,6 +32,7 @@ is ($csv->empty_is_undef,		0,		"empty_is_undef");
 is ($csv->auto_diag,			0,		"auto_diag");
 is ($csv->diag_verbose,			0,		"diag_verbose");
 is ($csv->verbatim,			0,		"verbatim");
+is ($csv->strict,			0,		"strict");
 is ($csv->quote_space,			1,		"quote_space");
 is ($csv->quote_empty,			0,		"quote_empty");
 is ($csv->escape_null,			1,		"escape_null");
@@ -84,6 +85,7 @@ is ($csv->diag_verbose ("false"),	0,		"diag_verbose (\"false\")");
 is ($csv->diag_verbose (undef),		0,		"diag_verbose (undef)");
 is ($csv->diag_verbose (""),		0,		"diag_verbose (\"\")");
 is ($csv->verbatim (1),			1,		"verbatim (1)");
+is ($csv->strict (1),			1,		"strict (1)");
 is ($csv->quote_space (1),		1,		"quote_space (1)");
 is ($csv->quote_empty (1),		1,		"quote_empty (1)");
 is ($csv->escape_null (1),		1,		"escape_null (1)");
@@ -235,7 +237,7 @@ my $attr = [ sort qw(
     always_quote quote_space quote_empty quote_binary
     escape_null
     keep_meta_info
-    verbatim
+    verbatim strict
     types
     callbacks
     )];
