@@ -21,7 +21,7 @@ my $XS_Version = '1.02';
 my $Is_Dynamic = 0;
 
 my @PublicMethods = qw/
-    version new error_diag error_input
+    version error_diag error_input
     known_attributes csv
     PV IV NV
 /;
