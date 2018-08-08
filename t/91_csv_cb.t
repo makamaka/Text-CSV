@@ -18,9 +18,9 @@ my $data =
     "foo,bar,baz\n".
     "1,2,3\n".
     "2,a b,\n";
-open  FH, ">", $tfn or die "$tfn: $!";
-print FH $data;
-close FH;
+open  my $fh, ">", $tfn or die "$tfn: $!";
+print $fh $data;
+close $fh;
 
 my $aoa = [
     [qw( foo bar baz )],
@@ -82,8 +82,8 @@ is_deeply (csv (in => $tfn, headers => sub { lcfirst uc $_[0] }),
 	      { fOO => 2, bAR => "a b", bAZ => "" }],
 	    "AOH with mangled headers");
 
-open  FH, ">>", $tfn or die "$tfn: $!";
-print FH <<"EOD";
+open  $fh, ">>", $tfn or die "$tfn: $!";
+print $fh <<"EOD";
 3,3,3
 4,5,6
 5,7,9
@@ -91,7 +91,7 @@ print FH <<"EOD";
 7,11,15
 8,13,18
 EOD
-close FH;
+close $fh;
 
 is_deeply (csv (in => $tfn,
 	filter => { foo => sub { $_ > 2 && $_[1][2] - $_[1][1] < 4 }}), [
@@ -146,8 +146,8 @@ is_deeply (csv (in      => $tfn,
 	    [{ foo => 4, bar => 5, baz => 6, brt => 42 }],
 	    "AOH with addition to %_ in on_in");
 
-open  FH, ">", $tfn or die "$tfn: $!";
-print FH <<"EOD";
+open  $fh, ">", $tfn or die "$tfn: $!";
+print $fh <<"EOD";
 3,3,3
 
 5,7,9
@@ -159,7 +159,7 @@ print FH <<"EOD";
 ""
 8,13,18
 EOD
-close FH;
+close $fh;
 
 is_deeply (csv (in => $tfn, filter => "not_blank"),
 	    [[3,3,3],[5,7,9],["",""],["",""],["",""," ",""],
