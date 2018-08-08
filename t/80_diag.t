@@ -14,10 +14,11 @@ BEGIN {
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "./t/util.pl";
 
-    open PP, "< lib/Text/CSV_PP.pm" or die "Cannot read error messages from PP\n";
-    while (<PP>) {
+    open my $fh, "< lib/Text/CSV_PP.pm" or die "Cannot read error messages from PP\n";
+    while (<$fh>) {
         m/^        ([0-9]{4}) => "([^"]+)"/ and $err{$1} = $2;
 	}
+    close $fh;
     }
 
 $| = 1;
