@@ -63,7 +63,9 @@ WriteMakefile(
                 'Text::CSV_XS' => Text::CSV->require_xs_version,
             },
             resources => {
-                repository  =>      'http://github.com/makamaka/Text-CSV',
+                repository => 'https://github.com/makamaka/Text-CSV',
+                bugtracker => 'https://github.com/makamaka/Text-CSV/issues/',
+                license    => 'http://dev.perl.org/licenses/',
             },
         } ) : ()
     ),
