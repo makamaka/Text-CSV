@@ -386,6 +386,7 @@ my %_cache_id = ( # Only expose what is accessed from within PM
     quote_binary		=> 32,
     escape_null			=> 31,
     decode_utf8			=> 35,
+    _has_ahead			=> 30,
     _has_hooks			=> 36,
     _is_bound			=> 26,	# 26 .. 29
     formula			=> 38,
@@ -398,7 +399,6 @@ my %_hidden_cache_id = qw(
     eol_len		12
     eol_is_cr		13
     quo_len		16
-    _has_ahead		30
     has_error_input		34
 );
 
@@ -944,6 +944,13 @@ sub header {
     defined $args{munge_column_names} or $args{munge_column_names} = "lc";
     defined $args{set_column_names}   or $args{set_column_names}   = 1;
 
+    # Reset any previous leftovers
+    $self->{_RECNO}        = 0;
+    $self->{_AHEAD}        = undef;
+    $self->{_COLUMN_NAMES} = undef if $args{set_column_names};
+    $self->{_BOUND_COLUMNS}    = undef if $args{set_column_names};
+    $self->_cache_set($_cache_id{'_has_ahead'}, 0);
+
     defined $args{sep_set} && ref $args{sep_set} eq "ARRAY" and
         @seps =  @{$args{sep_set}};
 
@@ -992,6 +999,12 @@ sub header {
             }
         }
 
+    my ($ahead, $eol);
+    if ($hdr =~ s/^([^\r\n]+)([\r\n]+)([^\r\n].+)\z/$1/s) {
+        $eol   = $2;
+        $ahead = $3;
+    }
+
     $args{munge_column_names} eq "lc" and $hdr = lc $hdr;
     $args{munge_column_names} eq "uc" and $hdr = uc $hdr;
 
@@ -1001,7 +1014,12 @@ sub header {
     my $row = $self->getline ($h) or croak;
     close $h;
 
-    my @hdr = @$row   or  croak ($self->SetDiag (1010));
+    if ($ahead) { # Must be after getline, which creates the cache
+        $self->_cache_set ($_cache_id{_has_ahead}, 1);
+        $self->{_AHEAD} = $ahead;
+        $eol =~ m/^\r([^\n]|\z)/ and $self->eol ($eol);
+        }
+
     ref $args{munge_column_names} eq "CODE" and
         @hdr = map { $args{munge_column_names}->($_) } @hdr;
     my %hdr = map { $_ => 1 } @hdr;
@@ -1629,6 +1647,9 @@ sub _cache_set {
     elsif ($key eq 'quote_char') {
         $cache->{quo} = $value;
         $cache->{quo_len} = 0;
+    }
+    elsif ($key eq '_has_ahead') {
+        $cache->{has_ahead} = $value;
     }
     elsif ($key eq '_has_hooks') {
         $cache->{has_hooks} = $value;
