@@ -211,6 +211,8 @@ my %def_attr = (
     _COLUMN_NAMES		=> undef,
     _BOUND_COLUMNS		=> undef,
     _AHEAD			=> undef,
+
+    ENCODING			=> undef,
 );
 
 my %attr_alias = (
@@ -963,6 +965,11 @@ sub header {
         elsif ($hdr =~ s/^\x0e\xfe\xff//)     { $enc = "scsu"       }
         elsif ($hdr =~ s/^\xfb\xee\x28//)     { $enc = "bocu-1"     }
         elsif ($hdr =~ s/^\x84\x31\x95\x33//) { $enc = "gb-18030"   }
+        elsif ($hdr =~ s/^\x{feff}//)         { $enc = ""           }
+
+        $self->{ENCODING} = uc $enc;
+
+        $hdr eq "" and croak ($self->SetDiag (1010));
 
         if ($enc) {
             if ($enc =~ m/([13]).le$/) {
@@ -971,8 +978,11 @@ sub header {
                 $hdr .= "\0" x $l;
                 read $fh, $x, $l;
                 }
-            $enc = ":encoding($enc)";
-            binmode $fh, $enc;
+            if ($enc ne "utf-8") {
+               require Encode;
+               $hdr = Encode::decode ($enc, $hdr);
+               }
+            binmode $fh, ":encoding($enc)";
             }
         }
 
@@ -980,7 +990,8 @@ sub header {
     $args{munge_column_names} eq "uc" and $hdr = uc $hdr;
 
     my $hr = \$hdr; # Will cause croak on perl-5.6.x
-    open my $h, "<$enc", $hr;
+    open my $h, "<", $hr or croak ($self->SetDiag (1010));
+
     my $row = $self->getline ($h) or croak;
     close $h;
 
