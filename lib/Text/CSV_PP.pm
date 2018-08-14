@@ -1801,13 +1801,13 @@ sub __combine {
     if(!defined $quot or $quot eq "\0"){ $quot = ''; }
 
     my $re_esc;
-    if ($quot ne '') {
-      $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
-    } else {
-      $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$esc\E)/;
+    if ($esc ne '' and $esc ne "\0") {
+      if ($quot ne '') {
+        $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$quot\E|\Q$esc\E)/;
+      } else {
+        $re_esc = $self->{_re_comb_escape}->{$quot}->{$esc} ||= qr/(\Q$esc\E)/;
+      }
     }
-
-    my $re_sp  = $self->{_re_comb_sp}->{$sep}->{$quote_space} ||= ( $quote_space ? qr/[\s\Q$sep\E]/ : qr/[\Q$sep\E]/ );
 
     my $bound = 0;
     my $n = @$fields - 1;
@@ -1833,40 +1833,66 @@ sub __combine {
 
         my $value = $$v_ref;
 
-        unless (defined $value) {
-            push @results, '';
+        if (!defined $value) {
+            if ($ctx->{undef_str}) {
+                if ($ctx->{undef_flg}) {
+                    $ctx->{utf8} = 1;
+                    $ctx->{binary} = 1;
+                }
+                push @results, $ctx->{undef_str};
+            } else {
+                push @results, '';
+            }
             next;
         }
-        elsif ( !$binary ) {
-            $binary = 1 if utf8::is_utf8 $value;
+
+        if ( substr($value, 0, 1) eq '=' && $ctx->{formula} ) {
+            $value = $self->_formula($ctx, $value, $i);
+            if (!defined $value) {
+                push @results, '';
+                next;
+            }
         }
 
-        if (!$binary and $value =~ /[^\x09\x20-\x7E]/) {
-            # an argument contained an invalid character...
-            $self->{_ERROR_INPUT} = $value;
-            $self->SetDiag(2110);
-            return 0;
-        }
-
-        $must_be_quoted = 0;
+        $must_be_quoted = $ctx->{always_quote} ? 1 : 0;
         if ($value eq '') {
             $must_be_quoted++ if $ctx->{quote_empty} or ($check_meta && $self->is_quoted($i));
         }
         else {
-            if($value =~ s/$re_esc/$esc$1/g and $quot ne ''){
-                $must_be_quoted++;
-            }
-            if($value =~ /$re_sp/){
-                $must_be_quoted++;
+
+            if (utf8::is_utf8 $value) {
+                $ctx->{utf8} = 1;
+                $ctx->{binary} = 1;
             }
 
-            if( $binary and $ctx->{escape_null} ){
+            $must_be_quoted++ if $check_meta && $self->is_quoted($i);
+
+            if (!$must_be_quoted and $quot ne '') {
                 use bytes;
-                $must_be_quoted++ if ( $value =~ s/\0/${esc}0/g || ($ctx->{quote_binary} && $value =~ /[\x00-\x1f\x7f-\xa0]/) );
+                $must_be_quoted++ if
+                    ($value =~ /\Q$quot\E/) ||
+                    ($sep ne '' and $sep ne "\0" and $value =~ /\Q$sep\E/) ||
+                    ($esc ne '' and $esc ne "\0" and $value =~ /\Q$esc\E/) ||
+                    ($ctx->{quote_binary} && $value =~ /[\x00-\x1f\x7f-\xa0]/) ||
+                    ($ctx->{quote_space} && $value =~ /[\x09\x20]/);
+            }
+
+            if (!$ctx->{binary} and $value =~ /[^\x09\x20-\x7E]/) {
+                # an argument contained an invalid character...
+                $self->{_ERROR_INPUT} = $value;
+                $self->SetDiag(2110);
+                return 0;
+            }
+
+            if ($re_esc) {
+                $value =~ s/($re_esc)/$esc$1/g;
+            }
+            if ($ctx->{escape_null}) {
+                $value =~ s/\0/${esc}0/g;
             }
         }
 
-        if($ctx->{always_quote} or $must_be_quoted or ($check_meta && $self->is_quoted($i))){
+        if ($must_be_quoted) {
             $value = $quot . $value . $quot;
         }
         push @results, $value;
