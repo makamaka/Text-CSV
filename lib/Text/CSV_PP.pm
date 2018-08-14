@@ -1525,12 +1525,8 @@ sub _setup_ctx {
 
     my $ctx;
     if ($self->{_CACHE}) {
-        $ctx = $self->{_CACHE};
+        %$ctx = %{$self->{_CACHE}};
     } else {
-        $ctx ||= {};
-        # $ctx->{self}  = $self;
-        $ctx->{pself} = ref $self || $self;
-
         $ctx->{sep} = ',';
         if (defined $self->{sep_char}) {
             $ctx->{sep} = $self->{sep_char};
@@ -1623,7 +1619,7 @@ sub _setup_ctx {
         }
 
         # FIXME: readonly
-        $self->{_CACHE} = $ctx;
+        %{$self->{_CACHE}} = %$ctx;
     }
 
     $ctx->{utf8} = 0;
@@ -2017,6 +2013,7 @@ sub ___parse { # cx_c_xsParse
                 $self->{_EOF} = 1;
             }
         }
+        %{$self->{_CACHE}} = %$ctx;
 
         if ($fflags) {
             if ($ctx->{keep_meta_info}) {
@@ -2025,6 +2022,8 @@ sub ___parse { # cx_c_xsParse
                 undef $fflags;
             }
         }
+    } else {
+        %{$self->{_CACHE}} = %$ctx;
     }
 
     if ($result and $ctx->{types}) {
@@ -2603,6 +2602,7 @@ sub __set_eol_is_cr {
     $ctx->{eol} = "\015";
     $ctx->{eol_is_cr} = 1;
     $ctx->{eol_len} = 1;
+    %{$self->{_CACHE}} = %$ctx;
 
     $self->{eol} = $ctx->{eol};
 }
