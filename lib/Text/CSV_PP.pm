@@ -1960,6 +1960,7 @@ sub __parse { # cx_xsParse
     my ($self, $fields, $fflags, $src, $useIO) = @_;
 
     my $ctx = $self->_setup_ctx;
+
     my $state = $self->___parse($ctx, $fields, $fflags, $src, $useIO);
     if ($state and ($ctx->{has_hooks} || 0) & HOOK_AFTER_PARSE) {
         $self->_hook(after_parse => $fields);
@@ -2938,8 +2939,8 @@ is to  B<not>  pass L<C<eol>|/eol> in the parser  (it accepts C<\n>, C<\r>,
 B<and> C<\r\n> by default) and then
 
  my $csv = Text::CSV_PP->new ({ binary => 1 });
- open my $io, "<", $file or die "$file: $!";
- while (my $row = $csv->getline ($io)) {
+ open my $fh, "<", $file or die "$file: $!";
+ while (my $row = $csv->getline ($fh)) {
      my @fields = @$row;
      }
 
@@ -2950,6 +2951,8 @@ The old(er) way of using global file handles is still supported
 =head2 Unicode
 
 Unicode is only tested to work with perl-5.8.2 and up.
+
+See also L</BOM>.
 
 The simplest way to ensure the correct encoding is used for  in- and output
 is by either setting layers on the filehandles, or setting the L</encoding>
@@ -2992,17 +2995,38 @@ For complete control over encoding, please use L<Text::CSV::Encoded>:
  # combine () and print () accept UTF8 marked data
  # parse () and getline () return UTF8 marked data
 
+=head2 BOM
+
+BOM  (or Byte Order Mark)  handling is available only inside the L</header>
+method.   This method supports the following encodings: C<utf-8>, C<utf-1>,
+C<utf-32be>, C<utf-32le>, C<utf-16be>, C<utf-16le>, C<utf-ebcdic>, C<scsu>,
+C<bocu-1>, and C<gb-18030>. See L<Wikipedia|https://en.wikipedia.org/wiki/Byte_order_mark>.
+
+If a file has a BOM, the easiest way to deal with that is
+
+ my $aoh = csv (in => $file, detect_bom => 1);
+
+All records will be encoded based on the detected BOM.
+
+This implies a call to the  L</header>  method,  which defaults to also set
+the L</column_names>. So this is B<not> the same as
+
+ my $aoh = csv (in => $file, headers => "auto");
+
+which only reads the first record to set  L</column_names>  but ignores any
+meaning of possible present BOM.
+
 =head1 METHODS
 
-This whole section is also taken from Text::CSV_XS.
+This section is taken from Text::CSV_XS.
 
-=head2 version ()
+=head2 version
 
 (Class method) Returns the current module version.
 
-=head2 new (\%attr)
+=head2 new
 
-(Class method) Returns a new instance of Text::CSV_PP. The attributes
+(Class method) Returns a new instance of class Text::CSV_PP. The attributes
 are described by the (optional) hash ref C<\%attr>.
 
  my $csv = Text::CSV_PP->new ({ attributes ... });
@@ -3085,7 +3109,7 @@ it acts as an alias to L<C<quote_char>|/quote_char>.
 =head3 escape_char
 
  my $csv = Text::CSV_PP->new ({ escape_char => "\\" });
-         $csv->escape_char (undef);
+         $csv->escape_char (":");
  my $c = $csv->escape_char;
 
 The character to  escape  certain characters inside quoted fields.  This is
@@ -3103,6 +3127,9 @@ C<escape_char>,  the  C<escape_char> will still be the double-quote (C<">).
 If instead you want to escape the  L<C<quote_char>|/quote_char> by doubling
 it you will need to also change the  C<escape_char>  to be the same as what
 you have changed the L<C<quote_char>|/quote_char> to.
+
+Setting C<escape_char> to <undef> or C<""> will disable escaping completely
+and is greatly discouraged. This will also disable C<escape_null>.
 
 The escape character can not be equal to the separation character.
 
@@ -3129,6 +3156,72 @@ so setting C<< { binary => 1 } >> is still a wise option.
 
 If this attribute is set to C<1>, any row that parses to a different number
 of fields than the previous row will cause the parser to throw error 2014.
+
+=head3 formula_handling
+
+=head3 formula
+
+ my $csv = Text::CSV_PP->new ({ formula => "none" });
+         $csv->formula ("none");
+ my $f = $csv->formula;
+
+This defines the behavior of fields containing I<formulas>. As formulas are
+considered dangerous in spreadsheets, this attribute can define an optional
+action to be taken if a field starts with an equal sign (C<=>).
+
+For purpose of code-readability, this can also be written as
+
+ my $csv = Text::CSV_PP->new ({ formula_handling => "none" });
+         $csv->formula_handling ("none");
+ my $f = $csv->formula_handling;
+
+Possible values for this attribute are
+
+=over 2
+
+=item none
+
+Take no specific action. This is the default.
+
+ $csv->formula ("none");
+
+=item die
+
+Cause the process to C<die> whenever a leading C<=> is encountered.
+
+ $csv->formula ("die");
+
+=item croak
+
+Cause the process to C<croak> whenever a leading C<=> is encountered.  (See
+L<Carp>)
+
+ $csv->formula ("croak");
+
+=item diag
+
+Report position and content of the field whenever a leading  C<=> is found.
+The value of the field is unchanged.
+
+ $csv->formula ("diag");
+
+=item empty
+
+Replace the content of fields that start with a C<=> with the empty string.
+
+ $csv->formula ("empty");
+ $csv->formula ("");
+
+=item undef
+
+Replace the content of fields that start with a C<=> with C<undef>.
+
+ $csv->formula ("undef");
+ $csv->formula (undef);
+
+=back
+
+All other values will give a warning and then fallback to C<diag>.
 
 =head3 decode_utf8
 
@@ -3363,7 +3456,7 @@ By default,  all "unsafe" bytes inside a string cause the combined field to
 be quoted.  By setting this attribute to C<0>, you can disable that trigger
 for bytes >= C<0x7F>.
 
-=head3 escape_null or quote_null (deprecated)
+=head3 escape_null
 
  my $csv = Text::CSV_PP->new ({ escape_null => 1 });
          $csv->escape_null (0);
@@ -3374,7 +3467,21 @@ you to treat the  C<NULL>  byte as a simple binary character in binary mode
 (the C<< { binary => 1 } >> is set).  The default is true.  You can prevent
 C<NULL> escapes by setting this attribute to C<0>.
 
+When the C<escape_char> attribute is set to undefined,  this attribute will
+be set to false.
+
+The default setting will encode "=\x00=" as
+
+ "="0="
+
+With C<escape_null> set, this will result in
+
+ "=\x00="
+
 The default when using the C<csv> function is C<false>.
+
+For backward compatibility reasons,  the deprecated old name  C<quote_null>
+is still recognized.
 
 =head3 keep_meta_info
 
@@ -3405,6 +3512,21 @@ record (unless quotation was added because of other reasons).
  $csv->keep_meta_info (11);
  $csv->print (*STDOUT, \@row);
  # 1,,"", ," ",f,"g","h""h",help,"help"
+
+=head3 undef_str
+
+ my $csv = Text::CSV_PP->new ({ undef_str => "\\N" });
+         $csv->undef_str (undef);
+ my $s = $csv->undef_str;
+
+This attribute optionally defines the output of undefined fields. The value
+passed is not changed at all, so if it needs quotation, the quotation needs
+to be included in the value of the attribute.  Use with caution, as passing
+a value like  C<",",,,,""">  will for sure mess up your output. The default
+for this attribute is C<undef>, meaning no special treatment.
+
+This attribute is useful when exporting  CSV data  to be imported in custom
+loaders, like for MySQL, that recognize special sequences for C<NULL> data.
 
 =head3 verbatim
 
@@ -3483,6 +3605,7 @@ is equivalent to
      quote_binary          => 1,
      keep_meta_info        => 0,
      verbatim              => 0,
+     undef_str             => undef,
      types                 => undef,
      callbacks             => undef,
      });
@@ -3519,11 +3642,11 @@ in classes that use or extend Text::CSV_PP.
 
 =head2 print
 
- $status = $csv->print ($io, $colref);
+ $status = $csv->print ($fh, $colref);
 
 Similar to  L</combine> + L</string> + L</print>,  but much more efficient.
 It expects an array ref as input  (not an array!)  and the resulting string
-is not really  created,  but  immediately  written  to the  C<$io>  object,
+is not really  created,  but  immediately  written  to the  C<$fh>  object,
 typically an IO handle or any other object that offers a L</print> method.
 
 For performance reasons  C<print>  does not create a result string,  so all
@@ -3538,22 +3661,31 @@ as arguments to the method call:
  $csv->bind_columns (\($foo, $bar));
  $status = $csv->print ($fh, undef);
 
+A short benchmark
+
+ my @data = ("aa" .. "zz");
+ $csv->bind_columns (\(@data));
+
+ $csv->print ($fh, [ @data ]);   # 11800 recs/sec
+ $csv->print ($fh,  \@data  );   # 57600 recs/sec
+ $csv->print ($fh,   undef  );   # 48500 recs/sec
+
 =head2 say
 
- $status = $csv->say ($io, $colref);
+ $status = $csv->say ($fh, $colref);
 
 Like L<C<print>|/print>, but L<C<eol>|/eol> defaults to C<$\>.
 
 =head2 print_hr
 
- $csv->print_hr ($io, $ref);
+ $csv->print_hr ($fh, $ref);
 
 Provides an easy way  to print a  C<$ref>  (as fetched with L</getline_hr>)
 provided the column names are set with L</column_names>.
 
 It is just a wrapper method with basic parameter checks over
 
- $csv->print ($io, [ map { $ref->{$_} } $csv->column_names ]);
+ $csv->print ($fh, [ map { $ref->{$_} } $csv->column_names ]);
 
 =head2 combine
 
@@ -3575,12 +3707,12 @@ of L</combine>, whichever was called more recently.
 
 =head2 getline
 
- $colref = $csv->getline ($io);
+ $colref = $csv->getline ($fh);
 
 This is the counterpart to  L</print>,  as L</parse>  is the counterpart to
-L</combine>:  it parses a row from the C<$io>  handle using the L</getline>
-method associated with C<$io>  and parses this row into an array ref.  This
-array ref is returned by the function or C<undef> for failure.  When C<$io>
+L</combine>:  it parses a row from the C<$fh>  handle using the L</getline>
+method associated with C<$fh>  and parses this row into an array ref.  This
+array ref is returned by the function or C<undef> for failure.  When C<$fh>
 does not support C<getline>, you are likely to hit errors.
 
 When fields are bound with L</bind_columns> the return value is a reference
@@ -3590,27 +3722,27 @@ The L</string>, L</fields>, and L</status> methods are meaningless again.
 
 =head2 getline_all
 
- $arrayref = $csv->getline_all ($io);
- $arrayref = $csv->getline_all ($io, $offset);
- $arrayref = $csv->getline_all ($io, $offset, $length);
+ $arrayref = $csv->getline_all ($fh);
+ $arrayref = $csv->getline_all ($fh, $offset);
+ $arrayref = $csv->getline_all ($fh, $offset, $length);
 
-This will return a reference to a list of L<getline ($io)|/getline> results.
+This will return a reference to a list of L<getline ($fh)|/getline> results.
 In this call, C<keep_meta_info> is disabled.  If C<$offset> is negative, as
-with C<splice>, only the last  C<abs ($offset)> records of C<$io> are taken
+with C<splice>, only the last  C<abs ($offset)> records of C<$fh> are taken
 into consideration.
 
 Given a CSV file with 10 lines:
 
  lines call
  ----- ---------------------------------------------------------
- 0..9  $csv->getline_all ($io)         # all
- 0..9  $csv->getline_all ($io,  0)     # all
- 8..9  $csv->getline_all ($io,  8)     # start at 8
- -     $csv->getline_all ($io,  0,  0) # start at 0 first 0 rows
- 0..4  $csv->getline_all ($io,  0,  5) # start at 0 first 5 rows
- 4..5  $csv->getline_all ($io,  4,  2) # start at 4 first 2 rows
- 8..9  $csv->getline_all ($io, -2)     # last 2 rows
- 6..7  $csv->getline_all ($io, -4,  2) # first 2 of last  4 rows
+ 0..9  $csv->getline_all ($fh)         # all
+ 0..9  $csv->getline_all ($fh,  0)     # all
+ 8..9  $csv->getline_all ($fh,  8)     # start at 8
+ -     $csv->getline_all ($fh,  0,  0) # start at 0 first 0 rows
+ 0..4  $csv->getline_all ($fh,  0,  5) # start at 0 first 5 rows
+ 4..5  $csv->getline_all ($fh,  4,  2) # start at 4 first 2 rows
+ 8..9  $csv->getline_all ($fh, -2)     # last 2 rows
+ 6..7  $csv->getline_all ($fh, -4,  2) # first 2 of last  4 rows
 
 =head2 getline_hr
 
@@ -3619,7 +3751,7 @@ to have rows returned as hashrefs.  You must call L</column_names> first to
 declare your column names.
 
  $csv->column_names (qw( code name price description ));
- $hr = $csv->getline_hr ($io);
+ $hr = $csv->getline_hr ($fh);
  print "Price for $hr->{name} is $hr->{price} EUR\n";
 
 L</getline_hr> will croak if called before L</column_names>.
@@ -3628,30 +3760,35 @@ Note that  L</getline_hr>  creates a hashref for every row and will be much
 slower than the combined use of L</bind_columns>  and L</getline> but still
 offering the same ease of use hashref inside the loop:
 
- my @cols = @{$csv->getline ($io)};
+ my @cols = @{$csv->getline ($fh)};
  $csv->column_names (@cols);
- while (my $row = $csv->getline_hr ($io)) {
+ while (my $row = $csv->getline_hr ($fh)) {
      print $row->{price};
      }
 
 Could easily be rewritten to the much faster:
 
- my @cols = @{$csv->getline ($io)};
+ my @cols = @{$csv->getline ($fh)};
  my $row = {};
  $csv->bind_columns (\@{$row}{@cols});
- while ($csv->getline ($io)) {
+ while ($csv->getline ($fh)) {
      print $row->{price};
      }
 
-Your mileage may vary for the size of the data and the number of rows.
+Your mileage may vary for the size of the data and the number of rows. With
+perl-5.14.2 the comparison for a 100_000 line file with 14 rows:
+
+            Rate hashrefs getlines
+ hashrefs 1.00/s       --     -76%
+ getlines 4.15/s     313%       --
 
 =head2 getline_hr_all
 
- $arrayref = $csv->getline_hr_all ($io);
- $arrayref = $csv->getline_hr_all ($io, $offset);
- $arrayref = $csv->getline_hr_all ($io, $offset, $length);
+ $arrayref = $csv->getline_hr_all ($fh);
+ $arrayref = $csv->getline_hr_all ($fh, $offset);
+ $arrayref = $csv->getline_hr_all ($fh, $offset, $length);
 
-This will return a reference to a list of   L<getline_hr ($io)|/getline_hr>
+This will return a reference to a list of   L<getline_hr ($fh)|/getline_hr>
 results.  In this call, L<C<keep_meta_info>|/keep_meta_info> is disabled.
 
 =head2 parse
@@ -3676,7 +3813,7 @@ supposed to croak and set error 1500.
 This function tries to implement RFC7111  (URI Fragment Identifiers for the
 text/csv Media Type) - http://tools.ietf.org/html/rfc7111
 
- my $AoA = $csv->fragment ($io, $spec);
+ my $AoA = $csv->fragment ($fh, $spec);
 
 In specifications,  C<*> is used to specify the I<last> item, a dash (C<->)
 to indicate a range.   All indices are C<1>-based:  the first row or column
@@ -3688,7 +3825,7 @@ disjointed  cell-based combined selection  might return rows with different
 number of columns making the use of hashes unpredictable.
 
  $csv->column_names ("Name", "Age");
- my $AoH = $csv->fragment ($io, "col=3;8");
+ my $AoH = $csv->fragment ($fh, "col=3;8");
 
 If the L</after_parse> callback is active,  it is also called on every line
 parsed and skipped before the fragment.
@@ -3769,14 +3906,14 @@ Set the "keys" that will be used in the  L</getline_hr>  calls.  If no keys
 L</column_names> accepts a list of scalars  (the column names)  or a single
 array_ref, so you can pass the return value from L</getline> too:
 
- $csv->column_names ($csv->getline ($io));
+ $csv->column_names ($csv->getline ($fh));
 
 L</column_names> does B<no> checking on duplicates at all, which might lead
 to unexpected results.   Undefined entries will be replaced with the string
 C<"\cAUNDEF\cA">, so
 
  $csv->column_names (undef, "", "name", "name");
- $hr = $csv->getline_hr ($io);
+ $hr = $csv->getline_hr ($fh);
 
 Will set C<< $hr->{"\cAUNDEF\cA"} >> to the 1st field,  C<< $hr->{""} >> to
 the 2nd field, and C<< $hr->{name} >> to the 4th field,  discarding the 3rd
@@ -3795,6 +3932,11 @@ Parse the CSV header and set L<C<sep>|/sep>, column_names and encoding.
  $csv->header ($fh, { detect_bom => 1, munge_column_names => "lc" });
 
 The first argument should be a file handle.
+
+This method resets some object properties,  as it is supposed to be invoked
+only once per file or stream.  It will leave attributes C<column_names> and
+C<bound_columns> alone of setting column names is disabled. Reading headers
+on previously process objects might fail on perl-5.8.0 and older.
 
 Assuming that the file opened for parsing has a header, and the header does
 not contain problematic characters like embedded newlines,   read the first
@@ -3864,10 +4006,17 @@ Supported encodings from BOM are: UTF-8, UTF-16BE, UTF-16LE, UTF-32BE,  and
 UTF-32LE. BOM's also support UTF-1, UTF-EBCDIC, SCSU, BOCU-1,  and GB-18030
 but L<Encode> does not (yet). UTF-7 is not supported.
 
-The encoding is set using C<binmode> on C<$fh>.
+If a supported BOM was detected as start of the stream, it is stored in the
+abject attribute C<ENCODING>.
+
+ my $enc = $csv->{ENCODING};
+
+The encoding is used with C<binmode> on C<$fh>.
 
 If the handle was opened in a (correct) encoding,  this method will  B<not>
-alter the encoding, as it checks the leading B<bytes> of the first line.
+alter the encoding, as it checks the leading B<bytes> of the first line. In
+case the stream starts with a decode BOM (C<U+FEFF>), C<{ENCODING}> will be
+C<""> (empty) instead of the default C<undef>.
 
 =item munge_column_names
 
@@ -3879,10 +4028,23 @@ to lower case.
 
 The following values are available:
 
-  lc   - lower case
-  uc   - upper case
-  none - do not change
-  \&cb - supply a callback
+  lc     - lower case
+  uc     - upper case
+  none   - do not change
+  \%hash - supply a mapping
+  \&cb   - supply a callback
+
+Literal:
+
+ $csv->header ($fh, { munge_column_names => "none" });
+
+Hash:
+
+ $csv->header ($fh, { munge_column_names => { foo => "sombrero" });
+
+if a value does not exist, the original value is used unchanged
+
+Callback:
 
  $csv->header ($fh, { munge_column_names => sub { fc } });
  $csv->header ($fh, { munge_column_names => sub { "column_".$col++ } });
@@ -3898,6 +4060,8 @@ The default is to set the instances column names using  L</column_names> if
 the method is successful,  so subsequent calls to L</getline_hr> can return
 a hash. Disable setting the header can be forced by using a false value for
 this option.
+
+As described in L</return value> above, content is lost in scalar context.
 
 =back
 
@@ -3936,7 +4100,7 @@ C<3006>.  If you pass more than there are fields to return,  the content of
 the remaining references is left untouched.
 
  $csv->bind_columns (\$code, \$name, \$price, \$description);
- while ($csv->getline ($io)) {
+ while ($csv->getline ($fh)) {
      print "The price of a $name is \x{20ac} $price\n";
      }
 
@@ -3949,10 +4113,11 @@ If no arguments are passed at all, L</bind_columns> will return the list of
 current bindings or C<undef> if no binds are active.
 
 Note that in parsing with  C<bind_columns>,  the fields are set on the fly.
-That implies that if the third field  of a row  causes an error,  the first
-two fields already have been assigned the values of the current row,  while
-the rest of the fields will still hold the values of the previous row.
-If you want the parser to fail in these cases, use the L<C<strict>|/strict> attribute.
+That implies that if the third field of a row causes an error  (or this row
+has just two fields where the previous row had more),  the first two fields
+already have been assigned the values of the current row, while the rest of
+the fields will still hold the values of the previous row.  If you want the
+parser to fail in these cases, use the L<C<strict>|/strict> attribute.
 
 =head2 eof
 
@@ -4171,7 +4336,7 @@ Use to reset the diagnostics if you are dealing with errors.
 
 =head1 FUNCTIONS
 
-This whole section is also taken from Text::CSV_XS.
+This section is also taken from Text::CSV_XS.
 
 =head2 csv
 
@@ -4262,6 +4427,15 @@ where, in the absence of the C<out> attribute, this is a shortcut to
 
 =head3 out
 
+ csv (in => $aoa, out => "file.csv");
+ csv (in => $aoa, out => $fh);
+ csv (in => $aoa, out =>   STDOUT);
+ csv (in => $aoa, out =>  *STDOUT);
+ csv (in => $aoa, out => \*STDOUT);
+ csv (in => $aoa, out => \my $data);
+ csv (in => $aoa, out =>  undef);
+ csv (in => $aoa, out => \"skip");
+
 In output mode, the default CSV options when producing CSV are
 
  eol       => "\r\n"
@@ -4270,7 +4444,8 @@ The L</fragment> attribute is ignored in output mode.
 
 C<out> can be a file name  (e.g.  C<"file.csv">),  which will be opened for
 writing and closed when finished,  a file handle (e.g. C<$fh> or C<FH>),  a
-reference to a glob (e.g. C<\*STDOUT>), or the glob itself (e.g. C<*STDOUT>).
+reference to a glob (e.g. C<\*STDOUT>),  the glob itself (e.g. C<*STDOUT>),
+or a reference to a scalar (e.g. C<\my $data>).
 
  csv (in => sub { $sth->fetch },            out => "dump.csv");
  csv (in => sub { $sth->fetchrow_hashref }, out => "dump.csv",
@@ -4280,6 +4455,18 @@ When a code-ref is used for C<in>, the output is generated  per invocation,
 so no buffering is involved. This implies that there is no size restriction
 on the number of records. The C<csv> function ends when the coderef returns
 a false value.
+
+If C<out> is set to a reference of the literal string C<"skip">, the output
+will be suppressed completely,  which might be useful in combination with a
+filter for side effects only.
+
+ my %cache;
+ csv (in    => "dump.csv",
+      out   => \"skip",
+      on_in => sub { $cache{$_[1][1]}++ });
+
+Currently,  setting C<out> to any false value  (C<undef>, C<"">, 0) will be
+equivalent to C<\"skip">.
 
 =head3 encoding
 
@@ -4302,7 +4489,8 @@ C<detect_bom> can be abbreviated to C<bom>.
 
 This is the same as setting L<C<encoding>|/encoding> to C<"auto">.
 
-Note that as L</header> is invoked, its default is to also set the headers.
+Note that as the method  L</header> is invoked,  its default is to also set
+the headers.
 
 =head3 headers
 
@@ -4434,6 +4622,26 @@ will return
         }
     }
 
+The C<key> attribute can be combined with L<C<headers>|/headers> for C<CSV>
+date that has no header line, like
+
+ my $ref = csv (
+     in      => "foo.csv",
+     headers => [qw( c_foo foo bar description stock )],
+     key     =>     "c_foo",
+     );
+
+=head3 keep_headers
+
+When using hashes,  keep the column names into the arrayref passed,  so all
+headers are available after the call in the original order.
+
+ my $aoh = csv (in => "file.csv", keep_headers => \my @hdr);
+
+This attribute can be abbreviated to C<kh> or passed as C<keep_column_names>.
+
+This attribute implies a default of C<auto> for the C<headers> attribute.
+
 =head3 fragment
 
 Only output the fragment as defined in the L</fragment> method. This option
@@ -4458,12 +4666,42 @@ to detect and set L<C<sep_char>|/sep_char> with the given set.
 
 C<sep_set> can be abbreviated to C<seps>.
 
-Note that as L</header> is invoked, its default is to also set the headers.
+Note that as the  L</header> method is invoked,  its default is to also set
+the headers.
 
 =head3 set_column_names
 
 If  C<set_column_names> is passed,  the method L</header> is invoked on the
 opened stream with all arguments meant for L</header>.
+
+If C<set_column_names> is passed as a false value, the content of the first
+row is only preserved if the output is AoA:
+
+With an input-file like
+
+ bAr,foo
+ 1,2
+ 3,4,5
+
+This call
+
+ my $aoa = csv (in => $file, set_column_names => 0);
+
+will result in
+
+ [[ "bar", "foo"     ],
+  [ "1",   "2"       ],
+  [ "3",   "4",  "5" ]]
+
+and
+
+ my $aoa = csv (in => $file, set_column_names => 0, munge => "none");
+
+will result in
+
+ [[ "bAr", "foo"     ],
+  [ "1",   "2"       ],
+  [ "3",   "4",  "5" ]]
 
 =head2 Callbacks
 
@@ -4607,25 +4845,26 @@ but only feature the L</csv> function.
 =item filter
 
 This callback can be used to filter records.  It is called just after a new
-record has been scanned.  The callback accepts a hashref where the keys are
-the index to the row (the field number, 1-based) and the values are subs to
-return a true or false value.
+record has been scanned.  The callback accepts a:
+
+=over 2
+
+=item hashref
+
+The keys are the index to the row (the field name or field number, 1-based)
+and the values are subs to return a true or false value.
 
  csv (in => "file.csv", filter => {
             3 => sub { m/a/ },       # third field should contain an "a"
             5 => sub { length > 4 }, # length of the 5th field minimal 5
             });
 
- csv (in => "file.csv", filter => "not_blank");
- csv (in => "file.csv", filter => "not_empty");
- csv (in => "file.csv", filter => "filled");
+ csv (in => "file.csv", filter => { foo => sub { $_ > 4 }});
 
 If the keys to the filter hash contain any character that is not a digit it
 will also implicitly set L</headers> to C<"auto">  unless  L</headers>  was
 already passed as argument.  When headers are active, returning an array of
 hashes, the filter is not applicable to the header itself.
-
- csv (in => "file.csv", filter => { foo => sub { $_ > 4 }});
 
 All sub results should match, as in AND.
 
@@ -4650,7 +4889,26 @@ evaluates to false. To always accept, end with truth:
 
  filter => { 2 => sub { $_ = uc; 1 }}
 
-B<Predefined filters>
+=item coderef
+
+ csv (in => "file.csv", filter => sub { $n++; 0; });
+
+If the argument to C<filter> is a coderef,  it is an alias or shortcut to a
+filter on column 0:
+
+ csv (filter => sub { $n++; 0 });
+
+is equal to
+
+ csv (filter => { 0 => sub { $n++; 0 });
+
+=item filter-name
+
+ csv (in => "file.csv", filter => "not_blank");
+ csv (in => "file.csv", filter => "not_empty");
+ csv (in => "file.csv", filter => "filled");
+
+These are predefined filters
 
 Given a file like (line numbers prefixed for doc purpose only):
 
@@ -4704,6 +4962,8 @@ This filter rejects all lines that I<not> have at least one field that does
 not evaluate to the empty string.
 
 With the given example data, this filter would skip lines 2 through 8.
+
+=back
 
 =back
 
@@ -4778,6 +5038,8 @@ a 53% speedup.
 
 This section is also taken from Text::CSV_XS.
 
+Still under construction ...
+
 If an error occurs,  C<< $csv->error_diag >> can be used to get information
 on the cause of the failure. Note that for speed reasons the internal value
 is never cleared on success,  so using the value returned by L</error_diag>
@@ -4843,7 +5105,6 @@ And below should be the complete list of error codes that can be returned:
 
 =item *
 1001 "INI - sep_char is equal to quote_char or escape_char"
-X<1001>
 
 The  L<separation character|/sep_char>  cannot be equal to  L<the quotation
 character|/quote_char> or to L<the escape character|/escape_char>,  as this
@@ -4851,7 +5112,6 @@ would invalidate all parsing rules.
 
 =item *
 1002 "INI - allow_whitespace with escape_char or quote_char SP or TAB"
-X<1002>
 
 Using the  L<C<allow_whitespace>|/allow_whitespace>  attribute  when either
 L<C<quote_char>|/quote_char> or L<C<escape_char>|/escape_char>  is equal to
@@ -4859,7 +5119,6 @@ C<SPACE> or C<TAB> is too ambiguous to allow.
 
 =item *
 1003 "INI - \r or \n in main attr not allowed"
-X<1003>
 
 Using default L<C<eol>|/eol> characters in either L<C<sep_char>|/sep_char>,
 L<C<quote_char>|/quote_char>,   or  L<C<escape_char>|/escape_char>  is  not
@@ -4867,76 +5126,69 @@ allowed.
 
 =item *
 1004 "INI - callbacks should be undef or a hashref"
-X<1004>
 
 The L<C<callbacks>|/Callbacks>  attribute only allows one to be C<undef> or
 a hash reference.
 
 =item *
 1005 "INI - EOL too long"
-X<1005>
 
 The value passed for EOL is exceeding its maximum length (16).
 
 =item *
 1006 "INI - SEP too long"
-X<1006>
 
 The value passed for SEP is exceeding its maximum length (16).
 
 =item *
 1007 "INI - QUOTE too long"
-X<1007>
 
 The value passed for QUOTE is exceeding its maximum length (16).
 
 =item *
 1008 "INI - SEP undefined"
-X<1008>
 
 The value passed for SEP should be defined and not empty.
 
 =item *
 1010 "INI - the header is empty"
-X<1010>
 
 The header line parsed in the L</header> is empty.
 
 =item *
 1011 "INI - the header contains more than one valid separator"
-X<1011>
 
 The header line parsed in the  L</header>  contains more than one  (unique)
 separator character out of the allowed set of separators.
 
 =item *
 1012 "INI - the header contains an empty field"
-X<1012>
 
 The header line parsed in the L</header> is contains an empty field.
 
 =item *
 1013 "INI - the header contains nun-unique fields"
-X<1013>
 
 The header line parsed in the  L</header>  contains at least  two identical
 fields.
 
 =item *
 1014 "INI - header called on undefined stream"
-X<1014>
 
 The header line cannot be parsed from an undefined sources.
 
 =item *
 1500 "PRM - Invalid/unsupported argument(s)"
-X<1500>
 
 Function or method called with invalid argument(s) or parameter(s).
 
 =item *
+1501 "PRM - The key attribute is passed as an unsupported type"
+
+The C<key> attribute is of an unsupported type.
+
+=item *
 2010 "ECR - QUO char inside quotes followed by CR not part of EOL"
-X<2010>
 
 When  L<C<eol>|/eol>  has  been  set  to  anything  but the  default,  like
 C<"\r\t\n">,  and  the  C<"\r">  is  following  the   B<second>   (closing)
@@ -4945,7 +5197,6 @@ not make up the L<C<eol>|/eol> sequence, this is an error.
 
 =item *
 2011 "ECR - Characters after end of quoted field"
-X<2011>
 
 Sequences like C<1,foo,"bar"baz,22,1> are not allowed. C<"bar"> is a quoted
 field and after the closing double-quote, there should be either a new-line
@@ -4953,7 +5204,6 @@ sequence or a separation character.
 
 =item *
 2012 "EOF - End of data in parsing input stream"
-X<2012>
 
 Self-explaining. End-of-file while inside parsing a stream. Can happen only
 when reading from streams with L</getline>,  as using  L</parse> is done on
@@ -4961,46 +5211,39 @@ strings that are not required to have a trailing L<C<eol>|/eol>.
 
 =item *
 2013 "INI - Specification error for fragments RFC7111"
-X<2013>
 
 Invalid specification for URI L</fragment> specification.
 
 =item *
 2014 "ENF - Inconsistent number of fields"
-X<2014>
 
 Inconsistent number of fields under strict parsing.
 
 =item *
 2021 "EIQ - NL char inside quotes, binary off"
-X<2021>
 
 Sequences like C<1,"foo\nbar",22,1> are allowed only when the binary option
 has been selected with the constructor.
 
 =item *
 2022 "EIQ - CR char inside quotes, binary off"
-X<2022>
 
 Sequences like C<1,"foo\rbar",22,1> are allowed only when the binary option
 has been selected with the constructor.
 
 =item *
 2023 "EIQ - QUO character not allowed"
-X<2023>
 
 Sequences like C<"foo "bar" baz",qu> and C<2023,",2008-04-05,"Foo, Bar",\n>
 will cause this error.
 
 =item *
 2024 "EIQ - EOF cannot be escaped, not even inside quotes"
-X<2024>
 
 The escape character is not allowed as last character in an input stream.
 
 =item *
 2025 "EIQ - Loose unescaped escape"
-X<2025>
 
 An escape character should escape only characters that need escaping.
 
@@ -5009,7 +5252,6 @@ L</allow_loose_escape>.
 
 =item *
 2026 "EIQ - Binary character inside quoted field, binary off"
-X<2026>
 
 Binary characters are not allowed by default.    Exceptions are fields that
 contain valid UTF-8,  that will automatically be upgraded if the content is
@@ -5017,7 +5259,6 @@ valid UTF-8. Set L<C<binary>|/binary> to C<1> to accept binary data.
 
 =item *
 2027 "EIQ - Quoted field not terminated"
-X<2027>
 
 When parsing a field that started with a quotation character,  the field is
 expected to be closed with a quotation character.   When the parsed line is
@@ -5025,75 +5266,57 @@ exhausted before the quote is found, that field is not terminated.
 
 =item *
 2030 "EIF - NL char inside unquoted verbatim, binary off"
-X<2030>
 
 =item *
 2031 "EIF - CR char is first char of field, not part of EOL"
-X<2031>
 
 =item *
 2032 "EIF - CR char inside unquoted, not part of EOL"
-X<2032>
 
 =item *
 2034 "EIF - Loose unescaped quote"
-X<2034>
 
 =item *
 2035 "EIF - Escaped EOF in unquoted field"
-X<2035>
 
 =item *
 2036 "EIF - ESC error"
-X<2036>
 
 =item *
 2037 "EIF - Binary character in unquoted field, binary off"
-X<2037>
 
 =item *
 2110 "ECB - Binary character in Combine, binary off"
-X<2110>
 
 =item *
 2200 "EIO - print to IO failed. See errno"
-X<2200>
 
 =item *
 3001 "EHR - Unsupported syntax for column_names ()"
-X<3001>
 
 =item *
 3002 "EHR - getline_hr () called before column_names ()"
-X<3002>
 
 =item *
 3003 "EHR - bind_columns () and column_names () fields count mismatch"
-X<3003>
 
 =item *
 3004 "EHR - bind_columns () only accepts refs to scalars"
-X<3004>
 
 =item *
 3006 "EHR - bind_columns () did not pass enough refs for parsed fields"
-X<3006>
 
 =item *
 3007 "EHR - bind_columns needs refs to writable scalars"
-X<3007>
 
 =item *
 3008 "EHR - unexpected error in bound fields"
-X<3008>
 
 =item *
 3009 "EHR - print_hr () called before column_names ()"
-X<3009>
 
 =item *
 3010 "EHR - print_hr () called with invalid arguments"
-X<3010>
 
 =back
 
