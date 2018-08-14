@@ -220,6 +220,7 @@ my %attr_alias = (
     quote_always		=> "always_quote",
     verbose_diag		=> "diag_verbose",
     quote_null			=> "escape_null",
+    escape			=> "escape_char",
     );
 
 my $last_new_error = Text::CSV_PP->SetDiag(0);
@@ -471,7 +472,11 @@ sub quote {
 
 sub escape_char {
     my $self = shift;
-    @_ and $self->_set_attr_C ("escape_char", shift);
+    if (@_) {
+        my $ec = shift;
+        $self->_set_attr_C ("escape_char", $ec);
+        $ec or $self->_set_attr_X ("escape_null", 0);
+        }
     $self->{escape_char};
     }
 
@@ -1571,6 +1576,10 @@ sub _setup_ctx {
         for (qw/quote_space escape_null quote_binary/) {
             $ctx->{$_} = defined $self->{$_} ? $self->{$_} : 1;
         }
+        if ($ctx->{escape_char} eq "\0") {
+            $ctx->{escape_null} = 0;
+        }
+
         # FIXME: readonly
         $self->{_CACHE} = $ctx;
     }
