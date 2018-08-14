@@ -51,6 +51,7 @@ my $ERRORS = {
 
         # Syntax errors
         1500 => "PRM - Invalid/unsupported arguments(s)",
+        1501 => "PRM - The key attribute is passed as an unsupported type",
 
         # Parse errors
         2010 => "ECR - QUO char inside quotes followed by CR not part of EOL",
@@ -1227,6 +1228,9 @@ sub _csv_attr {
     my $hdrs = delete $attr{headers};
     my $frag = delete $attr{fragment};
     my $key  = delete $attr{key};
+    my $kh   = delete $attr{keep_headers}      ||
+          delete $attr{keep_column_names}      ||
+          delete $attr{kh};
 
     my $cbai = delete $attr{callbacks}{after_in}    ||
                delete $attr{after_in}               ||
@@ -1281,6 +1285,7 @@ sub _csv_attr {
         enc  => $enc,
         hdrs => $hdrs,
         key  => $key,
+        kh   => $kh,
         frag => $frag,
         fltr => $fltr,
         cbai => $cbai,
@@ -1350,18 +1355,29 @@ sub csv {
         return 1;
         }
 
+    my @row1;
     if (defined $c->{hd_s} || defined $c->{hd_b} || defined $c->{hd_m} || defined $c->{hd_c}) {
         my %harg;
         defined $c->{hd_s} and $harg{set_set}            = $c->{hd_s};
         defined $c->{hd_d} and $harg{detect_bom}         = $c->{hd_b};
         defined $c->{hd_m} and $harg{munge_column_names} = $hdrs ? "none" : $c->{hd_m};
         defined $c->{hd_c} and $harg{set_column_names}   = $hdrs ? 0      : $c->{hd_c};
-        $csv->header ($fh, \%harg);
+        @row1 = $csv->header ($fh, \%harg);
         my @hdr = $csv->column_names;
         @hdr and $hdrs ||= \@hdr;
         }
 
-    my $key = $c->{key} and $hdrs ||= "auto";
+    if ($c->{kh}) {
+        ref $c->{kh} eq "ARRAY" or croak ($csv->SetDiag (1501, "1501 - PRM"));
+        $hdrs ||= "auto";
+        }
+
+    my $key = $c->{key};
+    if ($key) {
+        ref $key and croak ($csv->SetDiag (1501, "1501 - PRM"));
+        $hdrs ||= "auto";
+        }
+
     $c->{fltr} && grep m/\D/ => keys %{$c->{fltr}} and $hdrs ||= "auto";
     if (defined $hdrs) {
         if (!ref $hdrs) {
@@ -1386,6 +1402,7 @@ sub csv {
             my $cr = $hdrs;
             $hdrs  = [ map {  $cr->($hdr{$_} || $_) } @$h ];
             }
+        $c->{kh} and $hdrs and @{$c->{kh}} = @$hdrs;
         }
 
     if ($c->{fltr}) {
@@ -1422,10 +1439,16 @@ sub csv {
         : # aoa
             $frag ? $csv->fragment ($fh, $frag)
                   : $csv->getline_all ($fh);
-    $ref or Text::CSV_PP->auto_diag;
+    if ($ref) {
+        @row1 && !$c->{hd_c} && !ref $hdrs and unshift @$ref, \@row1;
+        }
+    else {
+        Text::CSV_PP->auto_diag;
+        }
     $c->{cls} and close $fh;
     if ($ref and $c->{cbai} || $c->{cboi}) {
-        foreach my $r (@{$ref}) {
+        # Default is ARRAYref, but with key =>, you'll get a hashref
+        foreach my $r (ref $ref eq "ARRAY" ? @{$ref} : values %{$ref}) {
             local %_;
             ref $r eq "HASH" and *_ = $r;
             $c->{cbai} and $c->{cbai}->($csv, $r);
