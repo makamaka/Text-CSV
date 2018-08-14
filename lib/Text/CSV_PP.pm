@@ -1020,8 +1020,11 @@ sub header {
         $eol =~ m/^\r([^\n]|\z)/ and $self->eol ($eol);
         }
 
+    my @hdr = @$row;
     ref $args{munge_column_names} eq "CODE" and
-        @hdr = map { $args{munge_column_names}->($_) } @hdr;
+        @hdr = map { $args{munge_column_names}->($_)       } @hdr;
+    ref $args{munge_column_names} eq "HASH" and
+        @hdr = map { $args{munge_column_names}->{$_} || $_ } @hdr;
     my %hdr = map { $_ => 1 } @hdr;
     exists $hdr{""}   and croak ($self->SetDiag (1012));
     keys %hdr == @hdr or  croak ($self->SetDiag (1013));
