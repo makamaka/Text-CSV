@@ -1,5 +1,14 @@
 Revision history for Perl extension Text::CSV.
 
+1.96  2018-08-14
+    - Imported tests/fixes from Text::CSV_XS 1.36
+      - Added undef_str and keep_headers attributes
+      - Added csv(out => \"skip")
+      - Added formula actions
+      - Fixed BOM issues
+    - Fixed internal cache handling
+    - Added license and preferred issue tracker to META files (GH#26, garu++)
+
 1.95  2017-04-27
     - import "strict" attribute introduced in Text::CSV_XS 1.29
 
