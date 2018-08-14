@@ -197,6 +197,7 @@ my %def_attr = (
     keep_meta_info		=> 0,
     verbatim			=> 0,
     formula			=> 0,
+    undef_str			=> undef,
     types			=> undef,
     callbacks			=> undef,
 
@@ -385,6 +386,7 @@ my %_cache_id = ( # Only expose what is accessed from within PM
     _is_bound			=> 26,	# 26 .. 29
     formula			=> 38,
     strict   			=> 58,
+    undef_str  		=> 46,
     );
 
 my %_hidden_cache_id = qw(
@@ -648,6 +650,16 @@ sub verbatim {
     my $self = shift;
     @_ and $self->_set_attr_X ("verbatim", shift);
     $self->{verbatim};
+    }
+
+sub undef_str {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        $self->{undef_str} = defined $v ? "$v" : undef;
+        $self->_cache_set ($_cache_id{undef_str}, $self->{undef_str});
+        }
+    $self->{undef_str};
     }
 
 sub auto_diag {
@@ -1485,6 +1497,14 @@ sub _setup_ctx {
             }
         }
 
+        $ctx->{undef_flg} = 0;
+        if (defined $self->{undef_str}) {
+            $ctx->{undef_str} = $self->{undef_str};
+            $ctx->{undef_flg} = 3 if utf8::is_utf8($self->{undef_str});
+        } else {
+            $ctx->{undef_str} = undef;
+        }
+
         if (defined $self->{_types}) {
             $ctx->{types} = $self->{_types};
             $ctx->{types_len} = length($ctx->{types});
@@ -1588,6 +1608,15 @@ sub _cache_set {
     elsif ($key eq 'eol') {
         $cache->{eol} = $value if length($value);
         $cache->{eol_is_cr} = $value eq "\015" ? 1 : 0;
+    }
+    elsif ($key eq 'undef_str') {
+        if (defined $value) {
+            $cache->{undef_str} = $value;
+            $cache->{undef_flg} = 3 if utf8::is_utf8($value);
+        } else {
+            $cache->{undef_str} = undef;
+            $cache->{undef_flg} = 0;
+        }
     }
     else {
         $cache->{$key} = $value;
