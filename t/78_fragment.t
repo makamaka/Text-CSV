@@ -15,7 +15,7 @@ BEGIN {
         plan skip_all => "No reliable perlIO available";
         }
     else {
-        plan tests => 22;
+        plan tests => 38;
         }
     }
 
@@ -100,6 +100,15 @@ while (my ($spec, $expect) = splice @test, 0, 2) {
     open my $io, "<", \$data or die "IO: $!\n";
     is_deeply ($csv->fragment ($io, "col=2"),
 	[ map +{ C1 => $_.2 } => 1 .. 9 ], "Fragment col with headers to AoH");
+    }
+
+$csv->column_names (undef);
+foreach my $spec ("col=1;3=2", "col=1,3-2", "col=-3", "col=0", "col=2--5",
+	"col=0-2", "col=2-0", "col=2;;3") {
+    open my $io, "<", \$data or die "IO: $!\n";
+    my $ref = eval { $csv->fragment ($io, "col=2;3=2"); };
+    is ($ref, undef, "Bad fragment spec");
+    is (0 + $csv->error_diag, 2013, "Error in spec");
     }
 
 #$csv->eol ("\n");

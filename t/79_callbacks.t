@@ -67,9 +67,9 @@ is ($diag[0], 3006,			"too many values");
 # These tests are for the method
 foreach my $args ([""], [1], [[]], [sub{}], [1,2], [1,2,3],
 		  [undef,"error"], ["error",undef],
-		  ["%23bad",sub {}],["error",sub{0;},undef,1],
-		  ["error",[]],["error","error"],["",sub{0;}],
-		  [sub{0;},0],[[],""]) {
+		  ["%23bad",sub {}], ["error",sub{0;},undef,1],
+		  ["error",[]], ["error","error"], ["",sub{0;}],
+		  [sub{0;},0], [[],""]) {
     eval { $csv->callbacks (@$args); };
     my @diag = $csv->error_diag;
     is ($diag[0], 1004,			"invalid callbacks");

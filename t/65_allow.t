@@ -325,41 +325,42 @@ foreach my $bin (0, 1) {
 			 : "Abe",		"#\\r\\n $gc fld 2");
 	}
 
-    ok (1, "verbatim on getline (*FH)");
-    open  FH, ">", $tfn or die "$tfn: $!\n";
-    print FH @str, "M^Abe^*\r\n";
-    close FH;
+    my $fh;
+    ok (1, "verbatim on getline (\$fh)");
+    open  $fh, ">", $tfn or die "$tfn: $!\n";
+    print $fh @str, "M^Abe^*\r\n";
+    close $fh;
 
     foreach $gc (0, 1) {
 	$csv->verbatim ($gc);
 
-	open FH, "<", $tfn or die "$tfn: $!\n";
+	open $fh, "<", $tfn or die "$tfn: $!\n";
 
 	my $row;
-	ok ($row = $csv->getline (*FH),		"#\\r\\n $gc getline");
+	ok ($row = $csv->getline ($fh),		"#\\r\\n $gc getline");
 	is (@$row, 4,				"#\\r\\n $gc fields");
 	is ($row->[2], "Abe",			"#\\r\\n $gc fld 2");
 	is ($row->[3], "Timmerman",		"#\\r\\n $gc fld 3");
 
-	ok ($row = $csv->getline (*FH),		"#\\r\\n $gc parse");
+	ok ($row = $csv->getline ($fh),		"#\\r\\n $gc parse");
 	is (@$row, 3,				"#\\r\\n $gc fields");
 	is ($row->[2], $gc ? "Abe\nTimmerman"
 			   : "Abe",		"#\\r\\n $gc fld 2");
 	}
 
     $gc = $csv->verbatim ();
-    ok (my $row = $csv->getline (*FH),		"#\\r\\n $gc parse EOF");
+    ok (my $row = $csv->getline ($fh),		"#\\r\\n $gc parse EOF");
     is (@$row, 3,				"#\\r\\n $gc fields");
     is ($row->[2], "*\r\n",			"#\\r\\n $gc fld 2");
 
-    close FH;
+    close $fh;
 
     $csv = Text::CSV->new ({
 	binary		=> 0,
 	verbatim	=> 1,
 	eol		=> "#\r\n",
 	});
-    open my $fh, ">", $tfn or die "$tfn: $!\n";
+    open    $fh, ">", $tfn or die "$tfn: $!\n";
     print   $fh $str[1];
     close   $fh;
     open    $fh, "<", $tfn or die "$tfn: $!\n";

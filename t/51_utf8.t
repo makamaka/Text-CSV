@@ -53,7 +53,7 @@ BEGIN {
     binmode $builder->failure_output, ":encoding(utf8)";
     binmode $builder->todo_output,    ":encoding(utf8)";
 
-    plan tests => 11 + 6 * @tests + 4 * 22 + 6;
+    plan tests => 11 + 6 * @tests + 4 * 22 + 6 + 10;
     }
 
 BEGIN {
@@ -215,4 +215,29 @@ foreach my $new (0, 1, 2, 3) {
     ok ($str = $csv->string,					"string");
     utf8::decode ($str);
     is ($str, "I${H}${h}L\"${h}ve${h}${H}Perl", "Correct quotation");
+    }
+
+# Tests pulled from tests in perl6
+{   my $csv = Text::CSV->new ({ binary => 1, auto_diag => 1 });
+    my $h = pack "C*", 224, 34, 204, 182;
+    ok ($csv->combine (1, $h, 3));
+    ok (my $s = $csv->string, "String");
+    my $b = $h;
+    utf8::encode ($b);
+    ok ($csv->combine (1, $b, 3));
+    ok ($s = $csv->string, "String");
+    }
+
+{   my $h = qq{\x{10fffd}xE0"}; #"
+    my $b = $h;
+    ok ($csv->combine (1, $b, 3));
+    ok (my $s = $csv->string, "String");
+    $b = $h;
+    utf8::encode ($b);
+    ok ($csv->combine (1, $b, 3));
+    ok ($s = $csv->string, "String");
+    $b = $h;
+    utf8::encode ($b);
+    ok ($csv->combine (1, $b, 3));
+    ok ($s = $csv->string, "String");
     }

@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 48;
+ use Test::More tests => 58;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -18,9 +18,9 @@ my $data =
     "foo,bar,baz\n".
     "1,2,3\n".
     "2,a b,\n";
-open  FH, ">", $tfn or die "$tfn: $!";
-print FH $data;
-close FH;
+open  my $fh, ">", $tfn or die "$tfn: $!";
+print $fh $data;
+close $fh;
 
 my $aoa = [
     [qw( foo bar baz )],
@@ -82,8 +82,15 @@ is_deeply (csv (in => $tfn, headers => sub { lcfirst uc $_[0] }),
 	      { fOO => 2, bAR => "a b", bAZ => "" }],
 	    "AOH with mangled headers");
 
-open  FH, ">>", $tfn or die "$tfn: $!";
-print FH <<"EOD";
+SKIP: {
+    $] < 5.008001 and skip "No BOM support in $]", 1;
+    is_deeply (csv (in => $tfn, munge => { bar => "boo" }),
+	[{ baz =>  3, boo => 2,     foo => 1 },
+	 { baz => "", boo => "a b", foo => 2 }], "Munge with hash");
+    }
+
+open  $fh, ">>", $tfn or die "$tfn: $!";
+print $fh <<"EOD";
 3,3,3
 4,5,6
 5,7,9
@@ -91,7 +98,7 @@ print FH <<"EOD";
 7,11,15
 8,13,18
 EOD
-close FH;
+close $fh;
 
 is_deeply (csv (in => $tfn,
 	filter => { foo => sub { $_ > 2 && $_[1][2] - $_[1][1] < 4 }}), [
@@ -138,16 +145,47 @@ is_deeply (csv (in => $tfn,
     is_deeply (\%_, { brt => 42 }, "%_ restored");
     }
 
-# Add to %_ in callback
-is_deeply (csv (in      => $tfn,
-		headers => "auto",
-		filter  => { 1 => sub { $_ eq "4" }},
-		on_in   => sub { $_{brt} = 42; }),
-	    [{ foo => 4, bar => 5, baz => 6, brt => 42 }],
-	    "AOH with addition to %_ in on_in");
+SKIP: {
+    $] < 5.008001 and skip "Too complicated test for $]", 2;
+    # Add to %_ in callback
+    # And test bizarre (but allowed) attribute combinations
+    # Most of them can be either left out or done more efficiently in
+    # a different way
+    my $xcsv = Text::CSV->new;
+    is_deeply (csv (in                 => $tfn,
+		    seps               => [ ",", ";" ],
+		    munge              => "uc",
+		    quo                => '"',
+		    esc                => '"',
+		    csv                => $xcsv,
+		    filter             => { 1 => sub { $_ eq "4" }},
+		    on_in              => sub { $_{BRT} = 42; }),
+		[{ FOO => 4, BAR => 5, BAZ => 6, BRT => 42 }],
+		"AOH with addition to %_ in on_in");
+    is_deeply ($xcsv->csv (
+		    file               => $tfn,
+		    sep_set            => [ ";", "," ],
+		    munge_column_names => "uc",
+		    quote_char         => '"',
+		    quote              => '"',
+		    escape_char        => '"',
+		    escape             => '"',
+		    filter             => { 1 => sub { $_ eq "4" }},
+		    after_in           => sub { $_{BRT} = 42; }),
+		[{ FOO => 4, BAR => 5, BAZ => 6, BRT => 42 }],
+		"AOH with addition to %_ in on_in");
+    }
 
-open  FH, ">", $tfn or die "$tfn: $!";
-print FH <<"EOD";
+
+{   ok (my $hr = csv (in => $tfn, key => "foo", on_in => sub {
+			$_[1]{quz} = "B"; $_{ziq} = 2; }),
+	"Get into hashref with key and on_in");
+    is_deeply ($hr->{8}, {qw( bar 13 baz 18 foo 8 quz B ziq 2 )},
+	"on_in with key works");
+    }
+
+open  $fh, ">", $tfn or die "$tfn: $!";
+print $fh <<"EOD";
 3,3,3
 
 5,7,9
@@ -159,7 +197,7 @@ print FH <<"EOD";
 ""
 8,13,18
 EOD
-close FH;
+close $fh;
 
 is_deeply (csv (in => $tfn, filter => "not_blank"),
 	    [[3,3,3],[5,7,9],["",""],["",""],["",""," ",""],
@@ -171,3 +209,43 @@ is_deeply (csv (in => $tfn, filter => "not_empty"),
 is_deeply (csv (in => $tfn, filter => "filled"),
 	    [[3,3,3],[5,7,9],[8,13,18]],
 	    "filter => filled");
+
+is_deeply (csv (in => $tfn, filter => sub {
+		grep { defined && m/\S/ } @{$_[1]} }),
+	    [[3,3,3],[5,7,9],[8,13,18]],
+	    "filter => filled");
+
+# Count rows in different ways
+open  $fh, ">", $tfn or die "$tfn: $!";
+print $fh <<"EOD";
+foo,bar,baz
+1,,3
+0,"d
+€",4
+999,999,
+EOD
+close $fh;
+
+{   my $n = 0;
+    open my $fh, "<", $tfn;
+    my $csv = Text::CSV->new ({ binary => 1 });
+    while (my $row = $csv->getline ($fh)) { $n++; }
+    close $fh;
+    is ($n, 4, "Count rows with getline");
+    }
+{   my $n = 0;
+    my $aoa = csv (in => $tfn, on_in => sub { $n++ });
+    is ($n, 4, "Count rows with on_in");
+    }
+{   my $n = 0;
+    my $aoa = csv (in => $tfn, filter => { 0 => sub { $n++; 0; }});
+    is ($n, 4, "Count rows with filter hash");
+    }
+{   my $n = 0;
+    my $aoa = csv (in => $tfn, filter => sub { $n++; 0; });
+    is ($n, 4, "Count rows with filter sub");
+    }
+{   my $n = 0;
+    csv (in => $tfn, on_in => sub { $n++; 0; }, out => \"skip");
+    is ($n, 4, "Count rows with on_in and skipped out");
+    }

@@ -5,7 +5,7 @@ $^W = 1;
 use Config;
 
 #use Test::More "no_plan";
- use Test::More tests => 45;
+ use Test::More tests => 88;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -58,6 +58,25 @@ is_deeply (csv (file => $tfn, headers  => "skip"),    \@aoa, "AOA skip");
 is_deeply (csv (file => $tfn, fragment => "row=2-3"), \@aoa, "AOA fragment");
 
 if ($] >= 5.008001) {
+    my @hdr;
+    ok (my $ref = csv (in => $tfn, bom => 1), "csv (-- not keeping header)");
+    is_deeply (\@hdr, [], "Should still be empty");
+    foreach my $alias (qw( keep_headers keep_column_names kh )) {
+	@hdr = ();
+	ok (my $ref = csv (in => $tfn, bom => 1, $alias => \@hdr), "csv ($alias => ...)");
+	is_deeply (\@hdr, [qw( foo bar baz )], "Headers kept for $alias");
+	}
+    foreach my $alias (qw( keep_headers keep_column_names kh )) {
+	@hdr = ();
+	ok (my $ref = csv (in => $tfn, $alias => \@hdr), "csv ($alias => ... -- implied headers)");
+	is_deeply (\@hdr, [qw( foo bar baz )], "Headers kept for $alias");
+	}
+    }
+else {
+    ok (1, q{This perl cannot do scalar IO}) for 1..14;
+    }
+
+if ($] >= 5.008001) {
     is_deeply (csv (in => $tfn, encoding => "utf-8", headers => ["a", "b", "c"],
 		    fragment => "row=2", sep_char => ","),
 	   [{ a => 1, b => 2, c => 3 }], "AOH headers fragment");
@@ -84,7 +103,7 @@ my $idx = 0;
 sub getrowa { return $aoa->[$idx++]; }
 sub getrowh { return $aoh->[$idx++]; }
 
-ok (csv (in => \&getrowa, out => $tfn), "out from CODE/AR");
+ok (csv (in => \&getrowa, file => $tfn), "out via file from CODE/AR");
 is_deeply (csv (in => $tfn), $aoa, "data from CODE/AR");
 
 $idx = 0;
@@ -139,7 +158,8 @@ close $fh;
 
     # Check that I can overrule auto_diag
     $ad = 0;
-    csv (in => [[1,2]], out => $fh, on_in => \&check, auto_diag => 0);
+    csv (in => [[1,2]], out => $fh, on_in => \&check, auto_diag => 0,
+	($] >= 5.008004 ? (encoding => "utf-8") : ()));
     }
 $] < 5.008 and unlink glob "SCALAR(*)";
 
@@ -149,6 +169,62 @@ $] < 5.008 and unlink glob "SCALAR(*)";
     my $r = eval { csv (in => undef); };
     is ($r, undef, "csv needs in or file");
     like ($err, qr{^usage:}, "error");
+    undef $err;
+
+    $r = eval { csv (in => $tfn, key => ["foo"], auto_diag => 0); };
+    is ($r, undef, "Fail call with bad key type");
+    like ($err, qr{1501 - PRM}, "Error 1501");
+    undef $err;
+
+    local $SIG{__DIE__} = sub { $err = shift; };
+    foreach my $hr (1, "foo", \my %hr, sub { 42; }, *STDOUT) {
+	$r = eval { csv (in => $tfn, kh => $hr, auto_diag => 0); };
+	is ($r, undef, "Fail call with bad keep_header type");
+	like ($err, qr{1501 - PRM}, "Error 1501");
+	undef $err;
+	}
+
+#   $r = eval { csv (in => +{}, auto_diag => 0); };
+#   is ($r, undef, "Cannot read from hashref");
+#   like ($err, qr{No such file}i, "No such file or directory");
+#   undef $err;
+
+    $r = eval { csv (in => undef, auto_diag => 0); };
+    is ($r, undef, "Cannot read from undef");
+    like ($err, qr{^usage}, "Remind them of correct syntax");
+    undef $err;
+
+    $r = eval { csv (in => "", auto_diag => 0); };
+    is ($r, undef, "Cannot read from empty");
+    like ($err, qr{^usage}, "Remind them of correct syntax");
+    undef $err;
+
+    my $fn = "./dev/foo/bar/\x99\x99/\x88\x88/".
+	(join "\x99" => map { chr (128 + int rand 128) } 0..100).".csv";
+    $r = eval { csv (in => $fn, auto_diag => 0); };
+    is ($r, undef, "Cannot read from impossible file");
+    like ($err, qr{/foo/bar}, "No such file or directory");
+    undef $err;
+
+    $r = eval { csv (in => [[1,2]], out => $fn, auto_diag => 0); };
+    is ($r, undef, "Cannot write to impossible file");
+    like ($err, qr{/foo/bar}, "No such file or directory");
+    undef $err;
+
+    my %x;
+    $r = eval { csv (in => $tfn, out => \%x, auto_diag => 0); };
+    is ($r, undef, "Cannot write to hashref");
+    like ($err, qr{Not a GLOB}i, "Not a GLOB");
+    undef $err;
+
+    $r = eval { csv (); };
+    is ($r, undef, "Needs arguments");
+    like ($err, qr{^usage}i, "Don't know what to do");
+    undef $err;
+
+    $r = eval { csv (in => "in.csv", out => "out.csv"); };
+    is ($r, undef, "Cannot use strings for both");
+    like ($err, qr{^cannot}i, "Explicitely unsupported");
     undef $err;
     }
 
@@ -177,12 +253,38 @@ eval {
 
 {   local *STDOUT;
     my $ofn = "_STDOUT.csv";
+
     open STDOUT, ">", $ofn or die "$ofn: $!\n";
     csv (in => $tfn, quote_always => 1, fragment => "row=1-2",
 	on_in => sub { splice @{$_[1]}, 1; }, eol => "\n");
     close STDOUT;
-    open my $oh, "<", $ofn or die "$ofn: $!\n";
     my $dta = do { local (@ARGV, $/) = $ofn; <> };
     is ($dta, qq{"a"\n"1"\n}, "Chained csv call inherited attributes");
     unlink $ofn;
+
+    open STDOUT, ">", $ofn;
+    csv (in => [[1,2]], out => *STDOUT, eol => "\n");
+    close STDOUT;
+    $dta = do { local (@ARGV, $/) = $ofn; <> };
+    is ($dta, qq{1,2\n}, "out to *STDOUT");
+    unlink $ofn;
+
+    open STDOUT, ">", $ofn;
+    csv (in => [[1,2]], out => \*STDOUT, eol => "\n");
+    close STDOUT;
+    $dta = do { local (@ARGV, $/) = $ofn; <> };
+    is ($dta, qq{1,2\n}, "out to \\*STDOUT");
+    unlink $ofn;
+
+    SKIP: {
+	$] <= 5.008003 and skip qq{$] does not support ">:crlf"}, 1;
+	open STDOUT, ">", $ofn; binmode STDOUT, ":crlf";
+	csv (in => [[1,2]], out => \*STDOUT);
+	close STDOUT;
+	open my $oh, "<", $ofn or die "$ofn: $!\n";
+	binmode $oh;
+	$dta = do { local $/; <$oh> };
+	is ($dta, qq{1,2\r\n}, "out to \\*STDOUT");
+	unlink $ofn;
+	}
     }

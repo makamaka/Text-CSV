@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 13;
+ use Test::More tests => 44;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -56,6 +56,34 @@ is ($csv->bind_columns (undef), undef,	"bind column clear");
 untie $bar;
 close $fh;
 
+$csv->eol (undef);
+ok ($csv->combine ("us", undef, 3),	"Combine with undef");
+is ($csv->string, "us,,3",		"Default");
+foreach my $us ("\\N", 1, ",,,", "", "\xe2\x80\xa2", "\x{2205}") {
+    ok (defined ($csv->undef_str ($us)),"Set undef_str with method");
+    ok ($csv->combine ("us", undef, 3),	"Combine with undef");
+    is ($csv->string, "us,$us,3",		"String after method");
+    }
+
+tie my $us, "Bar";
+$us = "NULL";
+ok ($csv->undef_str ($us),		"Set undef_str from tied scalar");
+ok ($csv->combine ("us", undef, 3),	"Combine with undef");
+is ($csv->string, "us,NULL,3",		"String after method");
+$us = "\\N";
+ok ($csv->undef_str ($us),		"Set undef_str from tied scalar");
+ok ($csv->combine ("us", undef, 3),	"Combine with undef");
+is ($csv->string, "us,\\N,3",		"String after method");
+$us = undef;
+is ($csv->undef_str ($us), undef,	"Set undef_str from tied scalar");
+ok ($csv->combine ("us", undef, 3),	"Combine with undef");
+is ($csv->string, "us,,3",		"String after method");
+untie $us;
+
+$csv = Text::CSV->new ({ undef_str => "\\N" });
+ok ($csv->combine ("us", undef, 3),	"Combine with undef");
+is ($csv->string, "us,\\N,3",		"String after undef_str from constructor");
+
 {   package Foo;
     use strict;
     use warnings;
@@ -64,13 +92,11 @@ close $fh;
     use vars qw( @ISA );
     @ISA = qw(Tie::Scalar);
 
-    sub FETCH
-    {
+    sub FETCH {
 	[ "#", 1 .. 3 ];
 	} # FETCH
 
-    sub TIESCALAR
-    {
+    sub TIESCALAR {
 	bless [], "Foo";
 	} # TIESCALAR
 
@@ -86,18 +112,15 @@ close $fh;
     use vars qw( @ISA );
     @ISA = qw(Tie::Scalar);
 
-    sub FETCH
-    {
+    sub FETCH {
 	return ${$_[0]};
 	} # FETCH
 
-    sub STORE
-    {
+    sub STORE {
 	${$_[0]} = $_[1];
 	} # STORE
 
-    sub TIESCALAR
-    {
+    sub TIESCALAR {
 	my $bar;
 	bless \$bar, "Bar";
 	} # TIESCALAR

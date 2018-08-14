@@ -14,7 +14,7 @@ BEGIN {
         plan skip_all => "This test unit requires perl-5.8.2 or higher";
         }
     else {
-	my $n = 297;
+	my $n = 1370;
 	$pu and $n -= 120;
 	plan tests => $n;
 	}
@@ -88,6 +88,17 @@ foreach my $sep (",", ";") {
 	is_deeply (csv (in => $fh, munge => "uc", key => "BAR"),
 	    { 1 => { BAR => 1, FOO => 2 }, 3 => { BAR => 3, FOO => 4 }},
 	    "use header () from csv (key, uc) with $sep");
+	}
+
+    {   open my $fh, "<", \$data;
+	is_deeply (csv (in => $fh, set_column_names => 0),
+	    [[ "bar", "foo" ], [ 1, 2 ], [ 3, 4, 5 ]],
+	    "use header () from csv () with $sep to ARRAY not setting column names");
+	}
+    {   open my $fh, "<", \$data;
+	is_deeply (csv (in => $fh, set_column_names => 0, munge => "none"),
+	    [[ "bAr", "foo" ], [ 1, 2 ], [ 3, 4, 5 ]],
+	    "use header () from csv () with $sep to ARRAY not setting column names not lc");
 	}
     }
 
@@ -192,6 +203,22 @@ foreach my $sep (",", ";") {
 	}
     }
 
+foreach my $ss ("", "bad", sub { 1; }, \*STDOUT, +{}) {
+    my $dta = "a,b\n1,2\n";
+    open my $fh, "<", \$dta;
+    my @hdr = eval { $csv->header ($fh, { sep_set => $ss }) };
+    is (scalar @hdr, 0, "No header on invalid sep_set");
+    is (0 + $csv->error_diag, 1500, "Error code");
+    }
+
+foreach my $dta ("", "\xfe\xff", "\xf7\x64\x4c", "\xdd\x73\x66\x73",
+	"\x0e\xfe\xff", "\xfb\xee\x28", "\x84\x31\x95\x33") {
+    open my $fh, "<", \$dta;
+    my @hdr = eval { $csv->header ($fh) };
+    is (scalar @hdr, 0, "No header on empty stream");
+    is (0 + $csv->error_diag, 1010, "Error code");
+    }
+
 my $n;
 for ([ undef, "bar" ], [ "lc", "bar" ], [ "uc", "BAR" ], [ "none", "bAr" ],
      [ sub { "column_".$n++ }, "column_0" ]) {
@@ -216,48 +243,82 @@ for ([ undef, "bar" ], [ "lc", "bar" ], [ "uc", "BAR" ], [ "none", "bAr" ],
     }
 
 my $fnm = "_85hdr.csv"; END { unlink $fnm; }
-$csv->binary (1);
-$csv->auto_diag (9);
-my $str = qq{zoo,b\x{00e5}r\n1,"1 \x{20ac} each"\n};
-for (	[ "none"       => ""	],
-	[ "utf-8"      => "\xef\xbb\xbf"	],
-	[ "utf-16be"   => "\xfe\xff"		],
-	[ "utf-16le"   => "\xff\xfe"		],
-	[ "utf-32be"   => "\x00\x00\xfe\xff"	],
-	[ "utf-32le"   => "\xff\xfe\x00\x00"	],
-	[ "utf-1"      => "\xf7\x64\x4c"	],
-	[ "utf-ebcdic" => "\xdd\x73\x66\x73"	],
-	[ "scsu"       => "\x0e\xfe\xff"	],
-	[ "bocu-1"     => "\xfb\xee\x28"	],
-	[ "gb-18030"   => "\x84\x31\x95"	],
-	) {
-    my ($enc, $bom) = @$_;
-    my $has_enc = 0;
-    eval {
-	open my $fh, ">", $fnm;
-	binmode $fh;
-	print $fh $bom;
-	print $fh Encode::encode ($enc eq "none" ? "utf-8" : $enc, $str);
-	close $fh;
-	$has_enc = 1;
-	};
+foreach my $irs ("\n", "\xaa") {
+    local $/ = $irs;
+    foreach my $eol ("\n", "\r\n", "\r") {
+	my $str = join $eol =>
+	    qq{zoo,b\x{00e5}r},
+	    qq{1,"1 \x{20ac} each"},
+	    "";
+	for (   [ "none"       => ""			],
+		[ "utf-8"      => "\xef\xbb\xbf"		],
+		[ "utf-16be"   => "\xfe\xff"		],
+		[ "utf-16le"   => "\xff\xfe"		],
+		[ "utf-32be"   => "\x00\x00\xfe\xff"	],
+		[ "utf-32le"   => "\xff\xfe\x00\x00"	],
+		# Below not (yet) supported by Encode
+		[ "utf-1"      => "\xf7\x64\x4c"		],
+		[ "utf-ebcdic" => "\xdd\x73\x66\x73"	],
+		[ "scsu"       => "\x0e\xfe\xff"		],
+		[ "bocu-1"     => "\xfb\xee\x28"		],
+		[ "gb-18030"   => "\x84\x31\x95"		],
+		[ "UTF-8"      => "\x{feff}"		],
+		) {
+	    my ($enc, $bom) = @$_;
+	    my $has_enc = 0;
+	    eval {
+		no warnings "utf8";
+		open my $fh, ">", $fnm;
+		binmode $fh;
+		print $fh $bom;
+		print $fh Encode::encode ($enc eq "none" ? "utf-8" : $enc, $str);
+		close $fh;
+		$has_enc = 1;
+		};
 
-    SKIP: {
-	$has_enc or skip "Encoding $enc not supported", 7;
-	$csv->column_names (undef);
-	open my $fh, "<", $fnm;
-	binmode $fh;
-	ok (1, "$fnm opened for enc $enc");
-	ok ($csv->header ($fh), "headers with BOM for $enc");
-	is (($csv->column_names)[1], "b\x{00e5}r", "column name was decoded");
-	ok (my $row = $csv->getline_hr ($fh), "getline_hr");
-	is ($row->{"b\x{00e5}r"}, "1 \x{20ac} each", "Returned in Unicode");
-	close $fh;
+	    $csv = Text::CSV->new ({ binary => 1, auto_diag => 9 });
 
-	ok (my $aoh = csv (in => $fnm, bom => 1), "csv (bom => 1)");
-	is_deeply ($aoh,
-	    [{ zoo => 1, "b\x{00e5}r" => "1 \x{20ac} each" }], "Returned data");
+	    SKIP: {
+		$has_enc or skip "Encoding $enc not supported", 7;
+		$csv->column_names (undef);
+		open my $fh, "<", $fnm;
+		binmode $fh;
+		ok (1, "$fnm opened for enc $enc");
+		ok ($csv->header ($fh), "headers with BOM for $enc");
+		$enc =~ m/^utf/ and is ($csv->{ENCODING}, uc $enc, "Encoding inquirable");
+		is (($csv->column_names)[1], "b\x{00e5}r", "column name was decoded");
+		ok (my $row = $csv->getline_hr ($fh), "getline_hr");
+		is ($row->{"b\x{00e5}r"}, "1 \x{20ac} each", "Returned in Unicode");
+		close $fh;
+
+		my $aoh;
+		ok ($aoh = csv (in => $fnm, bom => 1), "csv (bom => 1)");
+		is_deeply ($aoh,
+		    [{ zoo => 1, "b\x{00e5}r" => "1 \x{20ac} each" }], "Returned data");
+
+		ok ($aoh = csv (in => $fnm, encoding => "auto"), "csv (encoding => auto)");
+		is_deeply ($aoh,
+		    [{ zoo => 1, "b\x{00e5}r" => "1 \x{20ac} each" }], "Returned data");
+		}
+
+	    SKIP: {
+		$has_enc or skip "Encoding $enc not supported", 7;
+		$csv->column_names (undef);
+		open my $fh, "<", $fnm;
+		$enc eq "none" or binmode $fh, ":encoding($enc)";
+		ok (1, "$fnm opened for enc $enc");
+		ok ($csv->header ($fh), "headers with BOM for $enc");
+		is (($csv->column_names)[1], "b\x{00e5}r", "column name was decoded");
+		ok (my $row = $csv->getline_hr ($fh), "getline_hr");
+		is ($row->{"b\x{00e5}r"}, "1 \x{20ac} each", "Returned in Unicode");
+		close $fh;
+
+		ok (my $aoh = csv (in => $fnm, bom => 1), "csv (bom => 1)");
+		is_deeply ($aoh,
+		    [{ zoo => 1, "b\x{00e5}r" => "1 \x{20ac} each" }], "Returned data");
+		}
+
+	    unlink $fnm;
+	    }
 	}
-
-    unlink $fnm;
     }

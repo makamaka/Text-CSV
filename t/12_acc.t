@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;	# use warnings core since 5.6
 
-use Test::More tests => 196;
+use Test::More tests => 234;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -32,6 +32,7 @@ is ($csv->empty_is_undef,		0,		"empty_is_undef");
 is ($csv->auto_diag,			0,		"auto_diag");
 is ($csv->diag_verbose,			0,		"diag_verbose");
 is ($csv->verbatim,			0,		"verbatim");
+is ($csv->formula,			"none",		"formula");
 is ($csv->strict,			0,		"strict");
 is ($csv->quote_space,			1,		"quote_space");
 is ($csv->quote_empty,			0,		"quote_empty");
@@ -40,6 +41,7 @@ is ($csv->quote_null,			1,		"quote_null");
 is ($csv->quote_binary,			1,		"quote_binary");
 is ($csv->record_number,		0,		"record_number");
 is ($csv->decode_utf8,			1,		"decode_utf8");
+is ($csv->undef_str,			undef,		"undef_str");
 
 is ($csv->binary (1),			1,		"binary (1)");
 my @fld = ( 'txt =, "Hi!"', "Yes", "", 2, undef, "1.09", "\r", undef );
@@ -48,10 +50,13 @@ is ($csv->string,
     qq{"txt =, ""Hi!""",Yes,,2,,1.09,"\r",},	"string");
 
 is ($csv->sep_char (";"),		";",		"sep_char (;)");
+is ($csv->sep ("**"),			"**",		"sep (**)");
 is ($csv->sep (";"),			";",		"sep (;)");
 is ($csv->sep_char (),			";",		"sep_char ()");
 is ($csv->quote_char ("="),		"=",		"quote_char (=)");
 is ($csv->quote (undef),		"",		"quote (undef)");
+is ($csv->quote (""),			"",		"quote (undef)");
+is ($csv->quote ("**"),			"**",		"quote (**)");
 is ($csv->quote ("="),			"=",		"quote (=)");
 is ($csv->eol (undef),			"",		"eol (undef)");
 is ($csv->eol (""),			"",		"eol ('')");
@@ -85,6 +90,7 @@ is ($csv->diag_verbose ("false"),	0,		"diag_verbose (\"false\")");
 is ($csv->diag_verbose (undef),		0,		"diag_verbose (undef)");
 is ($csv->diag_verbose (""),		0,		"diag_verbose (\"\")");
 is ($csv->verbatim (1),			1,		"verbatim (1)");
+is ($csv->formula ("diag"),		"diag",		"formula (\"diag\")");
 is ($csv->strict (1),			1,		"strict (1)");
 is ($csv->quote_space (1),		1,		"quote_space (1)");
 is ($csv->quote_empty (1),		1,		"quote_empty (1)");
@@ -95,6 +101,7 @@ is ($csv->escape_char ("\\"),		"\\",		"escape_char (\\)");
 ok ($csv->combine (@fld),				"combine");
 is ($csv->string,
     qq{=txt \\=, "Hi!"=;=Yes=;==;=2=;;=1.09=;=\r=;\r},	"string");
+is ($csv->undef_str ("-"),		"-",		"undef_str");
 
 is ($csv->allow_whitespace (0),		0,		"allow_whitespace (0)");
 is ($csv->quote_space (0),		0,		"quote_space (0)");
@@ -107,6 +114,7 @@ is ($csv->sep ("--"),			"--",		"sep (\"--\")");
 is ($csv->sep_char (),			"\0",		"sep_char");
 is ($csv->quote ("++"),			"++",		"quote (\"++\")");
 is ($csv->quote_char (),		"\0",		"quote_char");
+is ($csv->undef_str (undef),		undef,		"undef_str");
 
 # Test single-byte specials in UTF-8 mode
 is ($csv->sep ("|"),			"|",		"sep |");
@@ -169,13 +177,19 @@ foreach my $ws (" ", "\t") {
     eval { ok ($csv->quote_char  ($ws),     "esc") };
     is (($csv->error_diag)[0], 1002, "Wrong combo");
     }
-eval { $csv = Text::CSV->new ({
-    escape_char      => "\t",
-    quote_char       => " ",
-    allow_whitespace => 1,
-    }) };
-like ((Text::CSV::error_diag)[1], qr{^INI - allow_whitespace}, "Wrong combo - error message");
-is   ((Text::CSV::error_diag)[0], 1002, "Wrong combo - numeric error");
+foreach my $esc (undef, "", " ", "\t", "!!!!!!") {
+    foreach my $quo (undef, "", " ", "\t", "!!!!!!") {
+	defined $esc && $esc =~ m/[ \t]/ or 
+	defined $quo && $quo =~ m/[ \t]/ or next;
+	eval { $csv = Text::CSV->new ({
+	    escape           => $esc,
+	    quote            => $quo,
+	    allow_whitespace => 1,
+	    }) };
+	like ((Text::CSV::error_diag)[1], qr{^INI - allow_whitespace}, "Wrong combo - error message");
+	is   ((Text::CSV::error_diag)[0], 1002, "Wrong combo - numeric error");
+	}
+    }
 
 # Test 1003 in constructor
 foreach my $x ("\r", "\n", "\r\n", "x\n", "\rx") {
@@ -237,9 +251,11 @@ my $attr = [ sort qw(
     always_quote quote_space quote_empty quote_binary
     escape_null
     keep_meta_info
-    verbatim strict
+    verbatim strict formula
+    undef_str
     types
     callbacks
+    ENCODING
     )];
 is_deeply ([ Text::CSV::known_attributes () ],      $attr, "Known attributes (function)");
 is_deeply ([ Text::CSV->known_attributes () ],      $attr, "Known attributes (class method)");

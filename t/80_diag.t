@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 286;
+ use Test::More tests => 288;
 #use Test::More "no_plan";
 
 my %err;
@@ -14,10 +14,11 @@ BEGIN {
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "./t/util.pl";
 
-    open PP, "< lib/Text/CSV_PP.pm" or die "Cannot read error messages from PP\n";
-    while (<PP>) {
+    open my $fh, "<", "lib/Text/CSV_PP.pm" or die "Cannot read error messages from PP\n";
+    while (<$fh>) {
         m/^        ([0-9]{4}) => "([^"]+)"/ and $err{$1} = $2;
 	}
+    close $fh;
     }
 
 $| = 1;
@@ -245,6 +246,8 @@ unlink $diag_file;
     is (0 + $csv->error_diag,    0, "Can set sep to something long");
     eval { $csv->sep (undef); };
     is (0 + $csv->error_diag, 1008, "Can set sep to undef");
+    eval { $csv->sep (""); };
+    is (0 + $csv->error_diag, 1008, "Can set sep to empty");
     eval { $csv->sep ("="); };
     is (0 + $csv->error_diag, 1001, "Cannot set sep to current sep");
     }

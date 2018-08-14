@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 20465;
+ use Test::More tests => 20469;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
@@ -474,7 +474,7 @@ SKIP: {	# http://rt.cpan.org/Ticket/Display.html?id=80680
 	}
     }
 
-{   # http://rt.cpan.org/Ticket/Display.html?id=115953
+{   # http://rt.cpan.org/Ticket/Display.html?id=120655
     $rt = 120655; # bind_columns with strange behavior / length() from old value
     SKIP: {
 	$] < 5.008002 and skip "UTF8 unreliable in perl $]", 5;
@@ -485,6 +485,44 @@ SKIP: {	# http://rt.cpan.org/Ticket/Display.html?id=80680
 	is (length $row{c1}, 7,			"Length");
 	ok ($csv->parse (""),			"Parse empty line");
 	is (length $row{c1}, 0,			"Length");
+	}
+    }
+
+{   # http://rt.cpan.org/Ticket/Display.html?id=123320
+    $rt = 123320; # ext::CSV_XS bug w/Mac format files
+
+    SKIP: {
+	$] < 5.008001 and skip "unreliable in perl $]", 4;
+
+	open my $fh, ">", $tfn or die "$tfn: $!\n";
+	print $fh join "\r" =>
+	    q{col1,col2,col3,},
+	    q{"One","","Three"},
+	    q{"Four","Five and a half","Six"},
+	    q{};
+	close $fh;
+
+	ok (my $csv = Text::CSV->new ({ auto_diag => 1, eol => "\r", }), "new");
+
+	my @msg;
+	local $SIG{__WARN__} = sub { push @msg, @_; };
+
+	open $fh, "<", $tfn  or die "$!\n";
+	my @hdr = eval { $csv->header ($fh); };
+	is (scalar @hdr,		0,	"Empty field in header");
+	is (($csv->error_diag)[0],	1012,	"error 1012");
+	close $fh;
+
+	open $fh, ">", $tfn or die "$tfn: $!\n";
+	print $fh join "\r" =>
+	    q{col1,col2,col3},
+	    q{"One","Two","Three"},
+	    "";
+	close $fh;
+	open $fh, "<", $tfn or die "$!\n";
+	@hdr = eval { $csv->header ($fh); };
+	is_deeply (\@hdr, [qw( col1 col2 col3 )], "Header is ok");
+	close $fh;
 	}
     }
 
@@ -552,3 +590,4 @@ foo "bar"
 «115953» - Space stripped from middle of field value with allow_whitespace and allow_loose_quotes
 "foo "bar" baz"
 «120655» - bind_columns with strange behavior / length() from old value
+«123320» - ext::CSV_XS bug w/Mac format files
