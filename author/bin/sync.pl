@@ -75,14 +75,13 @@ EOT
         }
 
         if ($basename =~ /80_diag/) {
-            $content =~ s!open XS, "<", "CSV_XS.xs"!open PP, "< lib/Text/CSV_PP.pm"!;
+            $content =~ s!open my \$fh, "<", "CSV_XS.xs"!open my \$fh, "<", "lib/Text/CSV_PP.pm"!;
             $content =~ s!Cannot read error messages from XS!Cannot read error messages from PP!;
-            $content =~ s!<XS>!<PP>!;
             $content =~ s!^\tm/\^    \\\{ \(\[0\-9\]\{4\}\), "\(\[\^"\]\+\)"\\s\+\\\}/!        m/^        ([0-9]{4}) => "([^"]+)"/!m;
 
             $content =~ s!CSV_(PP|XS) ERROR!CSV_PP ERROR!g;
 
-            $content =~ s/tests => 287/tests => 286/;
+            $content =~ s/tests => 289/tests => 288/;
         }
 
         if ($basename =~ /81_subclass/) {
