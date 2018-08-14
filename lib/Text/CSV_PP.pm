@@ -196,6 +196,7 @@ my %def_attr = (
     escape_null			=> 1,
     keep_meta_info		=> 0,
     verbatim			=> 0,
+    formula			=> 0,
     types			=> undef,
     callbacks			=> undef,
 
@@ -301,6 +302,10 @@ sub new {
         $attr{quote_char} = delete $attr{quote};
         $quote_aliased = 1;
         }
+    exists $attr{formula_handling} and
+        $attr{formula} = delete $attr{formula_handling};
+    exists $attr{formula} and
+        $attr{formula} = _supported_formula (undef, $attr{formula});
     for (keys %attr) {
         if (m/^[a-z]/ && exists $def_attr{$_}) {
             # uncoverable condition false
@@ -378,6 +383,7 @@ my %_cache_id = ( # Only expose what is accessed from within PM
     decode_utf8			=> 35,
     _has_hooks			=> 36,
     _is_bound			=> 26,	# 26 .. 29
+    formula			=> 38,
     strict   			=> 58,
     );
 
@@ -553,6 +559,31 @@ sub strict {
     my $self = shift;
     @_ and $self->_set_attr_X ("strict", shift);
     $self->{strict};
+    }
+
+sub _supported_formula {
+    my ($self, $f) = @_;
+    defined $f or return 5;
+    $f =~ m/^(?: 0 | none    )$/xi ? 0 :
+    $f =~ m/^(?: 1 | die     )$/xi ? 1 :
+    $f =~ m/^(?: 2 | croak   )$/xi ? 2 :
+    $f =~ m/^(?: 3 | diag    )$/xi ? 3 :
+    $f =~ m/^(?: 4 | empty | )$/xi ? 4 :
+    $f =~ m/^(?: 5 | undef   )$/xi ? 5 : do {
+	$self ||= "Text::CSV_PP";
+	$self->SetDiag (1500);
+	croak "formula-handling '$f' is not supported\n";
+	};
+    }
+
+sub formula {
+    my $self = shift;
+    @_ and $self->_set_attr_N ("formula", _supported_formula ($self, shift));
+    [qw( none die croak diag empty undef )]->[_supported_formula ($self, $self->{formula})];
+    }
+sub formula_handling {
+    my $self = shift;
+    $self->formula (@_);
     }
 
 sub decode_utf8 {
@@ -1209,6 +1240,9 @@ sub _csv_attr {
         $fltr = { 0 => $fltr{$fltr} };
     ref $fltr eq "HASH" or $fltr = undef;
 
+    exists $attr{formula} and
+	$attr{formula} = _supported_formula (undef, $attr{formula});
+
     defined $attr{auto_diag}   or $attr{auto_diag}   = 1;
     defined $attr{escape_null} or $attr{escape_null} = 0;
     my $csv = delete $attr{csv} || Text::CSV_PP->new (\%attr)
@@ -1476,7 +1510,7 @@ sub _setup_ctx {
             allow_loose_quotes allow_loose_escapes
             allow_unquoted_escape allow_whitespace blank_is_undef
             empty_is_undef verbatim auto_diag diag_verbose
-            keep_meta_info
+            keep_meta_info formula
         /) {
             $ctx->{$_} = defined $self->{$_} ? $self->{$_} : 0;
         }
@@ -1576,7 +1610,7 @@ sub _cache_diag {
     for (qw/
         binary decode_utf8 allow_loose_escapes allow_loose_quotes
         allow_whitespace always_quote quote_empty quote_space
-        escape_null quote_binary auto_diag diag_verbose strict
+        escape_null quote_binary auto_diag diag_verbose formula strict
         has_error_input blank_is_undef empty_is_undef has_ahead
         keep_meta_info verbatim has_hooks eol_is_cr eol_len
     /) {
@@ -1724,6 +1758,37 @@ sub __combine {
     $$dst = join($sep, @results) . ( defined $ctx->{eol} ? $ctx->{eol} : '' );
 
     return 1;
+}
+
+sub _formula {
+    my ($self, $ctx, $value, $i) = @_;
+
+    my $fa = $ctx->{formula} or return;
+    if ($fa == 1) { die "Formulas are forbidden\n" }
+    if ($fa == 2) { die "Formulas are forbidden\n" } # XS croak behaves like PP's "die"
+
+    if ($fa == 3) {
+        my $rec = '';
+        if ($ctx->{recno}) {
+            $rec = sprintf " in record %lu", $ctx->{recno} + 1;
+        }
+        my $field = '';
+        my $column_names = $self->{_COLUMN_NAMES};
+        if (ref $column_names eq 'ARRAY' and @$column_names >= $i - 1) {
+            my $column_name = $column_names->[$i - 1];
+            $field = sprintf " (column: '%.100s')", $column_name if defined $column_name;
+        }
+        warn sprintf("Field %d%s%s contains formula '%s'\n", $i, $field, $rec, $value);
+        return $value;
+    }
+
+    if ($fa == 4) {
+        return '';
+    }
+    if ($fa == 5) {
+        return undef;
+    }
+    return;
 }
 
 sub print {
@@ -1917,7 +1982,7 @@ RESTART:
                 } else {
                     # ,1,"foo, 3",,bar,
                     #   ^        ^    ^
-                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                     $v_ref = undef;
                     $waitingForField = 1;
                 }
@@ -1951,14 +2016,14 @@ RESTART:
                     if (!defined $c2) { # EOF
                         # ,1,"foo, 3"
                         #            ^
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                         return 1;
                     }
 
                     if (defined $c2 and defined $sep and $c2 eq $sep) {
                         # ,1,"foo, 3",,bar,\r\n
                         #            ^
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                         $v_ref = undef;
                         $waitingForField = 1;
                         next;
@@ -1966,7 +2031,7 @@ RESTART:
                     if (defined $c2 and ($c2 eq "\012" or (defined $eol and $c2 eq $eol))) { # FIXME: EOLX
                         # ,1,"foo, 3",,"bar"\n
                         #                   ^
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                         return 1;
                     }
 
@@ -1999,7 +2064,7 @@ RESTART:
                         if ($ctx->{eol_is_cr}) {
                             # ,1,"foo, 3"\r
                             #            ^
-                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                             return 1;
                         }
 
@@ -2007,7 +2072,7 @@ RESTART:
                         if (defined $c3 and $c3 eq "\012") {
                             # ,1,"foo, 3"\r\n
                             #              ^
-                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                             return 1;
                         }
 
@@ -2018,7 +2083,7 @@ RESTART:
                             $self->__set_eol_is_cr($ctx);
                             $ctx->{used}--;
                             $ctx->{has_ahead} = 1;
-                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                             return 1;
                         }
 
@@ -2180,7 +2245,7 @@ RESTART:
 
                     # ,1,"foo\n 3",,bar
                     #                  ^
-                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                    $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                     return 1;
                 }
             }
@@ -2215,7 +2280,7 @@ RESTART:
                         $self->__set_eol_is_cr($ctx);
                         $ctx->{used}--;
                         $ctx->{has_ahead} = 1;
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                         return 1;
                     }
 
@@ -2239,7 +2304,7 @@ RESTART:
                     if ($ctx->{eol_is_cr}) {
                         # ,1,"foo\n 3",,bar\r
                         #                  ^
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                         return 1;
                     }
 
@@ -2247,7 +2312,7 @@ RESTART:
                     if (defined $c2 and $c2 eq "\012") { # \r is not optional before EOLX!
                         # ,1,"foo\n 3",,bar\r\n
                         #                    ^
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                         return 1;
                     }
 
@@ -2258,7 +2323,7 @@ RESTART:
                         $self->__set_eol_is_cr($ctx);
                         $ctx->{used}--;
                         $ctx->{has_ahead} = 1;
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
                         return 1;
                     }
 
@@ -2346,7 +2411,7 @@ RESTART:
     }
 
     if ($v_ref) {
-        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag});
+        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
     }
     return 1;
 }
@@ -2468,8 +2533,13 @@ sub __is_whitespace {
 }
 
 sub __push_value { # AV_PUSH (part of)
-    my ($self, $ctx, $v_ref, $fields, $fflags, $flag) = @_;
+    my ($self, $ctx, $v_ref, $fields, $fflags, $flag, $fnum) = @_;
     utf8::encode($$v_ref) if $ctx->{utf8};
+    if ($ctx->{formula} && $$v_ref && substr($$v_ref, 0, 1) eq '=') {
+        my $value = $self->_formula($ctx, $$v_ref, $fnum);
+        push @$fields, defined $value ? $value : undef;
+        return;
+    }
     if (
         (!defined $$v_ref or $$v_ref eq '') and
         ($ctx->{empty_is_undef} or (!($flag & IS_QUOTED) and $ctx->{blank_is_undef}))
