@@ -47,6 +47,7 @@ EOF
 # the contents of the Makefile that is written.
 WriteMakefile(
     'NAME'		=> 'Text::CSV',
+    'MIN_PERL_VERSION' => '5.006001',
     'VERSION_FROM'	=> 'lib/Text/CSV.pm', # finds $VERSION
     'ABSTRACT_FROM' => 'lib/Text/CSV.pm', # retrieve abstract from module
     'AUTHOR'     => 'Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>',
