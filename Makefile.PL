@@ -1,4 +1,4 @@
-use 5.00503;
+use 5.006001;
 use ExtUtils::MakeMaker;
 
 use lib qw( ./lib );

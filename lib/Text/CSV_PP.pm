@@ -5,7 +5,7 @@ package Text::CSV_PP;
 # Text::CSV_PP - Text::CSV_XS compatible pure-Perl module
 #
 ################################################################################
-require 5.005;
+require 5.006001;
 
 use strict;
 use Exporter ();
