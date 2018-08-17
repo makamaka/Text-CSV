@@ -9,7 +9,7 @@ use vars qw( $VERSION $DEBUG @ISA @EXPORT_OK );
 @EXPORT_OK = qw( csv );
 
 BEGIN {
-    $VERSION = '1.96';
+    $VERSION = '1.97';
     $DEBUG   = 0;
 }
 

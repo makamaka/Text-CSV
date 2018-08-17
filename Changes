@@ -1,5 +1,9 @@
 Revision history for Perl extension Text::CSV.
 
+1.97  2018-08-17
+    - Fix/add minimum perl version (GH-38, Kivanc Yazan++)
+    - Updated MANIFEST
+
 1.96  2018-08-14
     - Imported tests/fixes from Text::CSV_XS 1.36
       - Added undef_str and keep_headers attributes
