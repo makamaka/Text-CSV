@@ -141,51 +141,39 @@ Text::CSV - comma-separated values manipulator (using XS or PurePerl)
 
 =head1 SYNOPSIS
 
+This section is taken from Text::CSV_XS.
+
+ # Functional interface
+ use Text::CSV qw( csv );
+
+ # Read whole file in memory
+ my $aoa = csv (in => "data.csv");    # as array of array
+ my $aoh = csv (in => "data.csv",
+                headers => "auto");   # as array of hash
+
+ # Write array of arrays as csv file
+ csv (in => $aoa, out => "file.csv", sep_char=> ";");
+
+ # Only show lines where "code" is odd
+ csv (in => "data.csv", filter => { code => sub { $_ % 2 }});
+
+ # Object interface
  use Text::CSV;
 
  my @rows;
- my $csv = Text::CSV->new ( { binary => 1 } )  # should set binary attribute.
-                 or die "Cannot use CSV: ".Text::CSV->error_diag ();
-
+ # Read/parse CSV
+ my $csv = Text::CSV->new ({ binary => 1, auto_diag => 1 });
  open my $fh, "<:encoding(utf8)", "test.csv" or die "test.csv: $!";
- while ( my $row = $csv->getline( $fh ) ) {
+ while (my $row = $csv->getline ($fh)) {
      $row->[2] =~ m/pattern/ or next; # 3rd field should match
      push @rows, $row;
- }
- $csv->eof or $csv->error_diag();
+     }
  close $fh;
 
- $csv->eol ("\r\n");
-
+ # and write as CSV
  open $fh, ">:encoding(utf8)", "new.csv" or die "new.csv: $!";
- $csv->print ($fh, $_) for @rows;
+ $csv->say ($fh, $_) for @rows;
  close $fh or die "new.csv: $!";
-
- #
- # parse and combine style
- #
-
- $status = $csv->combine(@columns);    # combine columns into a string
- $line   = $csv->string();             # get the combined string
-
- $status  = $csv->parse($line);        # parse a CSV string into fields
- @columns = $csv->fields();            # get the parsed fields
-
- $status       = $csv->status ();      # get the most recent status
- $bad_argument = $csv->error_input (); # get the most recent bad argument
- $diag         = $csv->error_diag ();  # if an error occurred, explains WHY
-
- $status = $csv->print ($io, $colref); # Write an array of fields
-                                       # immediately to a file $io
- $colref = $csv->getline ($io);        # Read a line from file $io,
-                                       # parse it and return an array
-                                       # ref of fields
- $csv->column_names (@names);          # Set column names for getline_hr ()
- $ref = $csv->getline_hr ($io);        # getline (), but returns a hashref
- $eof = $csv->eof ();                  # Indicate if last parse or
-                                       # getline () hit End Of File
-
- $csv->types(\@t_array);               # Set column types
 
 =head1 DESCRIPTION
 
@@ -222,7 +210,7 @@ decides its backend as soon as it's loaded):
 
 =head1 NOTES
 
-This section is taken from Text::CSV_XS.
+This section is also taken from Text::CSV_XS.
 
 =head2 Embedded newlines
 
@@ -837,6 +825,8 @@ for this attribute is C<undef>, meaning no special treatment.
 This attribute is useful when exporting  CSV data  to be imported in custom
 loaders, like for MySQL, that recognize special sequences for C<NULL> data.
 
+This attribute has no meaning when parsing CSV data.
+
 =head3 verbatim
 
  my $csv = Text::CSV->new ({ verbatim => 1 });
@@ -913,6 +903,8 @@ is equivalent to
      escape_null           => 1,
      quote_binary          => 1,
      keep_meta_info        => 0,
+     strict                => 0,
+     formula               => 0,
      verbatim              => 0,
      undef_str             => undef,
      types                 => undef,
@@ -1917,9 +1909,12 @@ C<munge_column_names> can be abbreviated to C<munge>.
 =head3 key
 
 If passed,  will default  L<C<headers>|/headers>  to C<"auto"> and return a
-hashref instead of an array of hashes.
+hashref instead of an array of hashes. Allowed values are simple scalars or
+array-references where the first element is the joiner and the rest are the
+fields to join to combine the key.
 
  my $ref = csv (in => "test.csv", key => "code");
+ my $ref = csv (in => "test.csv", key => [ ":" => "code", "color" ]);
 
 with test.csv like
 
@@ -1928,7 +1923,7 @@ with test.csv like
  2,keyboard,12,white
  3,mouse,5,black
 
-will return
+the first example will return
 
   { 1   => {
         code    => 1,
@@ -1950,6 +1945,28 @@ will return
         }
     }
 
+the second example will return
+
+  { "1:gray"    => {
+        code    => 1,
+        color   => 'gray',
+        price   => 850,
+        product => 'pc'
+        },
+    "2:white"   => {
+        code    => 2,
+        color   => 'white',
+        price   => 12,
+        product => 'keyboard'
+        },
+    "3:black"   => {
+        code    => 3,
+        color   => 'black',
+        price   => 5,
+        product => 'mouse'
+        }
+    }
+
 The C<key> attribute can be combined with L<C<headers>|/headers> for C<CSV>
 date that has no header line, like
 
@@ -1958,6 +1975,76 @@ date that has no header line, like
      headers => [qw( c_foo foo bar description stock )],
      key     =>     "c_foo",
      );
+
+=head3 value
+
+Used to create key-value hashes.
+
+Only allowed when C<key> is valid. A C<value> can be either a single column
+label or an anonymous list of column labels.  In the first case,  the value
+will be a simple scalar value, in the latter case, it will be a hashref.
+
+ my $ref = csv (in => "test.csv", key   => "code",
+                                  value => "price");
+ my $ref = csv (in => "test.csv", key   => "code",
+                                  value => [ "product", "price" ]);
+ my $ref = csv (in => "test.csv", key   => [ ":" => "code", "color" ],
+                                  value => "price");
+ my $ref = csv (in => "test.csv", key   => [ ":" => "code", "color" ],
+                                  value => [ "product", "price" ]);
+
+with test.csv like
+
+ code,product,price,color
+ 1,pc,850,gray
+ 2,keyboard,12,white
+ 3,mouse,5,black
+
+the first example will return
+
+  { 1 => 850,
+    2 =>  12,
+    3 =>   5,
+    }
+
+the second example will return
+
+  { 1   => {
+        price   => 850,
+        product => 'pc'
+        },
+    2   => {
+        price   => 12,
+        product => 'keyboard'
+        },
+    3   => {
+        price   => 5,
+        product => 'mouse'
+        }
+    }
+
+the third example will return
+
+  { "1:gray"    => 850,
+    "2:white"   =>  12,
+    "3:black"   =>   5,
+    }
+
+the fourth example will return
+
+  { "1:gray"    => {
+        price   => 850,
+        product => 'pc'
+        },
+    "2:white"   => {
+        price   => 12,
+        product => 'keyboard'
+        },
+    "3:black"   => {
+        price   => 5,
+        product => 'mouse'
+        }
+    }
 
 =head3 keep_headers
 
@@ -2514,6 +2601,16 @@ Function or method called with invalid argument(s) or parameter(s).
 1501 "PRM - The key attribute is passed as an unsupported type"
 
 The C<key> attribute is of an unsupported type.
+
+=item *
+1502 "PRM - The value attribute is passed without the key attribute"
+
+The C<value> attribute is only allowed when a valid key is given.
+
+=item *
+1503 "PRM - The value attribute is passed as an unsupported type"
+
+The C<value> attribute is of an unsupported type.
 
 =item *
 2010 "ECR - QUO char inside quotes followed by CR not part of EOL"
