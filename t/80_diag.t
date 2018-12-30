@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 288;
+ use Test::More tests => 303;
 #use Test::More "no_plan";
 
 my %err;
@@ -277,6 +277,32 @@ unlink $diag_file;
 	my @diag = $csv->error_diag;
 	is   ($diag[0], 1500, "Invalid parameters (code)");
 	like ($diag[1], qr{^PRM - Invalid/unsupported argument}, "Invalid parameters (msg)");
+	}
+    }
+
+SKIP: {
+    $] < 5.008 and skip qq{$] does not support ScalarIO}, 14;
+    foreach my $key ({}, sub {}, []) {
+	my $csv = Text::CSV->new;
+	my $x = eval { $csv->csv (in => \"a,b", key => $key) };
+	is ($x, undef, "Invalid key");
+	my @diag = $csv->error_diag;
+	is ($diag[0], 1501, "Invalid key type");
+	}
+
+    {   my $csv = Text::CSV->new;
+	my $x = eval { $csv->csv (in => \"a,b", value => "b") };
+	is ($x, undef, "Value without key");
+	my @diag = $csv->error_diag;
+	is ($diag[0], 1502, "No key");
+	}
+
+    foreach my $val ({}, sub {}, []) {
+	my $csv = Text::CSV->new;
+	my $x = eval { $csv->csv (in => \"a,b", key => "a", value => $val) };
+	is ($x, undef, "Invalid value");
+	my @diag = $csv->error_diag;
+	is ($diag[0], 1503, "Invalid value type");
 	}
     }
 

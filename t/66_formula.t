@@ -39,7 +39,7 @@ is ($csv->formula_handling ("NONE"),	"none",		"none");
 
 foreach my $f (-1, 9, "xxx", "DIAX", [], {}, sub {}) {
     eval { $csv->formula ($f); };
-    like ($@, qr/^formula-handling '\Q$f\E' is not supported/, "$f in invalid");
+    like ($@, qr/\bformula-handling '\Q$f\E' is not supported/, "$f in invalid");
     }
 
 my %f = qw(
@@ -55,7 +55,7 @@ foreach my $f (sort keys %f) {
     is ($p->formula, $f{$f}, "Set to $f{$f}");
     }
 eval { Text::CSV->new ({ formula => "xxx" }); };
-like ($@, qr/^formula-handling 'xxx' is not supported/, "xxx in invalid");
+like ($@, qr/\bformula-handling 'xxx' is not supported/, "xxx is invalid");
 
 # Parser
 
