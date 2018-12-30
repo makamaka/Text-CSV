@@ -37,7 +37,7 @@ for my $pm_name (qw/CSV CSV_PP/) {
         if ($line =~ /^=head1 (.+)/) {
             $title = $1;
             $skip = 0;
-            if ($title =~ /^(METHODS|FUNCTIONS|DIAGNOSTICS|NOTES)$/) {
+            if ($title =~ /^(SYNOPSIS|METHODS|FUNCTIONS|DIAGNOSTICS|NOTES)$/) {
                 my $notice = "This section is also taken from Text::CSV_XS.";
                 if ($first_notice) {
                     $notice =~ s/also //;
