@@ -1,5 +1,10 @@
 Revision history for Perl extension Text::CSV.
 
+1.98  2019-01-02
+    - Imported tests/fixes from Text::CSV_XS 1.38
+      - Added munge as alias for munge_column_names
+      - Added support for key-value pair and combined keys
+
 1.97  2018-08-17
     - Fix/add minimum perl version (GH-38, Kivanc Yazan++)
     - Updated MANIFEST
