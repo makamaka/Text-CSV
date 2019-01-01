@@ -80,8 +80,6 @@ EOT
             $content =~ s!^\tm/\^    \\\{ \(\[0\-9\]\{4\}\), "\(\[\^"\]\+\)"\\s\+\\\}/!        m/^        ([0-9]{4}) => "([^"]+)"/!m;
 
             $content =~ s!CSV_(PP|XS) ERROR!CSV_PP ERROR!g;
-
-            $content =~ s/tests => 289/tests => 288/;
         }
 
         if ($basename =~ /81_subclass/) {
