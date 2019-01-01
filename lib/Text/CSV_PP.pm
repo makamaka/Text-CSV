@@ -1761,7 +1761,7 @@ sub _cache_diag {
     $self->__cache_show_char(escape_char => $cache->{escape_char});
     $self->__cache_show_char(sep_char => $cache->{sep});
     for (qw/
-        binary decode_utf8 allow_loose_escapes allow_loose_quotes
+        binary decode_utf8 allow_loose_escapes allow_loose_quotes allow_unquoted_escape
         allow_whitespace always_quote quote_empty quote_space
         escape_null quote_binary auto_diag diag_verbose formula strict
         has_error_input blank_is_undef empty_is_undef has_ahead
