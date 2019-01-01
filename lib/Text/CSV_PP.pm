@@ -98,10 +98,6 @@ my $ERRORS = {
         3010 => "EHR - print_hr () called with invalid arguments",
 
         4001 => "PRM - The key does not exist as field in the data",
-        # PP Only Error
-        4002 => "EIQ - Unescaped ESC in quoted field",
-        4003 => "EIF - ESC CR",
-        4004 => "EUF - Field is terminated by the escape character (escape_char)",
 
         0    => "",
 };
