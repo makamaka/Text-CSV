@@ -52,6 +52,8 @@ my $ERRORS = {
         # Syntax errors
         1500 => "PRM - Invalid/unsupported arguments(s)",
         1501 => "PRM - The key attribute is passed as an unsupported type",
+        1502 => "PRM - The value attribute is passed without the key attribute",
+        1503 => "PRM - The value attribute is passed as an unsupported type",
 
         # Parse errors
         2010 => "ECR - QUO char inside quotes followed by CR not part of EOL",
@@ -95,6 +97,7 @@ my $ERRORS = {
         3009 => "EHR - print_hr () called before column_names ()",
         3010 => "EHR - print_hr () called with invalid arguments",
 
+        4001 => "PRM - The key does not exist as field in the data",
         # PP Only Error
         4002 => "EIQ - Unescaped ESC in quoted field",
         4003 => "EIF - ESC CR",
@@ -567,6 +570,15 @@ sub strict {
     $self->{strict};
     }
 
+sub _SetDiagInfo {
+     my ($self, $err, $msg) = @_;
+     $self->SetDiag ($err);
+     my $em  = $self->error_diag;
+     $em =~ s/^\d+$// and $msg =~ s/^/# /;
+     my $sep = $em =~ m/[;\n]$/ ? "\n\t" : ": ";
+     join $sep => grep m/\S\S\S/ => $em, $msg;
+     }
+
 sub _supported_formula {
     my ($self, $f) = @_;
     defined $f or return 5;
@@ -576,10 +588,9 @@ sub _supported_formula {
     $f =~ m/^(?: 3 | diag    )$/xi ? 3 :
     $f =~ m/^(?: 4 | empty | )$/xi ? 4 :
     $f =~ m/^(?: 5 | undef   )$/xi ? 5 : do {
-	$self ||= "Text::CSV_PP";
-	$self->SetDiag (1500);
-	croak "formula-handling '$f' is not supported\n";
-	};
+        $self ||= "Text::CSV_PP";
+        croak ($self->_SetDiagInfo (1500, "formula-handling '$f' is not supported"));
+        };
     }
 
 sub formula {
@@ -940,6 +951,8 @@ sub header {
         croak (q{usage: $csv->header ($fh, [ seps ], { options })});
         }
 
+    defined $args{munge} && !defined $args{munge_column_names} and
+        $args{munge_column_names} = $args{munge}; # munge as alias
     defined $args{detect_bom}         or $args{detect_bom}         = 1;
     defined $args{set_column_names}   or $args{set_column_names}   = 1;
     defined $args{munge_column_names} or $args{munge_column_names} = "lc";
@@ -953,7 +966,7 @@ sub header {
 
     if (defined $args{sep_set}) {
         ref $args{sep_set} eq "ARRAY" or
-        croak ($self->SetDiag (1500, "sep_set should be an array ref"));
+            croak ($self->_SetDiagInfo (1500, "sep_set should be an array ref"));
         @seps =  @{$args{sep_set}};
     }
 
@@ -1030,9 +1043,12 @@ sub header {
         @hdr = map { $args{munge_column_names}->($_)       } @hdr;
     ref $args{munge_column_names} eq "HASH" and
         @hdr = map { $args{munge_column_names}->{$_} || $_ } @hdr;
-    my %hdr = map { $_ => 1 } @hdr;
-    exists $hdr{""}   and croak ($self->SetDiag (1012));
-    keys %hdr == @hdr or  croak ($self->SetDiag (1013));
+    my %hdr; $hdr{$_}++ for @hdr;
+    exists $hdr{""} and croak ($self->SetDiag (1012));
+    unless (keys %hdr == @hdr) {
+        croak ($self->_SetDiagInfo (1013, join ", " =>
+            map { "$_ ($hdr{$_})" } grep { $hdr{$_} > 1 } keys %hdr));
+        }
     $args{set_column_names} and $self->column_names (@hdr);
     wantarray ? @hdr : $self;
     }
@@ -1271,6 +1287,7 @@ sub _csv_attr {
     my $hdrs = delete $attr{headers};
     my $frag = delete $attr{fragment};
     my $key  = delete $attr{key};
+    my $val  = delete $attr{value};
     my $kh   = delete $attr{keep_headers}      ||
           delete $attr{keep_column_names}      ||
           delete $attr{kh};
@@ -1330,6 +1347,7 @@ sub _csv_attr {
         enc  => $enc,
         hdrs => $hdrs,
         key  => $key,
+        val  => $val,
         kh   => $kh,
         frag => $frag,
         fltr => $fltr,
@@ -1413,15 +1431,20 @@ sub csv {
         }
 
     if ($c->{kh}) {
-        ref $c->{kh} eq "ARRAY" or croak ($csv->SetDiag (1501, "1501 - PRM"));
+        ref $c->{kh} eq "ARRAY" or croak ($csv->SetDiag (1501));
         $hdrs ||= "auto";
         }
 
     my $key = $c->{key};
     if ($key) {
-        ref $key and croak ($csv->SetDiag (1501, "1501 - PRM"));
+       !ref $key or ref $key eq "ARRAY" && @$key > 1 or croak ($csv->SetDiag (1501));
         $hdrs ||= "auto";
         }
+    my $val = $c->{val};
+    if ($val) {
+       $key                                          or croak ($csv->SetDiag (1502));
+       !ref $val or ref $val eq "ARRAY" && @$val > 0 or croak ($csv->SetDiag (1503));
+       }
 
     $c->{fltr} && grep m/\D/ => keys %{$c->{fltr}} and $hdrs ||= "auto";
     if (defined $hdrs) {
@@ -1476,9 +1499,30 @@ sub csv {
     my $ref = ref $hdrs
         ? # aoh
           do {
-            $csv->column_names ($hdrs);
+            my @h = $csv->column_names ($hdrs);
+            my %h; $h{$_}++ for @h;
+            exists $h{""} and croak ($csv->SetDiag (1012));
+            unless (keys %h == @h) {
+                croak ($csv->_SetDiagInfo (1013, join ", " =>
+                    map { "$_ ($h{$_})" } grep { $h{$_} > 1 } keys %h));
+                }
             $frag ? $csv->fragment ($fh, $frag) :
-            $key  ? { map { $_->{$key} => $_ } @{$csv->getline_hr_all ($fh)} }
+            $key  ? do {
+                        my ($k, $j, @f) = ref $key ? (undef, @$key) : ($key);
+                        if (my @mk = grep { !exists $h{$_} } grep { defined } $k, @f) {
+                            croak ($csv->_SetDiagInfo (4001, join ", " => @mk));
+                            }
+                        +{ map {
+                            my $r = $_;
+                            my $K = defined $k ? $r->{$k} : join $j => @{$r}{@f};
+                            ( $K => (
+                            $val
+                                ? ref $val
+                                    ? { map { $_ => $r->{$_} } @$val }
+                                    : $r->{$val}
+                                : $r ));
+                            } @{$csv->getline_hr_all ($fh)} }
+                        }
                   : $csv->getline_hr_all ($fh);
             }
         : # aoa
