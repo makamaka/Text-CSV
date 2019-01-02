@@ -14,7 +14,7 @@ BEGIN {
         plan skip_all => "This test unit requires perl-5.8.2 or higher";
         }
     else {
-	my $n = 1370;
+	my $n = 1442;
 	$pu and $n -= 120;
 	plan tests => $n;
 	}
@@ -279,7 +279,7 @@ foreach my $irs ("\n", "\xaa") {
 	    $csv = Text::CSV->new ({ binary => 1, auto_diag => 9 });
 
 	    SKIP: {
-		$has_enc or skip "Encoding $enc not supported", 7;
+		$has_enc or skip "Encoding $enc not supported", $enc =~ /^utf/ ? 10 : 9;
 		$csv->column_names (undef);
 		open my $fh, "<", $fnm;
 		binmode $fh;
