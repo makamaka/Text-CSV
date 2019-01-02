@@ -1,5 +1,8 @@
 Revision history for Perl extension Text::CSV.
 
+1.99  2019-01-02
+    - Fixed a number of tests to skip for older perls
+
 1.98  2019-01-02
     - Imported tests/fixes from Text::CSV_XS 1.38
       - Added munge as alias for munge_column_names
