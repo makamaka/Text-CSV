@@ -1730,7 +1730,10 @@ sub _cache_set {
         $cache->{quo_len} = $len == 1 ? 0 : $len;
     }
     elsif ($key eq 'eol') {
-        $cache->{eol} = $value if defined($value);
+        if (defined($value)) {
+            $cache->{eol} = $value;
+            $cache->{eol_len} = length($value);
+        }
         $cache->{eol_is_cr} = $value eq "\015" ? 1 : 0;
     }
     elsif ($key eq 'undef_str') {
