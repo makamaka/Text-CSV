@@ -1679,7 +1679,7 @@ sub _setup_ctx {
     $ctx->{eolx} = $ctx->{eol_len}
         ? $ctx->{verbatim} || $ctx->{eol_len} >= 2
             ? 1
-            : $ctx->{eol} =~ /\A[\015|\012]/ ? 0 : 1
+            : $ctx->{eol} =~ /\A[\015\012]/ ? 0 : 1
         : 0;
 
     if ($ctx->{sep_len} and $ctx->{sep_len} > 1 and _is_valid_utf8($ctx->{sep})) {
