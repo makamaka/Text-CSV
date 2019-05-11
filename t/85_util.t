@@ -22,6 +22,10 @@ BEGIN {
     $ENV{PERL_TEXT_CSV} = 0;
 
     use_ok "Text::CSV", "csv";
+    # Encode up to and including 2.01 have an error in a regex:
+    # False [] range "\s-" in regex; marked by <-- HERE in m/\bkoi8[\s- <-- HERE _]*([ru])$/
+    # in Encode::Alias. This however does not influence this test, as then *all* encodings
+    # are skipped as unsupported
     require Encode;
     require "./t/util.pl";
     }
@@ -251,17 +255,18 @@ foreach my $irs ("\n", "\xaa") {
 	    qq{1,"1 \x{20ac} each"},
 	    "";
 	for (   [ "none"       => ""			],
-		[ "utf-8"      => "\xef\xbb\xbf"		],
+		[ "utf-8"      => "\xef\xbb\xbf"	],
 		[ "utf-16be"   => "\xfe\xff"		],
 		[ "utf-16le"   => "\xff\xfe"		],
 		[ "utf-32be"   => "\x00\x00\xfe\xff"	],
 		[ "utf-32le"   => "\xff\xfe\x00\x00"	],
-		# Below not (yet) supported by Encode
-		[ "utf-1"      => "\xf7\x64\x4c"		],
+		# Below 5 not (yet) supported by Encode
+		[ "utf-1"      => "\xf7\x64\x4c"	],
 		[ "utf-ebcdic" => "\xdd\x73\x66\x73"	],
-		[ "scsu"       => "\x0e\xfe\xff"		],
-		[ "bocu-1"     => "\xfb\xee\x28"		],
-		[ "gb-18030"   => "\x84\x31\x95"		],
+		[ "scsu"       => "\x0e\xfe\xff"	],
+		[ "bocu-1"     => "\xfb\xee\x28"	],
+		[ "gb-18030"   => "\x84\x31\x95"	],
+		#
 		[ "UTF-8"      => "\x{feff}"		],
 		) {
 	    my ($enc, $bom) = @$_;
@@ -279,7 +284,7 @@ foreach my $irs ("\n", "\xaa") {
 	    $csv = Text::CSV->new ({ binary => 1, auto_diag => 9 });
 
 	    SKIP: {
-		$has_enc or skip "Encoding $enc not supported", $enc =~ /^utf/ ? 10 : 9;
+		$has_enc or skip "Encoding $enc not supported", $enc =~ m/^utf/ ? 10 : 9;
 		$csv->column_names (undef);
 		open my $fh, "<", $fnm;
 		binmode $fh;
