@@ -2044,7 +2044,7 @@ sub ___parse { # cx_c_xsParse
         $ctx->{strict_n} ||= $ctx->{fld_idx};
         if ($ctx->{strict_n} != $ctx->{fld_idx}) {
             $self->__parse_error($ctx, 2014, $ctx->{used});
-            return;
+            $result = undef;
         }
     }
 
