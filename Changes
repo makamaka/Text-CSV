@@ -1,5 +1,10 @@
 Revision history for Perl extension Text::CSV.
 
+2.00  2019-05-11
+    - Imported tests/fixes from Text::CSV_XS 1.39
+      - Fix strict on streaming EOF
+    - Fixed to update (cached) eol_len correctly
+
 1.99  2019-01-02
     - Fixed a number of tests to skip for older perls
 
