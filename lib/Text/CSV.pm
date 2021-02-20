@@ -1749,7 +1749,6 @@ where, in the absence of the C<out> attribute, this is a shortcut to
 
  csv (in => $aoa, out => "file.csv");
  csv (in => $aoa, out => $fh);
- csv (in => $aoa, out =>   STDOUT);
  csv (in => $aoa, out =>  *STDOUT);
  csv (in => $aoa, out => \*STDOUT);
  csv (in => $aoa, out => \my $data);
