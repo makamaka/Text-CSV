@@ -19,7 +19,7 @@ BEGIN {
         }
     }
 
-BEGIN { $ENV{PERL_TEXT_CSV} = 0; }
+BEGIN { $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0; }
 use Text::CSV;
 my $csv = Text::CSV->new ();
 

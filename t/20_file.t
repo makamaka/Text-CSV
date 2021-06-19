@@ -3,10 +3,10 @@
 use strict;
 $^W = 1;	# use warnings;
 
-use Test::More tests => 105;
+use Test::More tests => 109;
 
 BEGIN {
-    $ENV{PERL_TEXT_CSV} = 0;
+    $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
     use_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "./t/util.pl";
@@ -109,7 +109,6 @@ is ($csv->getline (*FH), undef,				"Fetch field 6");
 is ($csv->eof, 1,					"EOF");
 
 # Edge cases
-$csv = Text::CSV->new ({ escape_char => "+" });
 for ([  1, 1,    0, "\n"		],
      [  2, 1,    0, "+\n"		],
      [  3, 1,    0, "+"			],
@@ -119,33 +118,35 @@ for ([  1, 1,    0, "\n"		],
      [  7, 0, 2027, qq{"+"}		],
      [  8, 0, 2024, qq{"+}		],
      [  9, 0, 2011, qq{""+}		],
-     [ 10, 0, 2037, "\r"		],
-     [ 11, 0, 2031, "\r\r"		],
-     [ 12, 0, 2032, "+\r\r"		],
-     [ 13, 0, 2032, "+\r\r+"		],
+     [ 10, 1,    0, "\r"		],
+     [ 11, 0, 2031, "\r\b"		],
+     [ 12, 0, 2032, "+\r\b"		],
+     [ 13, 0, 2032, "+\r\b+"		],
      [ 14, 0, 2022, qq{"\r"}		],
-     [ 15, 0, 2022, qq{"\r\r" }		],
-     [ 16, 0, 2022, qq{"\r\r"\t}	],
-     [ 17, 0, 2025, qq{"+\r\r"}		],
-     [ 18, 0, 2025, qq{"+\r\r+"}	],
-     [ 19, 0, 2022, qq{"\r"\r}		],
-     [ 20, 0, 2022, qq{"\r\r"\r}	],
-     [ 21, 0, 2025, qq{"+\r\r"\r}	],
-     [ 22, 0, 2025, qq{"+\r\r+"\r}	],
+     [ 15, 0, 2022, qq{"\r\b" }		],
+     [ 16, 0, 2022, qq{"\r\b"\t}	],
+     [ 17, 0, 2025, qq{"+\r\b"}		],
+     [ 18, 0, 2025, qq{"+\r\b+"}	],
+     [ 19, 0, 2022, qq{"\r"\b}		],
+     [ 20, 0, 2022, qq{"\r\b"\b}	],
+     [ 21, 0, 2025, qq{"+\r\b"\b}	],
+     [ 22, 0, 2025, qq{"+\r\b+"\b}	],
+     [ 23, 0, 2037, qq{\b}		],
+     [ 24, 0, 2026, qq{"\b"}		],
      ) {
     my ($tst, $valid, $err, $str) = @$_;
     my $raw = $] < 5.008 ? "" : ":raw";
     open  FH, ">$raw", $tfn or die "$tfn: $!";
     print FH $str;
     close FH;
+
+    $csv = Text::CSV->new ({ escape_char => "+" });
     open  FH, "<$raw", $tfn or die "$tfn: $!";
     my $row = $csv->getline (*FH);
     close FH;
     my @err  = $csv->error_diag;
     my $sstr = _readable ($str);
     SKIP: {
-	$tst == 10 && $] >= 5.008 && $] < 5.008003 && $UTF8 and
-	    skip "Be reasonable, this perl version does not do Unicode reliable", 2;
 	ok ($valid ? $row : !$row, "$tst - getline ESC +, '$sstr'");
 	is ($err[0], $err, "Error expected $err");
 	}

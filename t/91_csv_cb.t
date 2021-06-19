@@ -7,7 +7,7 @@ $^W = 1;
  use Test::More tests => 58;
 
 BEGIN {
-    $ENV{PERL_TEXT_CSV} = 0;
+    $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
     use_ok "Text::CSV", ("csv");
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "./t/util.pl";

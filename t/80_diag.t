@@ -3,13 +3,13 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 329;
+ use Test::More tests => 335;
 #use Test::More "no_plan";
 
 my %err;
 
 BEGIN {
-    $ENV{PERL_TEXT_CSV} = 0;
+    $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
     require_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "./t/util.pl";
@@ -220,6 +220,7 @@ open  STDERR, ">&EH"          or die "STDERR: $!\n";
 open  EH,     "<", $diag_file or die "STDERR: $!\n";
 is (scalar <EH>, "CACHE:\n",	"Title");
 while (<EH>) {
+    m/^\s+(?:tmp|bptr)\b/ and next;
     like ($_, qr{^  \w+\s+[0-9a-f]+:(?:".*"|\s*[0-9]+)$}, "Content");
     }
 close EH;
@@ -362,6 +363,33 @@ SKIP: {
 	my @diag = $csv->error_diag;
 	is ($diag[0], 1503, "Invalid value type");
 	}
+    }
+
+# Issue 19: auto_diag > 1 does not die if ->header () is used
+if ($] >= 5.008002) {
+    open my $fh, ">", $tfn or die "$tfn: $!\n";
+    print $fh qq{foo,bar,baz\n};
+    print $fh qq{a,xxx,1\n};
+    print $fh qq{b,"xx"xx", 2"\n};
+    print $fh qq{c, foo , 3\n};
+    close $fh;
+    foreach my $h (0, 1) {
+	$@ = "";
+	my @row;
+	my $ok = eval {
+	    open  $fh,   "<", $tfn or die "$tfn: $!\n";
+	    my $csv = Text::CSV->new ({ auto_diag => 2 });
+	    $h and push @row, [ $csv->header ($fh) ];
+	    while (my $row = $csv->getline ($fh)) { push @row, $row }
+	    close $fh;
+	    1;
+	    };
+	is_deeply (\@row, [[qw(foo bar baz)],[qw(a xxx 1)]], "2 valid rows");
+	like ($@, qr '^# CSV_PP ERROR: 2023 -', "3rd row dies error 2023");
+	}
+    }
+else {
+    ok (1, "Test skipped in this version of perl") for 1..4;
     }
 
 1;

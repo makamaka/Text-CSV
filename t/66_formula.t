@@ -3,13 +3,14 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 110;
+use Test::More tests => 119;
 
 BEGIN {
-    $ENV{PERL_TEXT_CSV} = 0;
+    $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
     use_ok "Text::CSV", ();
     plan skip_all => "Cannot load Text::CSV" if $@;
     }
+my $tfn = "_66test.csv"; END { -f $tfn and unlink $tfn; }
 
 ok (my $csv = Text::CSV->new,		"new");
 
@@ -26,6 +27,7 @@ is ($csv->formula (""),		"empty",	"explicit empty");
 is ($csv->formula (5),		"undef",	"undef");
 is ($csv->formula ("undef"),	"undef",	"undef");
 is ($csv->formula (undef),	"undef",	"explicit undef");
+is ($csv->formula (sub { }),	"cb",		"callback");
 is ($csv->formula (0),		"none",		"none");
 is ($csv->formula ("none"),	"none",		"none");
 
@@ -37,7 +39,7 @@ is ($csv->formula_handling ("EMPTY"),	"empty",	"empty");
 is ($csv->formula_handling ("UNDEF"),	"undef",	"undef");
 is ($csv->formula_handling ("NONE"),	"none",		"none");
 
-foreach my $f (-1, 9, "xxx", "DIAX", [], {}, sub {}) {
+foreach my $f (-1, 9, "xxx", "DIAX", [], {}) {
     eval { $csv->formula ($f); };
     like ($@, qr/\bformula-handling '\Q$f\E' is not supported/, "$f in invalid");
     }
@@ -57,6 +59,8 @@ foreach my $f (sort keys %f) {
 eval { Text::CSV->new ({ formula => "xxx" }); };
 like ($@, qr/\bformula-handling 'xxx' is not supported/, "xxx is invalid");
 
+# TODO : $csv->formula (sub { 42; });
+
 # Parser
 
 my @data = split m/\n/ => <<"EOC";
@@ -71,6 +75,7 @@ sub parse {
     my $f  = shift;
     my @d;
     ok (my $csv = Text::CSV->new ({ formula => $f }), "new $f");
+    #diag ("Formula: ". $csv->formula);
     for (@data) {
 	$csv->parse ($_);
 	push @d, [ $csv->fields ];
@@ -112,6 +117,7 @@ is_deeply (\@m, [
     "Field 2 in record 4 contains formula '=2+3'\n",
     "Field 3 in record 5 contains formula '=3+4'\n",
     ], "Warnings");
+@m = ();
 
 is_deeply (parse (4), [
     [ "a",	"b",	"c",	],
@@ -128,6 +134,27 @@ is_deeply (parse (5), [
     [ "1",	undef,	"4",	],
     [ "1",	"2",	undef,	],
     ], "Undef");
+
+for ([ "Callback return",	sub {      42; }	],
+     [ "Callback assign",	sub { $_ = 42; }	],
+     [ "Callback subst",	sub { s/.*/42/; $_ }	], # s///r requires 5.13.2
+     ) {
+    my ($msg, $cb) = @$_;
+    is_deeply (parse ($cb), [
+	[ "a",	"b",	"c",	],
+	[ "1",	"2",	"3",	],
+	[ "42",	"3",	"4",	],
+	[ "1",	"42",	"4",	],
+	[ "1",	"2",	"42",	],
+	], $msg);
+    }
+is_deeply (parse (sub { eval { s{^=([-+*/0-9()]+)$}{$1}ee }; $_ }), [
+    [ "a",	"b",	"c",	],
+    [ "1",	"2",	"3",	],
+    [ "3",	"3",	"4",	],
+    [ "1",	"5",	"4",	],
+    [ "1",	"2",	"7",	],
+    ], "Callback calculations");
 
 {   @m = ();
     ok (my $csv = Text::CSV->new ({ formula => 3 }), "new 3 hr");
@@ -165,3 +192,16 @@ is (       writer ("diag"),	q{1,=2+3,4}, "Out diag");
 is (       writer ("empty"),	q{1,"",4},   "Out empty");
 is (       writer ("undef"),	q{1,,4},     "Out undef");
 is_deeply (\@m,  [ "Field 1 contains formula '=2+3'\n" ], "Warning diag");
+
+open my $fh, ">", $tfn;
+printf $fh <<"EOC";
+1,2,3
+=1+2,3,4
+1,=12-6,5
+1,2,=4+(9-1)/2
+EOC
+close $fh;
+
+is_deeply (Text::CSV::csv (in => $tfn,
+	    formula => sub { eval { s{^=([-+*/0-9()]+)$}{$1}ee }; $_ }),
+    [[1,2,3],[3,3,4],[1,6,5],[1,2,8]], "Formula calc from csv function");

@@ -7,7 +7,7 @@ $^W = 1;
 #use Test::More "no_plan";
 
 BEGIN {
-    $ENV{PERL_TEXT_CSV} = 0;
+    $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
     require_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "./t/util.pl";
