@@ -200,6 +200,7 @@ my %def_attr = (
     keep_meta_info		=> 0,
     verbatim			=> 0,
     formula			=> 0,
+    skip_empty_rows => 0,
     undef_str			=> undef,
     types			=> undef,
     callbacks			=> undef,
@@ -390,6 +391,7 @@ my %_cache_id = ( # Only expose what is accessed from within PM
     _is_bound			=> 26,	# 26 .. 29
     formula			=> 38,
     strict   			=> 42,
+    skip_empty_rows     => 43,
     undef_str  		=> 46,
     );
 
@@ -567,6 +569,12 @@ sub strict {
     my $self = shift;
     @_ and $self->_set_attr_X ("strict", shift);
     $self->{strict};
+    }
+
+sub skip_empty_rows {
+    my $self = shift;
+    @_ and $self->_set_attr_X ("skip_empty_rows", shift);
+    $self->{skip_empty_rows};
     }
 
 sub _SetDiagInfo {
@@ -1650,7 +1658,7 @@ sub _setup_ctx {
             allow_loose_quotes allow_loose_escapes
             allow_unquoted_escape allow_whitespace blank_is_undef
             empty_is_undef verbatim auto_diag diag_verbose
-            keep_meta_info formula
+            keep_meta_info formula skip_empty_rows
         /) {
             $ctx->{$_} = defined $self->{$_} ? $self->{$_} : 0;
         }
@@ -1769,7 +1777,7 @@ sub _cache_diag {
     for (qw/
         binary decode_utf8 allow_loose_escapes allow_loose_quotes allow_unquoted_escape
         allow_whitespace always_quote quote_empty quote_space
-        escape_null quote_binary auto_diag diag_verbose formula strict
+        escape_null quote_binary auto_diag diag_verbose formula strict skip_empty_rows
         has_error_input blank_is_undef empty_is_undef has_ahead
         keep_meta_info verbatim has_hooks eol_is_cr eol_len
     /) {
@@ -2386,6 +2394,17 @@ RESTART:
             }
             elsif (defined $c and ($c eq "\012" or $c eq '' or (defined $eol and $c eq $eol and $eol ne "\015"))) { # EOL
     EOLX:
+                if ($fnum == 1 && $ctx->{flag} == 0 && (!$v_ref || $$v_ref eq '') && $ctx->{skip_empty_rows}) {
+                    $ctx->{fld_idx} = 0;
+                    $c = $self->__get($ctx, $src);
+                    if (!defined $c) {  # EOF
+                        $v_ref = undef;
+                        $waitingForField = 0;
+                        last LOOP;
+                    }
+                    goto RESTART;
+                }
+
                 if ($waitingForField) {
                     # ,1,"foo, 3",,bar,
                     #                  ^
@@ -2465,15 +2484,35 @@ RESTART:
                         goto RESTART;
                     }
 
-                    if ($ctx->{useIO} and !$ctx->{eol_len} and $c2 !~ /[^\x09\x20-\x7E]/) {
-                        # ,1,"foo\n 3",,bar,\r
-                        # baz,4
-                        # ^
-                        $self->__set_eol_is_cr($ctx);
-                        $ctx->{used}--;
-                        $ctx->{has_ahead} = 1;
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
-                        return 1;
+                    if ($ctx->{useIO} and !$ctx->{eol_len}) {
+                        if ($c2 eq "\012") { # \r followed by an empty line
+                            # ,1,"foo\n 3",,bar,\r\r
+                            #                     ^
+                            $self->__set_eol_is_cr($ctx);
+                            goto EOLX;
+                        }
+                        $waitingForField = 0;
+                        if ($c2 !~ /[^\x09\x20-\x7E]/) {
+                            # ,1,"foo\n 3",,bar,\r
+                            # baz,4
+                            # ^
+                            $self->__set_eol_is_cr($ctx);
+                            $ctx->{used}--;
+                            $ctx->{has_ahead} = 1;
+                            if ($fnum == 1 && $ctx->{flag} == 0 && (!$v_ref or $$v_ref eq '') && $ctx->{skip_empty_rows}) {
+                                $ctx->{fld_idx} = 0;
+                                $c = $self->__get($ctx, $src);
+                                if (!defined $c) { # EOF
+                                    $v_ref = undef;
+                                    $waitingForField = 0;
+                                    last LOOP;
+                                }
+                                $$v_ref = $c2;
+                                goto RESTART;
+                            }
+                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
+                            return 1;
+                        }
                     }
 
                     # ,1,"foo\n 3",,bar,\r\t
@@ -2508,15 +2547,31 @@ RESTART:
                         return 1;
                     }
 
-                    if ($ctx->{useIO} and !$ctx->{eol_len} and $c2 !~ /[^\x09\x20-\x7E]/) {
-                        # ,1,"foo\n 3",,bar\r
-                        # baz,4
-                        # ^
-                        $self->__set_eol_is_cr($ctx);
-                        $ctx->{used}--;
-                        $ctx->{has_ahead} = 1;
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
-                        return 1;
+                    if ($ctx->{useIO} and !$ctx->{eol_len}) {
+                        if ($c2 !~ /[^\x09\x20-\x7E]/
+                            # ,1,"foo\n 3",,bar\r
+                            # baz,4
+                            # ^
+                            or $c2 eq "\015"
+                            # ,1,"foo\n 3",,bar,\r\r
+                            #                     ^
+                        ) {
+                            $self->__set_eol_is_cr($ctx);
+                            $ctx->{used}--;
+                            $ctx->{has_ahead} = 1;
+                            if ($fnum == 1 && $ctx->{flag} == 0 && (!$v_ref or $$v_ref eq '') && $ctx->{skip_empty_rows}) {
+                                $ctx->{fld_idx} = 0;
+                                $c = $self->__get($ctx, $src);
+                                if (!defined $c) { # EOL
+                                    $v_ref = undef;
+                                    $waitingForField = 0;
+                                    last LOOP;
+                                }
+                                goto RESTART;
+                            }
+                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
+                            return 1;
+                        }
                     }
 
                     # ,1,"foo\n 3",,bar\r\t
