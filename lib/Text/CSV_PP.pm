@@ -398,6 +398,7 @@ my %_cache_id = ( # Only expose what is accessed from within PM
     skip_empty_rows     => 43,
     undef_str  		=> 46,
     comment_str     => 54,
+    types           => 62,
     );
 
 my %_hidden_cache_id = qw(
@@ -746,10 +747,12 @@ sub types {
         if (my $types = shift) {
             $self->{'_types'} = join("", map{ chr($_) } @$types);
             $self->{'types'} = $types;
+            $self->_cache_set ($_cache_id{'types'}, $self->{'_types'});
         }
         else {
             delete $self->{'types'};
             delete $self->{'_types'};
+            $self->_cache_set ($_cache_id{'types'}, undef);
             undef;
         }
     }
@@ -1815,6 +1818,11 @@ sub _cache_diag {
     $self->__cache_show_byte(quo_len => $cache->{quo_len});
     if ($cache->{quo_len} and $cache->{quo_len} > 1) {
         $self->__cache_show_str(quote => $cache->{quo_len}, $cache->{quo});
+    }
+    if ($cache->{types_len}) {
+        $self->__cache_show_str(types => $cache->{types_len}, $cache->{types});
+    } else {
+        $self->__cache_show_str(types => 0, "");
     }
 }
 
