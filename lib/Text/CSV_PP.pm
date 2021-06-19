@@ -216,6 +216,7 @@ my %def_attr = (
     _COLUMN_NAMES		=> undef,
     _BOUND_COLUMNS		=> undef,
     _AHEAD			=> undef,
+    _FORMULA_CB     => undef,
 
     ENCODING			=> undef,
 );
@@ -311,8 +312,8 @@ sub new {
         }
     exists $attr{formula_handling} and
         $attr{formula} = delete $attr{formula_handling};
-    exists $attr{formula} and
-        $attr{formula} = _supported_formula (undef, $attr{formula});
+    my $attr_formula = delete $attr{formula};
+
     for (keys %attr) {
         if (m/^[a-z]/ && exists $def_attr{$_}) {
             # uncoverable condition false
@@ -360,6 +361,7 @@ sub new {
     defined $\ && !exists $attr{eol} and $self->{eol} = $\;
     bless $self, $class;
     defined $self->{types} and $self->types ($self->{types});
+    defined $attr_formula  and $self->{formula} = _supported_formula($self, $attr_formula);
     $self;
 }
 
@@ -592,12 +594,17 @@ sub _SetDiagInfo {
 sub _supported_formula {
     my ($self, $f) = @_;
     defined $f or return 5;
+    if ($self && $f && ref $f && ref $f eq "CODE") {
+    $self->{_FORMULA_CB} = $f;
+    return 6;
+    }
     $f =~ m/^(?: 0 | none    )$/xi ? 0 :
     $f =~ m/^(?: 1 | die     )$/xi ? 1 :
     $f =~ m/^(?: 2 | croak   )$/xi ? 2 :
     $f =~ m/^(?: 3 | diag    )$/xi ? 3 :
     $f =~ m/^(?: 4 | empty | )$/xi ? 4 :
-    $f =~ m/^(?: 5 | undef   )$/xi ? 5 : do {
+    $f =~ m/^(?: 5 | undef   )$/xi ? 5 :
+    $f =~ m/^(?: 6 | cb      )$/xi ? 6 : do {
         $self ||= "Text::CSV_PP";
         croak ($self->_SetDiagInfo (1500, "formula-handling '$f' is not supported"));
         };
@@ -606,7 +613,8 @@ sub _supported_formula {
 sub formula {
     my $self = shift;
     @_ and $self->_set_attr_N ("formula", _supported_formula ($self, shift));
-    [qw( none die croak diag empty undef )]->[_supported_formula ($self, $self->{formula})];
+    $self->{formula} == 6 or $self->{_FORMULA_CB} = undef;
+    [qw( none die croak diag empty undef cb )]->[_supported_formula ($self, $self->{formula})];
     }
 sub formula_handling {
     my $self = shift;
@@ -1348,13 +1356,13 @@ sub _csv_attr {
     ref $fltr eq "CODE" and $fltr = { 0 => $fltr };
     ref $fltr eq "HASH" or $fltr = undef;
 
-    exists $attr{formula} and
-	$attr{formula} = _supported_formula (undef, $attr{formula});
+    my $form = delete $attr{formula};
 
     defined $attr{auto_diag}   or $attr{auto_diag}   = 1;
     defined $attr{escape_null} or $attr{escape_null} = 0;
     my $csv = delete $attr{csv} || Text::CSV_PP->new (\%attr)
         or croak $last_new_error;
+    defined $form and $csv->formula ($form);
 
     return {
         csv  => $csv,
@@ -1996,6 +2004,13 @@ sub _formula {
     }
     if ($fa == 5) {
         return undef;
+    }
+
+    if ($fa == 6) {
+        if (ref $self->{_FORMULA_CB} eq 'CODE') {
+            local $_ = $value;
+            return $self->{_FORMULA_CB}->();
+        }
     }
     return;
 }
