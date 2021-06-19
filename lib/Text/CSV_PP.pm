@@ -2244,7 +2244,7 @@ RESTART:
                     # ,1,"foo, 3",,bar,\r\n
                     #           ^
                     my $quoesc = 0;
-                    my $c2 = $self->__get($ctx);
+                    my $c2 = $self->__get($ctx, $src);
 
                     if ($ctx->{allow_whitespace}) {
                         # , 1 , "foo, 3" , , bar , \r\n
@@ -2254,7 +2254,7 @@ RESTART:
                                 $$v_ref .= $c;
                                 $c = $c2;
                             }
-                            $c2 = $self->__get($ctx);
+                            $c2 = $self->__get($ctx, $src);
                         }
                     }
 
@@ -2313,7 +2313,7 @@ RESTART:
                             return 1;
                         }
 
-                        my $c3 = $self->__get($ctx);
+                        my $c3 = $self->__get($ctx, $src);
                         if (defined $c3 and $c3 eq "\012") {
                             # ,1,"foo, 3"\r\n
                             #              ^
@@ -2370,7 +2370,7 @@ RESTART:
                         # The escape character is the first character of an
                         # unquoted field
                         # ... get and store next character
-                        my $c2 = $self->__get($ctx);
+                        my $c2 = $self->__get($ctx, $src);
                         $$v_ref = "";
 
                         if (!defined $c2) { # EOF
@@ -2398,7 +2398,7 @@ RESTART:
                     }
                 }
                 elsif ($ctx->{flag} & IS_QUOTED) {
-                    my $c2 = $self->__get($ctx);
+                    my $c2 = $self->__get($ctx, $src);
                     if (!defined $c2) { # EOF
                         $ctx->{used}--;
                         $self->__error_inside_quotes($ctx, 2024);
@@ -2424,7 +2424,7 @@ RESTART:
                     }
                 }
                 elsif ($v_ref) {
-                    my $c2 = $self->__get($ctx);
+                    my $c2 = $self->__get($ctx, $src);
                     if (!defined $c2) { # EOF
                         $ctx->{used}--;
                         $self->__error_inside_field($ctx, 2035);
@@ -2515,7 +2515,7 @@ RESTART:
                         goto RESTART;
                     }
 
-                    my $c2 = $self->__get($ctx);
+                    my $c2 = $self->__get($ctx, $src);
                     if (!defined $c2) { # EOF
                         # ,1,"foo\n 3",,bar,\r
                         #                     ^
@@ -2584,7 +2584,7 @@ RESTART:
                         return 1;
                     }
 
-                    my $c2 = $self->__get($ctx);
+                    my $c2 = $self->__get($ctx, $src);
                     if (defined $c2 and $c2 eq "\012") { # \r is not optional before EOLX!
                         # ,1,"foo\n 3",,bar\r\n
                         #                    ^
@@ -2638,7 +2638,7 @@ RESTART:
                     }
                     if ($ctx->{allow_whitespace} and $self->__is_whitespace($ctx, $c)) {
                         do {
-                            $c = $self->__get($ctx);
+                            $c = $self->__get($ctx, $src);
                             last if !defined $c;
                         } while $self->__is_whitespace($ctx, $c);
                         goto RESTART;
@@ -2783,18 +2783,26 @@ sub __bound_field {
 }
 
 sub __get {
-    my ($self, $ctx) = @_;
+    my ($self, $ctx, $src) = @_;
     return unless defined $ctx->{used};
-    return if $ctx->{used} >= $ctx->{size};
+    if ($ctx->{used} >= $ctx->{size}) {
+        if ($self->__get_from_src($ctx, $src)) {
+            return $self->__get($ctx, $src);
+        }
+        return;
+    }
     my $pos = pos($ctx->{tmp});
     if ($ctx->{tmp} =~ /\G($ctx->{_re}|.)/gs) {
         my $c = $1;
-        if ($c =~ /[^\x09\x20-\x7e]/) {
+        if ($c =~ /[^\x09\012\015\x20-\x7e]/) {
             $ctx->{flag} |= IS_BINARY;
         }
         $ctx->{used} = pos($ctx->{tmp});
         return $c;
     } else {
+        if ($self->__get_from_src($ctx, $src)) {
+            return $self->__get($ctx, $src);
+        }
         pos($ctx->{tmp}) = $pos;
         return;
     }
