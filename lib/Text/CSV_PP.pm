@@ -230,6 +230,7 @@ my %attr_alias = (
     );
 
 my $last_new_error = Text::CSV_PP->SetDiag(0);
+my $ebcdic         = ord("A") == 0xC1;  # Faster than $Config{'ebcdic'}
 my $last_error;
 
 # NOT a method: is also used before bless
@@ -291,13 +292,13 @@ sub new {
         'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);');
 
     my $proto = shift;
-    my $class = ref ($proto) || $proto	or  return;
+    my $class = ref $proto || $proto	or  return;
     @_ > 0 &&   ref $_[0] ne "HASH"	and return;
     my $attr  = shift || {};
     my %attr  = map {
         my $k = m/^[a-zA-Z]\w+$/ ? lc $_ : $_;
         exists $attr_alias{$k} and $k = $attr_alias{$k};
-        $k => $attr->{$_};
+        ($k => $attr->{$_});
         } keys %$attr;
 
     my $sep_aliased = 0;
@@ -417,8 +418,7 @@ my %_reverse_cache_id = (
 # A `character'
 sub _set_attr_C {
     my ($self, $name, $val, $ec) = @_;
-    defined $val or $val = 0;
-    utf8::decode ($val);
+    defined $val and utf8::decode($val);
     $self->{$name} = $val;
     $ec = _check_sanity ($self) and croak ($self->SetDiag ($ec));
     $self->_cache_set ($_cache_id{$name}, $val);
@@ -826,11 +826,9 @@ sub error_diag {
                 return;
                 }
 
-            if ($self->{diag_verbose} and $self->{_ERROR_INPUT}) {
-                $msg .= "$self->{_ERROR_INPUT}'\n";
-                $msg .= " " x ($diag[2] - 1);
-                $msg .= "^\n";
-                }
+            $self->{diag_verbose} and $self->{_ERROR_INPUT} and
+            $msg .= "$self->{_ERROR_INPUT}'\n".
+                (" " x ($diag[2] - 1))."^\n";
 
             my $lvl = $self->{auto_diag};
             if ($lvl < 2) {
@@ -1029,39 +1027,58 @@ sub header {
         elsif ($hdr =~ s/^\x84\x31\x95\x33//) { $enc = "gb-18030"   }
         elsif ($hdr =~ s/^\x{feff}//)         { $enc = ""           }
 
-        $self->{ENCODING} = uc $enc;
+        $self->{ENCODING} = $enc ? uc $enc : undef;
 
         $hdr eq "" and croak ($self->SetDiag (1010));
 
         if ($enc) {
+            $ebcdic && $enc eq "utf-ebcdic" and $enc = "";
             if ($enc =~ m/([13]).le$/) {
                 my $l = 0 + $1;
                 my $x;
                 $hdr .= "\0" x $l;
                 read $fh, $x, $l;
                 }
+            if ($enc) {
             if ($enc ne "utf-8") {
                require Encode;
                $hdr = Encode::decode ($enc, $hdr);
                }
             binmode $fh, ":encoding($enc)";
             }
+            }
         }
 
     my ($ahead, $eol);
+    if ($hdr and $hdr =~ s/\Asep=(\S)([\r\n]+)//i) { # Also look in xs:Parse
+        $self->sep ($1);
+        length $hdr or $hdr = <$fh>;
+    }
+
     if ($hdr =~ s/^([^\r\n]+)([\r\n]+)([^\r\n].+)\z/$1/s) {
         $eol   = $2;
         $ahead = $3;
     }
-
-    $args{munge_column_names} eq "lc" and $hdr = lc $hdr;
-    $args{munge_column_names} eq "uc" and $hdr = uc $hdr;
 
     my $hr = \$hdr; # Will cause croak on perl-5.6.x
     open my $h, "<", $hr or croak ($self->SetDiag (1010));
 
     my $row = $self->getline ($h) or croak;
     close $h;
+
+    if (   $args{'munge_column_names'} eq "lc") {
+        $_ = lc for @{$row};
+    }
+    elsif ($args{'munge_column_names'} eq "uc") {
+        $_ = uc for @{$row};
+    }
+    elsif ($args{'munge_column_names'} eq "db") {
+        for (@{$row}) {
+            s/\W+/_/g;
+            s/^_+//;
+            $_ = lc;
+        }
+    }
 
     if ($ahead) { # Must be after getline, which creates the cache
         $self->_cache_set ($_cache_id{_has_ahead}, 1);
@@ -1256,7 +1273,9 @@ sub _csv_attr {
 
     my $enc = delete $attr{enc} || delete $attr{encoding} || "";
     $enc eq "auto" and ($attr{detect_bom}, $enc) = (1, "");
+    my $stack = $enc =~ s/(:\w.*)// ? $1 : "";
     $enc =~ m/^[-\w.]+$/ and $enc = ":encoding($enc)";
+    $enc .= $stack;
 
     my $fh;
     my $sink = 0;
@@ -1272,7 +1291,11 @@ sub _csv_attr {
        qq{ csv (in => csv (in => "$in"), out => "$out");\n};
 
     if ($out) {
-        if ((ref $out and "SCALAR" ne ref $out) or "GLOB" eq ref \$out) {
+        if (ref $out and ("ARRAY" eq ref $out or "HASH" eq ref $out)) {
+            delete $attr{out};
+            $sink = 1;
+            }
+        elsif ((ref $out and "SCALAR" ne ref $out) or "GLOB" eq ref \$out) {
             $fh = $out;
             }
         elsif (ref $out and "SCALAR" eq ref $out and defined $$out and $$out eq "skip") {
@@ -1284,7 +1307,10 @@ sub _csv_attr {
             $cls = 1;
             }
         if ($fh) {
-            $enc and binmode $fh, $enc;
+            if ($enc) {
+                binmode $fh, $enc;
+                my $fn = fileno $fh; # This is a workaround for a bug in PerlIO::via::gzip
+            }
             unless (defined $attr{eol}) {
                 my @layers = eval { PerlIO::get_layers ($fh) };
                 $attr{eol} = (grep m/crlf/ => @layers) ? "\n" : "\r\n";
@@ -1398,7 +1424,7 @@ sub csv {
 
     my $c = _csv_attr (@_);
 
-    my ($csv, $in, $fh, $hdrs) = @{$c}{"csv", "in", "fh", "hdrs"};
+    my ($csv, $in, $fh, $hdrs) = @{$c}{qw( csv in fh hdrs )};
     my %hdr;
     if (ref $hdrs eq "HASH") {
         %hdr  = %$hdrs;
@@ -1576,10 +1602,37 @@ sub csv {
             }
         }
 
-    $c->{sink} and return;
+    if ($c->{sink}) {
+        my $ro = ref $c->{out} or return;
+
+        $ro eq "SCALAR" && ${$c->{out}} eq "skip" and
+            return;
+
+        $ro eq ref $ref or
+            croak ($csv->_SetDiagInfo (5001, "Output type mismatch"));
+
+        if ($ro eq "ARRAY") {
+            if (@{$c->{out}} and @$ref and ref $c->{out}[0] eq ref $ref->[0]) {
+                push @{$c->{out}} => @$ref;
+                return $c->{out};
+            }
+            croak ($csv->_SetDiagInfo (5001, "Output type mismatch"));
+        }
+
+        if ($ro eq "HASH") {
+            @{$c->{out}}{keys %{$ref}} = values %{$ref};
+            return $c->{out};
+        }
+
+        croak ($csv->_SetDiagInfo (5002, "Unsupported output type"));
+    }
 
     defined wantarray or
-        return csv (%{$c->{attr}}, in => $ref, headers => $hdrs, %{$c->{attr}});
+        return csv (
+            in => $ref,
+            headers => $hdrs,
+            %{$c->{attr}},
+        );
 
     return $ref;
     }
@@ -1823,6 +1876,12 @@ sub _cache_diag {
         $self->__cache_show_str(types => $cache->{types_len}, $cache->{types});
     } else {
         $self->__cache_show_str(types => 0, "");
+    }
+    if ($cache->{bptr}) {
+        $self->__cache_show_str(bptr => length($cache->{bptr}), $cache->{bptr});
+    }
+    if ($cache->{tmp}) {
+        $self->__cache_show_str(tmp => length($cache->{tmp}), $cache->{tmp});
     }
 }
 
@@ -2321,15 +2380,23 @@ RESTART:
                             return 1;
                         }
 
-                        if ($ctx->{useIO} and !$ctx->{eol_len} and $c3 !~ /[^\x09\x20-\x7E]/) {
-                            # ,1,"foo\n 3",,"bar"\r
-                            # baz,4
-                            # ^
-                            $self->__set_eol_is_cr($ctx);
-                            $ctx->{used}--;
-                            $ctx->{has_ahead} = 1;
-                            $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
-                            return 1;
+                        if ($ctx->{useIO} and !$ctx->{eol_len}) {
+                            if ($c3 eq "\015") { # \r followed by an empty line
+                                # ,1,"foo, 3"\r\r
+                                #              ^
+                                $self->__set_eol_is_cr($ctx);
+                                goto EOLX;
+                            }
+                            if ($c3 !~ /[^\x09\x20-\x7E]/) {
+                                # ,1,"foo\n 3",,"bar"\r
+                                # baz,4
+                                # ^
+                                $self->__set_eol_is_cr($ctx);
+                                $ctx->{used}--;
+                                $ctx->{has_ahead} = 1;
+                                $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
+                                return 1;
+                            }
                         }
 
                         $self->__parse_error($ctx, $quoesc ? 2023 : 2010, $ctx->{used} - 2);
@@ -2507,12 +2574,11 @@ RESTART:
             }
             elsif (defined $c and $c eq "\015" and !$ctx->{verbatim}) {
                 if ($waitingForField) {
-                    $waitingForField = 0;
                     if ($ctx->{eol_is_cr}) {
                         # ,1,"foo\n 3",,bar,\r
                         #                   ^
                         $c = "\012";
-                        goto RESTART;
+                        goto EOLX;
                     }
 
                     my $c2 = $self->__get($ctx, $src);
@@ -2520,13 +2586,14 @@ RESTART:
                         # ,1,"foo\n 3",,bar,\r
                         #                     ^
                         $c = undef;
+                        last unless $seenSomething;
                         goto RESTART;
                     }
                     if ($c2 eq "\012") { # \r is not optional before EOLX!
                         # ,1,"foo\n 3",,bar,\r\n
                         #                     ^
                         $c = $c2;
-                        goto RESTART;
+                        goto EOLX;
                     }
 
                     if ($ctx->{useIO} and !$ctx->{eol_len}) {
@@ -2580,16 +2647,14 @@ RESTART:
                     if ($ctx->{eol_is_cr}) {
                         # ,1,"foo\n 3",,bar\r
                         #                  ^
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
-                        return 1;
+                        goto EOLX;
                     }
 
                     my $c2 = $self->__get($ctx, $src);
                     if (defined $c2 and $c2 eq "\012") { # \r is not optional before EOLX!
                         # ,1,"foo\n 3",,bar\r\n
                         #                    ^
-                        $self->__push_value($ctx, $v_ref, $fields, $fflags, $ctx->{flag}, $fnum);
-                        return 1;
+                        goto EOLX;
                     }
 
                     if ($ctx->{useIO} and !$ctx->{eol_len}) {
@@ -2657,6 +2722,7 @@ RESTART:
                     $$v_ref .= $c;
                 } else {
                     if (!defined $c or $c =~ /[^\x09\x20-\x7E]/) {
+                        last if $ctx->{useIO} && !defined $c;
                         $ctx->{flag} |= IS_BINARY;
                         unless ($ctx->{binary} or $ctx->{utf8}) {
                             $self->__error_inside_field($ctx, 2037);
