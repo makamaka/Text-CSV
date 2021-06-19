@@ -202,6 +202,7 @@ my %def_attr = (
     formula			=> 0,
     skip_empty_rows => 0,
     undef_str			=> undef,
+    comment_str     => undef,
     types			=> undef,
     callbacks			=> undef,
 
@@ -224,6 +225,7 @@ my %attr_alias = (
     verbose_diag		=> "diag_verbose",
     quote_null			=> "escape_null",
     escape			=> "escape_char",
+    comment         => "comment_str",
     );
 
 my $last_new_error = Text::CSV_PP->SetDiag(0);
@@ -393,6 +395,7 @@ my %_cache_id = ( # Only expose what is accessed from within PM
     strict   			=> 42,
     skip_empty_rows     => 43,
     undef_str  		=> 46,
+    comment_str     => 54,
     );
 
 my %_hidden_cache_id = qw(
@@ -682,6 +685,16 @@ sub undef_str {
         $self->_cache_set ($_cache_id{undef_str}, $self->{undef_str});
         }
     $self->{undef_str};
+    }
+
+sub comment_str {
+    my $self = shift;
+    if (@_) {
+        my $v = shift;
+        $self->{comment_str} = defined $v ? "$v" : undef;
+        $self->_cache_set ($_cache_id{comment_str}, $self->{comment_str});
+        }
+    $self->{comment_str};
     }
 
 sub auto_diag {
@@ -1632,6 +1645,9 @@ sub _setup_ctx {
         } else {
             $ctx->{undef_str} = undef;
         }
+        if (defined $self->{comment_str}) {
+            $ctx->{comment_str} = $self->{comment_str};
+        }
 
         if (defined $self->{_types}) {
             $ctx->{types} = $self->{_types};
@@ -2110,6 +2126,7 @@ sub ____parse { # cx_Parse
     utf8::encode($eol)  if !$ctx->{utf8} and $ctx->{eol_len};
 
     my $seenSomething =  0;
+    my $spl = -1;
     my $waitingForField = 1;
     my ($value, $v_ref);
     $ctx->{fld_idx} = my $fnum = 0;
@@ -2147,9 +2164,14 @@ LOOP:
             }
 
             $seenSomething = 1;
+            $spl++;
 
             if (defined $hit and $hit ne '') {
                 if ($waitingForField) {
+                    if (!$spl && $ctx->{comment_str} && $ctx->{tmp} =~ /\A\Q$ctx->{comment_str}/) {
+                        $ctx->{used} = $ctx->{size};
+                        next LOOP;
+                    }
                     $waitingForField = 0;
                 }
                 if ($hit =~ /[^\x09\x20-\x7E]/) {
@@ -2587,6 +2609,10 @@ RESTART:
                 }
 
                 if ($waitingForField) {
+                    if (!$spl && $ctx->{comment_str} && $ctx->{tmp} =~ /\A$ctx->{comment_str}/) {
+                        $ctx->{used} = $ctx->{size};
+                        next LOOP;
+                    }
                     if ($ctx->{allow_whitespace} and $self->__is_whitespace($ctx, $c)) {
                         do {
                             $c = $self->__get($ctx);
