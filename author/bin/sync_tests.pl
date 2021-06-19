@@ -22,7 +22,7 @@ for my $xs_test ($xs_root->child('t')->children) {
         # general stuff -------------------------------------------
 
 #        $content =~ s|^#!/(usr|pro)/bin/perl\n+||s;
-        $content =~ s!^(\s+)(use|require)_ok!$1\$ENV{PERL_TEXT_CSV} = 0;\n$1$2_ok!m;
+        $content =~ s!^(\s+)(use|require)_ok!$1\$ENV{PERL_TEXT_CSV} = \$ENV{TEST_PERL_TEXT_CSV} || 0;\n$1$2_ok!m;
         $content =~ s/Text::CSV_XS(::|\->|;| |\.|["',]|$)/Text::CSV$1/mg;
 
         # warnings -------------------------------------------------
@@ -66,12 +66,8 @@ ok (1, "Testing quote_char as undef");
 EOT
         }
 
-        if ($basename =~ /41_null/) {
-            $content =~ s/(use Text::CSV;)/\nBEGIN {\n    \$ENV{PERL_TEXT_CSV} = 0;\n    plan skip_all => "Cannot load Text::CSV" if \$\@;\n    }\n\n$1/;
-        }
-
-        if ($basename =~ /78_fragment/) {
-            $content =~ s/(use Text::CSV;)/BEGIN { \$ENV{PERL_TEXT_CSV} = 0; }\n$1/;
+        if ($basename =~ /(?:41_null|47_comment|78_fragment)/) {
+            $content =~ s/(use Text::CSV;)/BEGIN { \$ENV{PERL_TEXT_CSV} = \$ENV{TEST_PERL_TEXT_CSV} || 0; }\n$1/;
         }
 
         if ($basename =~ /80_diag/) {
@@ -86,6 +82,7 @@ EOT
             $content =~ s/(package Text::CSV::Subclass;)/$1\n\nBEGIN {\n    \$ENV{PERL_TEXT_CSV} = 0;\n}\n\nBEGIN { require Text::CSV; }\t# needed for perl5.005/;
         }
 
+        die $basename unless $content =~ /\$ENV{PERL_TEXT_CSV} =/;
         $pp_test->spew($content);
         print STDERR "copied $xs_test to $pp_test\n";
         next;
