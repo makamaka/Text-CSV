@@ -1,5 +1,11 @@
 Revision history for Perl extension Text::CSV.
 
+2.01  2021-06-19
+    - Imported tests/fixes from Text::CSV_XS 1.46
+    - Updated XS_Version to 1.46, and if an older version
+      of Text::CSV_XS is installed, make sure to update it
+      (GH#49, mohawk2++)
+
 2.00  2019-05-11
     - Imported tests/fixes from Text::CSV_XS 1.39
       - Fix strict on streaming EOF

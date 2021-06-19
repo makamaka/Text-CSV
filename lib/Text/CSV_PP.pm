@@ -12,7 +12,7 @@ use Exporter ();
 use vars qw($VERSION @ISA @EXPORT_OK);
 use Carp;
 
-$VERSION = '2.00';
+$VERSION = '2.01';
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(csv);
 
