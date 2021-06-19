@@ -23,13 +23,15 @@ eval q| require Text::CSV_XS |;
 
 $has_xs = 1 unless ($@);
 
+my %xs_prereq;
 if ($has_xs) {
     my $xs_version = Text::CSV_XS->VERSION;
     if ($xs_version >= $req_xs_ver) {
         $message = "You have Text::CSV_XS (v.$xs_version), so Text::CSV can work very fast!!";
     }
     else {
-        $message = "Your Text::CSV_XS version is $xs_version. If you install v.$req_xs_ver,\n"
+	%xs_prereq = ('Text::CSV_XS' => $req_xs_ver);
+	$message = "Your Text::CSV_XS version is $xs_version. If you install v.$req_xs_ver,\n"
                  . "Text::CSV will work faster.";
     }
 }
@@ -55,6 +57,7 @@ WriteMakefile(
 		      "IO::Handle"	=> 0,
 		      "Test::More"	=> '0.71',
 		      "Test::Harness"	=> 0,
+		      %xs_prereq,
     },
     ( $ExtUtils::MakeMaker::VERSION >= 6.3002 ? ('LICENSE' => 'perl', ) : () ),
 
@@ -65,7 +68,7 @@ WriteMakefile(
             },
             resources => {
                 repository => 'https://github.com/makamaka/Text-CSV',
-                bugtracker => 'https://github.com/makamaka/Text-CSV/issues/',
+                bugtracker => 'https://github.com/makamaka/Text-CSV/issues',
                 license    => 'http://dev.perl.org/licenses/',
             },
         } ) : ()
