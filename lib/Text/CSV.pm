@@ -559,7 +559,7 @@ All other values will give a warning and then fallback to C<diag>.
          $csv->decode_utf8 (0);
  my $f = $csv->decode_utf8;
 
-This attributes defaults to TRUE.
+This attribute defaults to TRUE.
 
 While I<parsing>,  fields that are valid UTF-8, are automatically set to be
 UTF-8, so that
