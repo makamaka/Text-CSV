@@ -19,6 +19,7 @@ t/40_misc.t
 t/41_null.t
 t/45_eol.t
 t/46_eol_si.t
+t/47_comment.t
 t/50_utf8.t
 t/51_utf8.t
 t/55_combi.t
@@ -37,6 +38,7 @@ t/81_subclass.t
 t/85_util.t
 t/90_csv.t
 t/91_csv_cb.t
+t/csv_method.t
 t/fields_containing_0.t
 t/rt99774.t
 t/util.pl
