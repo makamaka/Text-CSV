@@ -48,7 +48,8 @@ for my $xs_test ($xs_root->child('t')->children) {
         }
 
         if ($basename =~ /12_acc/) {
-            $content =~ s/(usage: my \\\$csv = Text::CSV)/${1}_PP/;
+            $content =~ s/(my \$csv;)/my \$Backend = Text::CSV->backend;\n\n$1/;
+            $content =~ s/(usage: my \\\$csv =) Text::CSV/${1} \$Backend/;
         }
 
         if ($basename =~ /15_flags/) {
@@ -74,12 +75,11 @@ EOT
             $content =~ s!open my \$fh, "<", "CSV_XS.xs"!open my \$fh, "<", "lib/Text/CSV_PP.pm"!;
             $content =~ s!Cannot read error messages from XS!Cannot read error messages from PP!;
             $content =~ s!^\tm/\^    \\\{ \(\[0\-9\]\{4\}\), "\(\[\^"\]\+\)"\\s\+\\\}/!        m/^        ([0-9]{4}) => "([^"]+)"/!m;
-
-            $content =~ s!CSV_(PP|XS) ERROR!CSV_PP ERROR!g;
+            $content =~ s!CSV_XS ERROR!CSV_(?:PP|XS) ERROR!g;
         }
 
         if ($basename =~ /81_subclass/) {
-            $content =~ s/(package Text::CSV::Subclass;)/$1\n\nBEGIN {\n    \$ENV{PERL_TEXT_CSV} = 0;\n}\n\nBEGIN { require Text::CSV; }\t# needed for perl5.005/;
+            $content =~ s/(package Text::CSV::Subclass;)/$1\n\nBEGIN {\n    \$ENV{PERL_TEXT_CSV} = \$ENV{TEST_PERL_TEXT_CSV} || 0;\n}\n\nBEGIN { require Text::CSV; }\t# needed for perl5.005/;
         }
 
         die $basename unless $content =~ /\$ENV{PERL_TEXT_CSV} =/;

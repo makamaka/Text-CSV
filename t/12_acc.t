@@ -11,6 +11,8 @@ BEGIN {
     plan skip_all => "Cannot load Text::CSV" if $@;
     }
 
+my $Backend = Text::CSV->backend;
+
 my $csv;
 ok ($csv = Text::CSV->new,				"new ()");
 
@@ -238,7 +240,7 @@ is ((Text::CSV::error_diag)[0],	1007,	"error set");
 
 # And test erroneous calls
 is (Text::CSV::new (0),		   undef,	"new () as function");
-is (Text::CSV::error_diag (), "usage: my \$csv = Text::CSV_PP->new ([{ option => value, ... }]);",
+is (Text::CSV::error_diag (), "usage: my \$csv = $Backend->new ([{ option => value, ... }]);",
 							"Generic usage () message");
 is (Text::CSV->new ({ oel     => "" }), undef,	"typo in attr");
 is (Text::CSV::error_diag (), "INI - Unknown attribute 'oel'",	"Unsupported attr");
