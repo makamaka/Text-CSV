@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 111;
+ use Test::More tests => 113;
 #use Test::More "no_plan";
 
 BEGIN {
@@ -160,7 +160,47 @@ close $fh;
 
 open $fh, "<", $tfn or die "$tfn: $!\n";
 $csv->callbacks (after_parse => sub { $_[1][0] eq 3 and return \"skip" });
-is_deeply ($csv->getline_all ($fh), [[1,"foo"],[2,"bar"],[4,"zoo"]]);
+is_deeply ($csv->getline_all ($fh), [[1,"foo"],[2,"bar"],[4,"zoo"]], "skip");
+close $fh;
+
+open $fh, ">", $tfn or die "$tfn: $!\n";
+print $fh <<"EOC";
+1,foo
+2,bar,fail
+3,baz
+4
+5,eox
+EOC
+close $fh;
+
+open $fh, "<", $tfn or die "$tfn: $!\n";
+my @rpt;
+$csv = Text::CSV->new ({ strict => 1, auto_diag => 1 });
+$csv->callbacks (error => sub {
+    my ($err, $msg, $pos, $recno, $fldno) = @_;
+    if ($err == 2014) {
+	push @rpt => [ $recno, $fldno, $pos ];
+	$csv->SetDiag (0);
+	}
+    });
+is_deeply ([ $csv->getline_all ($fh), @rpt ],
+    [[[ 1, "foo" ], [ 2, "bar", "fail" ], [ 3, "baz" ], [ 4 ], [ 5, "eox" ]],
+     [ 2, 3, 12 ], [ 4, 1, 3 ]], "Can catch strict 2014 with \$csv");
+close $fh;
+
+open $fh, "<", $tfn or die "$tfn: $!\n";
+@rpt = ();
+$csv = Text::CSV->new ({ strict => 1, auto_diag => 1, callbacks => {
+    error => sub {
+	my ($err, $msg, $pos, $recno, $fldno) = @_;
+	if ($err == 2014) {
+	    push @rpt => [ $recno, $fldno, $pos ];
+	    Text::CSV->SetDiag (0);
+	    }
+	}}});
+is_deeply ([ $csv->getline_all ($fh), @rpt ],
+    [[[ 1, "foo" ], [ 2, "bar", "fail" ], [ 3, "baz" ], [ 4 ], [ 5, "eox" ]],
+     [ 2, 3, 12 ], [ 4, 1, 3 ]], "Can catch strict 2014 with class");
 close $fh;
 
 __END__

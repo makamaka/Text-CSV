@@ -4,9 +4,8 @@ package Text::CSV;
 use strict;
 use Exporter;
 use Carp ();
-use vars qw( $VERSION $DEBUG @ISA @EXPORT_OK );
+use vars qw( $VERSION $DEBUG @ISA @EXPORT_OK %EXPORT_TAGS );
 @ISA = qw( Exporter );
-@EXPORT_OK = qw( csv );
 
 BEGIN {
     $VERSION = '2.01';
@@ -16,15 +15,30 @@ BEGIN {
 # if use CSV_XS, requires version
 my $Module_XS  = 'Text::CSV_XS';
 my $Module_PP  = 'Text::CSV_PP';
-my $XS_Version = '1.46';
+my $XS_Version = '1.48';
 
 my $Is_Dynamic = 0;
 
 my @PublicMethods = qw/
     version error_diag error_input
     known_attributes
-    PV IV NV
+    PV IV NV CSV_TYPE_PV CSV_TYPE_IV CSV_TYPE_NV
+    CSV_FLAGS_IS_QUOTED CSV_FLAGS_IS_BINARY CSV_FLAGS_ERROR_IN_FIELD CSV_FLAGS_IS_MISSING
 /;
+
+%EXPORT_TAGS = (
+    CONSTANTS => [qw(
+        CSV_FLAGS_IS_QUOTED
+        CSV_FLAGS_IS_BINARY
+        CSV_FLAGS_ERROR_IN_FIELD
+        CSV_FLAGS_IS_MISSING
+        CSV_TYPE_PV
+        CSV_TYPE_IV
+        CSV_TYPE_NV
+    )],
+);
+@EXPORT_OK = (qw(csv PV IV NV), @{$EXPORT_TAGS{CONSTANTS}});
+
 #
 
 # Check the environment variable to decide worker module.
@@ -436,7 +450,7 @@ If instead you want to escape the  L<C<quote_char>|/quote_char> by doubling
 it you will need to also change the  C<escape_char>  to be the same as what
 you have changed the L<C<quote_char>|/quote_char> to.
 
-Setting C<escape_char> to <undef> or C<""> will disable escaping completely
+Setting C<escape_char> to C<undef> or C<""> will completely disable escapes
 and is greatly discouraged. This will also disable C<escape_null>.
 
 The escape character can not be equal to the separation character.
@@ -478,6 +492,8 @@ one single empty field.
 This attribute is only used in parsing.
 
 =head3 formula_handling
+
+Alias for L</formula>
 
 =head3 formula
 
@@ -792,7 +808,7 @@ quoted, see L</blank_is_undef>). See also L<C<always_quote>|/always_quote>.
 
 By default,  all "unsafe" bytes inside a string cause the combined field to
 be quoted.  By setting this attribute to C<0>, you can disable that trigger
-for bytes >= C<0x7F>.
+for bytes C<< >= 0x7F >>.
 
 =head3 escape_null
 
@@ -1173,7 +1189,7 @@ supposed to croak and set error 1500.
 =head2 fragment
 
 This function tries to implement RFC7111  (URI Fragment Identifiers for the
-text/csv Media Type) - http://tools.ietf.org/html/rfc7111
+text/csv Media Type) - https://datatracker.ietf.org/doc/html/rfc7111
 
  my $AoA = $csv->fragment ($fh, $spec);
 
@@ -1256,7 +1272,7 @@ C<cell=1,1-3,3;2,2-4,4;2,3;4,2> will return:
 
 =back
 
-L<RFC7111|http://tools.ietf.org/html/rfc7111> does  B<not>  allow different
+L<RFC7111|https://datatracker.ietf.org/doc/html/rfc7111> does  B<not>  allow different
 types of specs to be combined   (either C<row> I<or> C<col> I<or> C<cell>).
 Passing an invalid fragment specification will croak and set error 2013.
 
@@ -1576,13 +1592,19 @@ or fetch the current type settings with
 
 =item IV
 
+=item CSV_TYPE_IV
+
 Set field type to integer.
 
 =item NV
 
+=item CSV_TYPE_NV
+
 Set field type to numeric/float.
 
 =item PV
+
+=item CSV_TYPE_PV
 
 Set field type to string.
 
@@ -1612,13 +1634,31 @@ L</combine> method. The flags are bit-wise-C<or>'d like:
 
 =over 2
 
-=item C< >0x0001
+=item C<0x0001>
+
+=item C<CSV_FLAGS_IS_QUOTED>
 
 The field was quoted.
 
-=item C< >0x0002
+=item C<0x0002>
+
+=item C<CSV_FLAGS_IS_BINARY>
 
 The field was binary.
+
+=item C<0x0004>
+
+=item C<CSV_FLAGS_ERROR_IN_FIELD>
+
+The field was invalid.
+
+Currently only used when C<allow_loose_quotes> is active.
+
+=item C<0x0010>
+
+=item C<CSV_FLAGS_IS_MISSING>
+
+The field was missing.
 
 =back
 
@@ -2202,6 +2242,19 @@ headers are available after the call in the original order.
 This attribute can be abbreviated to C<kh> or passed as C<keep_column_names>.
 
 This attribute implies a default of C<auto> for the C<headers> attribute.
+
+The headers can also be kept internally to keep stable header order:
+
+ csv (in      => csv (in => "file.csv", kh => "internal"),
+      out     => "new.csv",
+      kh      => "internal");
+
+where C<internal> can also be C<1>, C<yes>, or C<true>. This is similar to
+
+ my @h;
+ csv (in      => csv (in => "file.csv", kh => \@h),
+      out     => "new.csv",
+      headers => \@h);
 
 =head3 fragment
 

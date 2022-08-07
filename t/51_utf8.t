@@ -222,7 +222,7 @@ foreach my $new (0, 1, 2, 3) {
     is ($str, "I${H}${h}L\"${h}ve${h}${H}Perl", "Correct quotation");
     }
 
-# Tests pulled from tests in perl6
+# Tests pulled from tests in Raku
 {   my $csv = Text::CSV->new ({ binary => 1, auto_diag => 1 });
     my $h = pack "C*", 224, 34, 204, 182;
     ok ($csv->combine (1, $h, 3));
