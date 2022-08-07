@@ -5,7 +5,7 @@ $^W = 1;
 use Config;
 
 #use Test::More "no_plan";
- use Test::More tests => 115;
+ use Test::More tests => 128;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
@@ -71,9 +71,14 @@ if ($] >= 5.008001) {
 	ok (my $ref = csv (in => $tfn, $alias => \@hdr), "csv ($alias => ... -- implied headers)");
 	is_deeply (\@hdr, [qw( foo bar baz )], "Headers kept for $alias");
 	}
+    foreach my $alias (qw( internal true yes 1 )) {
+	ok (my $ref = csv (in => $tfn, kh => $alias), "csv (kh => $alias)");
+	ok (csv (in => $ref, out => \my $buf, kh => $alias, quote_space => 0, eol => "\n"), "get it back");
+	is ($buf, $data, "Headers kept for $alias");
+	}
     }
 else {
-    ok (1, q{This perl cannot do scalar IO}) for 1..14;
+    ok (1, q{This perl cannot do scalar IO}) for 1..26;
     }
 
 if ($] >= 5.008001) {
@@ -239,7 +244,7 @@ $] < 5.008 and unlink glob "SCALAR(*)";
 
     local $SIG{__DIE__}  = sub { $err = shift; };
     local $SIG{__WARN__} = sub { $err = shift; };
-    foreach my $hr (1, "foo", \my %hr, sub { 42; }, *STDOUT) {
+    foreach my $hr (42, "foo", \my %hr, sub { 42; }, *STDOUT) {
 	$r = eval { csv (in => $tfn, kh => $hr, auto_diag => 0); };
 	$err =~ s{\s+at\s+\S+\s+line\s+\d+\.\r?\n?\Z}{};
 	is ($r, undef, "Fail call with bad keep_header type");
@@ -360,6 +365,12 @@ eval {
     close STDOUT;
     $dta = do { local (@ARGV, $/) = $ofn; <> };
     is ($dta, qq{1,2\n}, "out to \\*STDOUT");
+    unlink $ofn;
+
+    open STDOUT, ">", $ofn;
+    csv (in => []);
+    close STDOUT;
+    is (-s $ofn, 0, "No data results in an empty file");
     unlink $ofn;
 
     SKIP: {
