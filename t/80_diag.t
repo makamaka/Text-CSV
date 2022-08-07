@@ -65,7 +65,7 @@ parse_err 2037,  1, 11, 1, qq{\0 };
     local $SIG{__WARN__} = sub { push @warn, @_ };
     $csv->error_diag ();
     ok (@warn == 1, "Got error message");
-    like ($warn[0], qr{^# CSV_PP ERROR: 2037 - EIF}, "error content");
+    like ($warn[0], qr{^# CSV_(?:PP|XS) ERROR: 2037 - EIF}, "error content");
     }
 
 is ($csv->eof, "", "No EOF");
@@ -78,13 +78,13 @@ is (Text::CSV->new ({ ecs_char => ":" }), undef, "Unsupported option");
     local $SIG{__WARN__} = sub { push @warn, @_ };
     Text::CSV::error_diag ();
     ok (@warn == 1, "Error_diag in void context ::");
-    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    like ($warn[0], qr{^# CSV_(?:PP|XS) ERROR: 1000 - INI}, "error content");
     }
 {   my @warn;
     local $SIG{__WARN__} = sub { push @warn, @_ };
     Text::CSV->error_diag ();
     ok (@warn == 1, "Error_diag in void context ->");
-    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    like ($warn[0], qr{^# CSV_(?:PP|XS) ERROR: 1000 - INI}, "error content");
     }
 
 {   my @warn;
@@ -98,7 +98,7 @@ is (Text::CSV->new ({ ecs_char => ":" }), undef, "Unsupported option");
     is (Text::CSV->new ({ auto_diag => 1, ecs_char => ":" }), undef,
 	"Unsupported option");
     ok (@warn == 1, "Error_diag in from new ({ auto_diag => 1})");
-    like ($warn[0], qr{^# CSV_PP ERROR: 1000 - INI}, "error content");
+    like ($warn[0], qr{^# CSV_(?:PP|XS) ERROR: 1000 - INI}, "error content");
     }
 
 is (Text::CSV::error_diag (), "INI - Unknown attribute 'ecs_char'",
@@ -121,7 +121,7 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     is ($csv->{_RECNO}, 0, "No records read yet");
     is ($csv->parse ('"","'), 0, "1 - bad parse");
     ok (@warn == 1, "1 - One error");
-    like ($warn[0], qr '^# CSV_PP ERROR: 2027 -', "1 - error message");
+    like ($warn[0], qr '^# CSV_(?:PP|XS) ERROR: 2027 -', "1 - error message");
     is ($csv->{_RECNO}, 1, "One record read");
     }
 {   my @warn;
@@ -131,14 +131,14 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     ok (@warn == 1, "1 - One error");
     @warn = split m/\n/ => $warn[0];
     ok (@warn == 3, "1 - error plus two lines");
-    like ($warn[0], qr '^# CSV_PP ERROR: 2027 -', "1 - error message");
+    like ($warn[0], qr '^# CSV_(?:PP|XS) ERROR: 2027 -', "1 - error message");
     like ($warn[1], qr '^"","',                   "1 - input line");
     like ($warn[2], qr '^   \^',                 "1 - position indicator");
     is ($csv->{_RECNO}, 2, "Another record read");
     }
 {   ok ($csv->{auto_diag} = 2, "auto_diag = 2 to die");
     eval { $csv->parse ('"","') };
-    like ($@, qr '^# CSV_PP ERROR: 2027 -', "2 - error message");
+    like ($@, qr '^# CSV_(?:PP|XS) ERROR: 2027 -', "2 - error message");
     }
 
 {   my @warn;
@@ -385,7 +385,7 @@ if ($] >= 5.008002) {
 	    1;
 	    };
 	is_deeply (\@row, [[qw(foo bar baz)],[qw(a xxx 1)]], "2 valid rows");
-	like ($@, qr '^# CSV_PP ERROR: 2023 -', "3rd row dies error 2023");
+	like ($@, qr '^# CSV_(?:PP|XS) ERROR: 2023 -', "3rd row dies error 2023");
 	}
     }
 else {

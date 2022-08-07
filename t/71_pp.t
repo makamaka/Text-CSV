@@ -8,7 +8,7 @@ $^W = 1;
 use Test::More tests => 104;
 
 
-BEGIN { $ENV{PERL_TEXT_CSV} = $ARGV[0] || 0; }
+BEGIN { $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0; }
 
 BEGIN {
     require_ok "Text::CSV";
@@ -303,7 +303,8 @@ is( $csv->string, q{a a,"b,b","c ,c"} );
 }
 
 
-{ # https://rt.cpan.org/Ticket/Display.html?id=83705
+SKIP: { # https://rt.cpan.org/Ticket/Display.html?id=83705
+skip "pp only for now", 3 unless Text::CSV->is_pp;
 
 my $csv = Text::CSV->new(
     {

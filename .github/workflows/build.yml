@@ -33,3 +33,7 @@ jobs:
         run: curl -sL https://cpanmin.us | perl - --installdeps .
       - name: Run tests
         run: perl Makefile.PL && make && make test
+      - name: Install XS
+        run: curl -sL https://cpanmin.us | perl - Text::CSV_XS@1.46
+      - name: Run XS tests
+        run: perl Makefile.PL && make && TEST_PERL_TEXT_CSV=2 make test

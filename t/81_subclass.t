@@ -3,7 +3,7 @@
 package Text::CSV::Subclass;
 
 BEGIN {
-    $ENV{PERL_TEXT_CSV} = 0;
+    $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
 }
 
 BEGIN { require Text::CSV; }	# needed for perl5.005

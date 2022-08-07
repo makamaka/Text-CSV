@@ -6,7 +6,7 @@ use Test::More tests => 8;
 
 
 BEGIN {
-    $ENV{PERL_TEXT_CSV} = 0;
+    $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
     require_ok "Text::CSV";
     plan skip_all => "Cannot load Text::CSV" if $@;
     require "./t/util.pl";
@@ -28,7 +28,7 @@ while ( my $line = <DATA> ) {
 # https://rt.cpan.org/Public/Bug/Display.html?id=92509
 
 for my $allow_whitespace ( 0, 1 ) {
-    $csv = Text::CSV_PP->new ( { allow_whitespace => $allow_whitespace } );
+    $csv = Text::CSV->new ( { allow_whitespace => $allow_whitespace } );
     $csv->parse(q{"value1","0","value3"});
     is_deeply( [$csv->fields], ["value1","0","value3"], 'allow_whitespace:' . $allow_whitespace );
 }

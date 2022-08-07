@@ -22,7 +22,7 @@ my $Is_Dynamic = 0;
 
 my @PublicMethods = qw/
     version error_diag error_input
-    known_attributes csv
+    known_attributes
     PV IV NV
 /;
 #
@@ -76,6 +76,14 @@ sub new { # normal mode
 
 }
 
+sub csv {
+    if (@_ && ref $_[0] eq __PACKAGE__ or ref $_[0] eq __PACKAGE__->backend) {
+        splice @_, 0, 0, "csv";
+    }
+    my $backend = __PACKAGE__->backend;
+    no strict 'refs';
+    &{"$backend\::csv"}(@_);
+}
 
 sub require_xs_version { $XS_Version; }
 
