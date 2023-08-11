@@ -72,8 +72,9 @@ if ($] >= 5.008001) {
 	is_deeply (\@hdr, [qw( foo bar baz )], "Headers kept for $alias");
 	}
     foreach my $alias (qw( internal true yes 1 )) {
+	my $buf = "";
 	ok (my $ref = csv (in => $tfn, kh => $alias), "csv (kh => $alias)");
-	ok (csv (in => $ref, out => \my $buf, kh => $alias, quote_space => 0, eol => "\n"), "get it back");
+	ok (csv (in => $ref, out => \$buf, kh => $alias, quote_space => 0, eol => "\n"), "get it back");
 	is ($buf, $data, "Headers kept for $alias");
 	}
     }

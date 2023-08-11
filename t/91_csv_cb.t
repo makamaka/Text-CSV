@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 58;
+ use Test::More tests => 79;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
@@ -69,18 +69,21 @@ is_deeply (csv (in => $tfn, filter => { foo => sub { $_ > 1 }}), [
     { foo => 2, bar => "a b", baz => "" },
     ], "AOH with filter on column name");
 
-is_deeply (csv (in => $tfn, headers => "lc"),
-	    [ { foo => 1, bar => 2,     baz => 3 },
-	      { foo => 2, bar => "a b", baz => "" }],
-	    "AOH with lc headers");
-is_deeply (csv (in => $tfn, headers => "uc"),
-	    [ { FOO => 1, BAR => 2,     BAZ => 3 },
-	      { FOO => 2, BAR => "a b", BAZ => "" }],
-	    "AOH with lc headers");
-is_deeply (csv (in => $tfn, headers => sub { lcfirst uc $_[0] }),
-	    [ { fOO => 1, bAR => 2,     bAZ => 3 },
-	      { fOO => 2, bAR => "a b", bAZ => "" }],
-	    "AOH with mangled headers");
+SKIP: {
+    $] < 5.008001 and skip "No HOH/xx support in $]", 3;
+    is_deeply (csv (in => $tfn, headers => "lc"),
+		[ { foo => 1, bar => 2,     baz => 3 },
+		  { foo => 2, bar => "a b", baz => "" }],
+		"AOH with lc headers");
+    is_deeply (csv (in => $tfn, headers => "uc"),
+		[ { FOO => 1, BAR => 2,     BAZ => 3 },
+		  { FOO => 2, BAR => "a b", BAZ => "" }],
+		"AOH with lc headers");
+    is_deeply (csv (in => $tfn, headers => sub { lcfirst uc $_[0] }),
+		[ { fOO => 1, bAR => 2,     bAZ => 3 },
+		  { fOO => 2, bAR => "a b", bAZ => "" }],
+		"AOH with mangled headers");
+    }
 
 SKIP: {
     $] < 5.008001 and skip "No BOM support in $]", 1;
@@ -134,7 +137,9 @@ is_deeply (csv (in => $tfn,
 	    });
     }
 # Check content ref in on_in AOH with aliases %_
-{   %_ = ( brt => 42 );
+SKIP: {
+    $] < 5.008001 and skip "No AOH/alias support in $]", 7; # 6 in on_in, 1 is_deeply
+    %_ = ( brt => 42 );
     my $aoa = csv (
 	in          => $tfn,
 	headers     => "auto",
@@ -177,7 +182,9 @@ SKIP: {
     }
 
 
-{   ok (my $hr = csv (in => $tfn, key => "foo", on_in => sub {
+SKIP: {
+    $] < 5.008001 and skip "Too complicated test for $]", 2;
+    ok (my $hr = csv (in => $tfn, key => "foo", on_in => sub {
 			$_[1]{quz} = "B"; $_{ziq} = 2; }),
 	"Get into hashref with key and on_in");
     is_deeply ($hr->{8}, {qw( bar 13 baz 18 foo 8 quz B ziq 2 )},
@@ -199,21 +206,24 @@ print $fh <<"EOD";
 EOD
 close $fh;
 
-is_deeply (csv (in => $tfn, filter => "not_blank"),
-	    [[3,3,3],[5,7,9],["",""],["",""],["",""," ",""],
-	     ["","",""],["",""," ",""],[8,13,18]],
-	    "filter => not_blank");
-is_deeply (csv (in => $tfn, filter => "not_empty"),
-	    [[3,3,3],[5,7,9],["",""," ",""],["",""," ",""],[8,13,18]],
-	    "filter => not_empty");
-is_deeply (csv (in => $tfn, filter => "filled"),
-	    [[3,3,3],[5,7,9],[8,13,18]],
-	    "filter => filled");
+SKIP: {
+    $] < 5.008001 and skip "Too complicated test for $]", 4;
+    is_deeply (csv (in => $tfn, filter => "not_blank"),
+		[[3,3,3],[5,7,9],["",""],["",""],["",""," ",""],
+		 ["","",""],["",""," ",""],[8,13,18]],
+		"filter => not_blank");
+    is_deeply (csv (in => $tfn, filter => "not_empty"),
+		[[3,3,3],[5,7,9],["",""," ",""],["",""," ",""],[8,13,18]],
+		"filter => not_empty");
+    is_deeply (csv (in => $tfn, filter => "filled"),
+		[[3,3,3],[5,7,9],[8,13,18]],
+		"filter => filled");
 
-is_deeply (csv (in => $tfn, filter => sub {
-		grep { defined && m/\S/ } @{$_[1]} }),
-	    [[3,3,3],[5,7,9],[8,13,18]],
-	    "filter => filled");
+    is_deeply (csv (in => $tfn, filter => sub {
+		    grep { defined && m/\S/ } @{$_[1]} }),
+		[[3,3,3],[5,7,9],[8,13,18]],
+		"filter => filled");
+    }
 
 # Count rows in different ways
 open  $fh, ">", $tfn or die "$tfn: $!";
@@ -241,11 +251,51 @@ close $fh;
     my $aoa = csv (in => $tfn, filter => { 0 => sub { $n++; 0; }});
     is ($n, 4, "Count rows with filter hash");
     }
-{   my $n = 0;
+SKIP: {
+    $] < 5.008001 and skip "Too complicated test for $]", 1;
+    my $n = 0;
     my $aoa = csv (in => $tfn, filter => sub { $n++; 0; });
     is ($n, 4, "Count rows with filter sub");
     }
-{   my $n = 0;
+SKIP: {
+    $] < 5.008001 and skip "Too complicated test for $]", 1;
+    my $n = 0;
     csv (in => $tfn, on_in => sub { $n++; 0; }, out => \"skip");
     is ($n, 4, "Count rows with on_in and skipped out");
+    }
+
+# sep_set, seps, sep on problematic header
+foreach my $sep (",", ";", "\t") {
+    my $ph = "Problematic header";
+
+    open  $fh, ">", $tfn or die "$tfn: $!";
+    print $fh qq{foo${sep}"bar: a, b"${sep}"c;d"${sep}"e"\n};
+    print $fh qq{1${sep}2${sep}3${sep}4\n};
+    close $fh;
+
+    my $exp = [{
+	"foo"       => 1,
+	"bar: a, b" => 2,
+	"c;d"       => 3,
+	"e"         => 4,
+	}];
+
+    ok (csv (in => $tfn, allow_loose_quotes => 1), "$ph, AoA");
+
+    if ($] < 5.010000) {
+	ok (1, "Unsupported header feature for $] - sep: $sep") for 1..6;
+	next;
+	}
+
+    my @err;
+    is (eval {
+	local $SIG{__WARN__} = sub { push @err => @_ };
+	csv (in => $tfn, bom => 1);
+	}, undef, "$ph: cannot decide on sep");
+    like ($err[0], qr{ERROR: 1011\b}, "$ph: error 1011");
+
+    is_deeply (csv (in => $tfn, bom => 1, sep_set  => [ $sep ]), $exp, "$ph: sep_set");
+    is_deeply (csv (in => $tfn, bom => 1, seps     => [ $sep ]), $exp, "$ph: seps");
+    is_deeply (csv (in => $tfn, bom => 1, sep_char =>   $sep  ), $exp, "$ph: sep_char");
+    is_deeply (csv (in => $tfn, bom => 1, sep      =>   $sep  ), $exp, "$ph: sep");
     }

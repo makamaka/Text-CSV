@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 61;
+use Test::More tests => 81;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
@@ -29,13 +29,19 @@ sub do_tests {
     $sub->(\@list);
     $sub->(\@list,         0);
     $sub->([@list[2,3]],   2);
-    $sub->([],             0,  0);
-    $sub->(\@list,         0, 10);
-    $sub->([@list[0,1]],   0,  2);
-    $sub->([@list[1,2]],   1,  2);
+    $sub->([],             0,   0);
+    $sub->(\@list,         0,  10);
+    $sub->([@list[0,1]],   0,   2);
+    $sub->([@list[1,2]],   1,   2);
+    $sub->([@list[1,2]], 1e0,   2);
+    $sub->([@list[1,2]], "1",   2);
     $sub->([@list[1..3]], -3);
-    $sub->([@list[1,2]],  -3,  2);
-    $sub->([@list[1..3]], -3,  3);
+    $sub->([@list[1,2]],  -3,   2);
+    $sub->([@list[1..3]], -3,   3);
+
+    $sub->([$list[0]],     0,   1);
+    $sub->([$list[0]],     0, 1e0);
+    $sub->([$list[0]],     0, "1");
     } # do_tests
 
 foreach my $eol ("\n", "\r") {

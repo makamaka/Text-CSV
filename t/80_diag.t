@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 335;
+ use Test::More tests => 345;
 #use Test::More "no_plan";
 
 my %err;
@@ -62,7 +62,7 @@ parse_err 2034,  4, 10, 2, qq{1, "bar",2};
 parse_err 2037,  1, 11, 1, qq{\0 };
 
 {   my @warn;
-    local $SIG{__WARN__} = sub { push @warn, @_ };
+    local $SIG{__WARN__} = sub { push @warn => @_ };
     $csv->error_diag ();
     ok (@warn == 1, "Got error message");
     like ($warn[0], qr{^# CSV_(?:PP|XS) ERROR: 2037 - EIF}, "error content");
@@ -75,26 +75,26 @@ is ($csv->eof, 1,  "EOF caused by 2012");
 is (Text::CSV->new ({ ecs_char => ":" }), undef, "Unsupported option");
 
 {   my @warn;
-    local $SIG{__WARN__} = sub { push @warn, @_ };
+    local $SIG{__WARN__} = sub { push @warn => @_ };
     Text::CSV::error_diag ();
     ok (@warn == 1, "Error_diag in void context ::");
     like ($warn[0], qr{^# CSV_(?:PP|XS) ERROR: 1000 - INI}, "error content");
     }
 {   my @warn;
-    local $SIG{__WARN__} = sub { push @warn, @_ };
+    local $SIG{__WARN__} = sub { push @warn => @_ };
     Text::CSV->error_diag ();
     ok (@warn == 1, "Error_diag in void context ->");
     like ($warn[0], qr{^# CSV_(?:PP|XS) ERROR: 1000 - INI}, "error content");
     }
 
 {   my @warn;
-    local $SIG{__WARN__} = sub { push @warn, @_ };
+    local $SIG{__WARN__} = sub { push @warn => @_ };
     is (Text::CSV->new ({ auto_diag => 0, ecs_char => ":" }), undef,
 	"Unsupported option");
     ok (@warn == 0, "Error_diag in from new ({ auto_diag => 0})");
     }
 {   my @warn;
-    local $SIG{__WARN__} = sub { push @warn, @_ };
+    local $SIG{__WARN__} = sub { push @warn => @_ };
     is (Text::CSV->new ({ auto_diag => 1, ecs_char => ":" }), undef,
 	"Unsupported option");
     ok (@warn == 1, "Error_diag in from new ({ auto_diag => 1})");
@@ -117,7 +117,7 @@ is (    $csv->error_diag (),   "",			"Reset error STR");
 ok (1, "Test auto_diag");
 $csv = Text::CSV->new ({ auto_diag => 1 });
 {   my @warn;
-    local $SIG{__WARN__} = sub { push @warn, @_ };
+    local $SIG{__WARN__} = sub { push @warn => @_ };
     is ($csv->{_RECNO}, 0, "No records read yet");
     is ($csv->parse ('"","'), 0, "1 - bad parse");
     ok (@warn == 1, "1 - One error");
@@ -125,7 +125,7 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     is ($csv->{_RECNO}, 1, "One record read");
     }
 {   my @warn;
-    local $SIG{__WARN__} = sub { push @warn, @_ };
+    local $SIG{__WARN__} = sub { push @warn => @_ };
     is ($csv->diag_verbose (3), 3, "Set diag_verbose");
     is ($csv->parse ('"","'), 0, "1 - bad parse");
     ok (@warn == 1, "1 - One error");
@@ -142,7 +142,7 @@ $csv = Text::CSV->new ({ auto_diag => 1 });
     }
 
 {   my @warn;
-    local $SIG{__WARN__} = sub { push @warn, @_ };
+    local $SIG{__WARN__} = sub { push @warn => @_ };
 
     # Invalid error_input calls
     is (Text::CSV::error_input (undef), undef, "Bad error_input call");
@@ -300,7 +300,7 @@ unlink $diag_file;
     is_deeply ($aoh, [{ 1 => 1, 2 => 2, 3 => 3 }], "Column dropped");
     my @e;
     eval {
-	local $SIG{__WARN__} = sub { push @e, @_ };
+	local $SIG{__WARN__} = sub { push @e => @_ };
 	$aoh = Text::CSV::csv (in => $tfn, headers => "auto", strict => 1);
 	};
     is_deeply ($aoh, [],                "Fail under strict");
@@ -315,7 +315,7 @@ unlink $diag_file;
     is_deeply ($aoh, [{ 1 => 1, 2 => 2, 3 => 3, 4 => undef }], "Column added");
     @e = ();
     eval {
-	local $SIG{__WARN__} = sub { push @e, @_ };
+	local $SIG{__WARN__} = sub { push @e => @_ };
 	$aoh = Text::CSV::csv (in => $tfn, headers => "auto", strict => 1);
 	};
     is_deeply ($aoh, [],                "Fail under strict");
@@ -340,7 +340,7 @@ unlink $diag_file;
     }
 
 SKIP: {
-    $] < 5.008 and skip qq{$] does not support ScalarIO}, 14;
+    $] < 5.008 and skip qq{$] does not support ScalarIO}, 24;
     foreach my $key ({}, sub {}, []) {
 	my $csv = Text::CSV->new;
 	my $x = eval { $csv->csv (in => \"a,b", key => $key) };
@@ -363,6 +363,17 @@ SKIP: {
 	my @diag = $csv->error_diag;
 	is ($diag[0], 1503, "Invalid value type");
 	}
+
+    foreach my $ser ("die", 4) {
+	ok (my $csv = Text::CSV->new ({ skip_empty_rows => $ser }),
+						"New CSV for SER $ser");
+	is (eval { $csv->csv (in => \"\n") }, undef,
+						"Parse empty line for SER $ser");
+	like ($@, qr{^Empty row},		"Message");
+	my @diag = $csv->error_diag;
+	is   ($diag[0], 2015,			"Empty row");
+	like ($diag[1], qr{^ERW - Empty row},	"Error description");
+	}
     }
 
 # Issue 19: auto_diag > 1 does not die if ->header () is used
@@ -379,8 +390,8 @@ if ($] >= 5.008002) {
 	my $ok = eval {
 	    open  $fh,   "<", $tfn or die "$tfn: $!\n";
 	    my $csv = Text::CSV->new ({ auto_diag => 2 });
-	    $h and push @row, [ $csv->header ($fh) ];
-	    while (my $row = $csv->getline ($fh)) { push @row, $row }
+	    $h and push @row => [ $csv->header ($fh) ];
+	    while (my $row = $csv->getline ($fh)) { push @row => $row }
 	    close $fh;
 	    1;
 	    };
