@@ -55,7 +55,7 @@ WriteMakefile(
     'AUTHOR'     => 'Makamaka Hannyaharamitu, E<lt>makamaka[at]cpan.orgE<gt>',
     'PREREQ_PM' => {
 		      "IO::Handle"	=> 0,
-		      "Test::More"	=> '0.71',
+		      "Test::More"	=> '0.92',
 		      "Test::Harness"	=> 0,
 		      %xs_prereq,
     },
