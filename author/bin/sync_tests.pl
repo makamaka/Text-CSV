@@ -71,6 +71,10 @@ EOT
             $content =~ s/(use Text::CSV;)/BEGIN { \$ENV{PERL_TEXT_CSV} = \$ENV{TEST_PERL_TEXT_CSV} || 0; }\n$1/;
         }
 
+        if ($basename =~ /(?:68_header)/) {
+            $content =~ s/done_testing;//;
+        }
+
         if ($basename =~ /80_diag/) {
             $content =~ s!open my \$fh, "<", "CSV_XS.xs"!open my \$fh, "<", "lib/Text/CSV_PP.pm"!;
             $content =~ s!Cannot read error messages from XS!Cannot read error messages from PP!;

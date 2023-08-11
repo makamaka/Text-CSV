@@ -61,4 +61,4 @@ foreach my $arg ("", "bom", "auto", "bom, auto") {
     close $fh;
     }
 
-done_testing;
+
