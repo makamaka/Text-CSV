@@ -1,5 +1,8 @@
 Revision history for Perl extension Text::CSV.
 
+2.03  2023-08-11
+    - Imported tests/fixes from Text::CSV_XS 1.51
+
 2.02  2022-08-08
     - Imported tests/fixes from Text::CSV_XS 1.48
     - Fixed a case where csv function is called as a method (GH#46)
