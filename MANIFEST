@@ -11,6 +11,7 @@ t/01_is_pp.t
 t/10_base.t
 t/12_acc.t
 t/15_flags.t
+t/16_import.t
 t/20_file.t
 t/21_lexicalio.t
 t/22_scalario.t
@@ -26,6 +27,8 @@ t/55_combi.t
 t/60_samples.t
 t/65_allow.t
 t/66_formula.t
+t/67_emptrow.t
+t/68_header.t
 t/70_rt.t
 t/71_pp.t
 t/75_hashref.t
