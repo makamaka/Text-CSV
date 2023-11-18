@@ -2585,7 +2585,7 @@ RESTART:
                         $c = $self->__get($ctx, $src);
                         if (!defined $c or $ser == 2) {  # EOF
                             $v_ref = undef;
-                            $waitingForField = 0;
+                            $seenSomething = 0;
                             if ($ser == 2) { return undef; }
                             last LOOP;
                         }
