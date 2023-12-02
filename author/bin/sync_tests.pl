@@ -68,7 +68,7 @@ EOT
         }
 
         if ($basename =~ /(?:41_null|47_comment|78_fragment)/) {
-            $content =~ s/(use Text::CSV;)/BEGIN { \$ENV{PERL_TEXT_CSV} = \$ENV{TEST_PERL_TEXT_CSV} || 0; }\n$1/;
+            $content =~ s/(use Text::CSV)/BEGIN { \$ENV{PERL_TEXT_CSV} = \$ENV{TEST_PERL_TEXT_CSV} || 0; }\n$1/;
         }
 
         if ($basename =~ /(?:68_header)/) {
@@ -86,10 +86,14 @@ EOT
             $content =~ s/(package Text::CSV::Subclass;)/$1\n\nBEGIN {\n    \$ENV{PERL_TEXT_CSV} = \$ENV{TEST_PERL_TEXT_CSV} || 0;\n}\n\nBEGIN { require Text::CSV; }\t# needed for perl5.005/;
         }
 
-        die $basename unless $content =~ /\$ENV{PERL_TEXT_CSV} =/;
+        die "Need to modify $basename to include PERL_TEXT_ENV check" unless $content =~ /\$ENV\{PERL_TEXT_CSV\} =/;
         $pp_test->spew($content);
         print STDERR "copied $xs_test to $pp_test\n";
         next;
+    }
+    if ($basename =~ /\.pl$/) {
+        $xs_test->copy($pp_test);
+        print STDERR "copied $xs_test to $pp_test\n";
     }
     print STDERR "Skipped $xs_test\n";
 }
