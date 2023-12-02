@@ -2319,6 +2319,8 @@ LOOP:
                 if ($waitingForField) {
                     if (!$spl && $ctx->{comment_str} && $ctx->{tmp} =~ /\A\Q$ctx->{comment_str}/) {
                         $ctx->{used} = $ctx->{size};
+                        $ctx->{fld_idx} = 0;
+                        $seenSomething = 0;
                         next LOOP;
                     }
                     $waitingForField = 0;
@@ -2868,6 +2870,8 @@ RESTART:
                 if ($waitingForField) {
                     if (!$spl && $ctx->{comment_str} && $ctx->{tmp} =~ /\A$ctx->{comment_str}/) {
                         $ctx->{used} = $ctx->{size};
+                        $ctx->{fld_idx} = 0;
+                        $seenSomething = 0;
                         next LOOP;
                     }
                     if ($ctx->{allow_whitespace} and $self->__is_whitespace($ctx, $c)) {
