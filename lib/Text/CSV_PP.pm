@@ -4265,7 +4265,7 @@ This will return a reference to a list of L<getline ($fh)|/getline> results.
 In this call, C<keep_meta_info> is disabled.  If C<$offset> is negative, as
 with C<splice>, only the last  C<abs ($offset)> records of C<$fh> are taken
 into consideration. Parameters C<$offset> and C<$length> are expected to be
-an integers. Non-integer values are interpreted as integer without check.
+integers. Non-integer values are interpreted as integer without check.
 
 Given a CSV file with 10 lines:
 
