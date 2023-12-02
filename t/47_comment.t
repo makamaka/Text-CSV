@@ -5,7 +5,7 @@ $^W = 1;
 
 use Test::More;
 BEGIN { $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0; }
-use Text::CSV;
+use Text::CSV qw(csv);
 
 BEGIN {
     if ($] < 5.008002) {
@@ -13,7 +13,7 @@ BEGIN {
 	}
     else {
 	require Encode;
-	plan tests => 60;
+	plan tests => 61;
 	}
     require "./t/util.pl";
     }
@@ -57,4 +57,17 @@ foreach my $cstr ("#", "//", "Comment", "\xe2\x98\x83") {
 	}
     }
 
+is_deeply (csv (
+    in               => *DATA,
+    sep_char         => "|",
+    headers          => "auto",
+    allow_whitespace => 1,
+    comment_str      => "#"
+    ), [{ id => 42, name => "foo" }], "Last record is comment");
+
 1;
+__END__
+id | name
+#
+42 | foo
+#

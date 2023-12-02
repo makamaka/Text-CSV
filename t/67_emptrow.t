@@ -49,7 +49,7 @@ is ($csv->skip_empty_rows (\&cba),	\&cba,		"callback");
 is ($csv->skip_empty_rows (0),		0,		"+0");
 is ($csv->skip_empty_rows (undef),	0,		"undef");
 
-open my $fh, ">", $tfn;
+open my $fh, ">", $tfn or BAIL_OUT "$tfn: $!\n";
 print $fh "a,b,c,d\n";
 print $fh "1,2,0,4\n";
 print $fh "4,0,9,1\n";
@@ -92,10 +92,10 @@ is_deeply (csv (@parg, skip_empty_rows => sub {\@repl}), [ @head,
 is_deeply (csv (@parg, skip_empty_rows => sub {0}), \@head,	"A Callback 0");
 
 # Array behavior (line by line)
-open $fh, "<", $tfn or BAIL_OUT "$tfn: $!\n";
+open $fh, "<", $tfn;
 $csv = Text::CSV->new ({ skip_empty_rows => 1 });
-while (my $row = $csv->getline($fh)) {
-    ok (@$row, "Row has columns")
+while (my $row = $csv->getline ($fh)) {
+    ok (@$row, "Row has columns");
     }
 close $fh;
 
@@ -136,9 +136,9 @@ is_deeply (csv (@parg, skip_empty_rows => sub {0}), \@head,	"H Callback 0");
 # Hash behavior (line by line)
 open $fh, "<", $tfn;
 $csv = Text::CSV->new ({ skip_empty_rows => 1 });
-my $cols = $csv->getline($fh);
-$csv->column_names(@$cols);
-while (my $row = $csv->getline_hr($fh)) {
+my $cols = $csv->getline ($fh);
+$csv->column_names (@$cols);
+while (my $row = $csv->getline_hr ($fh)) {
     isnt ($row->{a}, undef, "Column 'a' is defined");
     }
 close $fh;

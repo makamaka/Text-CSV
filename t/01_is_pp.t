@@ -11,7 +11,7 @@ BEGIN {
     plan skip_all => "Cannot load Text::CSV" if $@;
     }
 
-if (!$ENV{PERL_TEXT_CSV} or !eval { require Text::CSV_XS; 1 }) {
+if (!$ENV{PERL_TEXT_CSV} or $ENV{PERL_TEXT_CSV} eq 'Text::CSV_PP' or !eval { require Text::CSV_XS; 1 }) {
     ok my $csv = Text::CSV->new;
     ok $csv->is_pp;
     is $csv->module => 'Text::CSV_PP';

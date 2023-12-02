@@ -220,7 +220,7 @@ open  STDERR, ">&EH"          or die "STDERR: $!\n";
 open  EH,     "<", $diag_file or die "STDERR: $!\n";
 is (scalar <EH>, "CACHE:\n",	"Title");
 while (<EH>) {
-    m/^\s+(?:tmp|bptr)\b/ and next;
+    m/^\s+(?:tmp|bptr|cache)\b/ and next;
     like ($_, qr{^  \w+\s+[0-9a-f]+:(?:".*"|\s*[0-9]+)$}, "Content");
     }
 close EH;
