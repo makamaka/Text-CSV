@@ -10,7 +10,7 @@ BEGIN {
         plan skip_all => "This test unit requires perl-5.8.1 or higher";
 	}
     else {
-	plan tests => 47;
+	plan tests => 56;
 	}
 
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
@@ -91,6 +91,14 @@ is_deeply (csv (@parg, skip_empty_rows => sub {\@repl}), [ @head,
     $ea,[8,2,7,1],$ea,$ea,[5,7,9,3],$ea],			"A Callback");
 is_deeply (csv (@parg, skip_empty_rows => sub {0}), \@head,	"A Callback 0");
 
+# Array behavior (line by line)
+open $fh, "<", $tfn or BAIL_OUT "$tfn: $!\n";
+$csv = Text::CSV->new ({ skip_empty_rows => 1 });
+while (my $row = $csv->getline($fh)) {
+    ok (@$row, "Row has columns")
+    }
+close $fh;
+
 # Hash behavior
 push @parg => bom => 1;
 my $eh = { a => "", b => undef, c => undef, d => undef },
@@ -124,3 +132,13 @@ is_deeply (csv (@parg, skip_empty_rows => sub {\@repl}), [ @head, $eh,
     { a => 5, b => 7, c => 9, d => 3 },$eh],			"H Callback");
 
 is_deeply (csv (@parg, skip_empty_rows => sub {0}), \@head,	"H Callback 0");
+
+# Hash behavior (line by line)
+open $fh, "<", $tfn;
+$csv = Text::CSV->new ({ skip_empty_rows => 1 });
+my $cols = $csv->getline($fh);
+$csv->column_names(@$cols);
+while (my $row = $csv->getline_hr($fh)) {
+    isnt ($row->{a}, undef, "Column 'a' is defined");
+    }
+close $fh;

@@ -2585,7 +2585,7 @@ RESTART:
                         $c = $self->__get($ctx, $src);
                         if (!defined $c or $ser == 2) {  # EOF
                             $v_ref = undef;
-                            $waitingForField = 0;
+                            $seenSomething = 0;
                             if ($ser == 2) { return undef; }
                             last LOOP;
                         }
@@ -2724,7 +2724,8 @@ RESTART:
                                     $c = $self->__get($ctx, $src);
                                     if (!defined $c) { # EOF
                                         $v_ref = undef;
-                                        $waitingForField = 0;
+                                        $waitingForField = 1;
+                                        $seenSomething = 0;
                                         last LOOP;
                                     }
                                 }
@@ -2816,7 +2817,7 @@ RESTART:
                                     $c = $self->__get($ctx, $src);
                                     if (!defined $c) { # EOL
                                         $v_ref = undef;
-                                        $waitingForField = 0;
+                                        $seenSomething = 0;
                                         last LOOP;
                                     }
                                 }
