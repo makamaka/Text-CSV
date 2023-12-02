@@ -1,5 +1,9 @@
 Revision history for Perl extension Text::CSV.
 
+2.04  2023-12-02
+    - Imported tests/fixes from Text::CSV_XS 1.53
+      - Fixed skip_empty_rows('skip') and trailing newlines (GH#65, bugfood++)
+
 2.03  2023-08-11
     - Imported tests/fixes from Text::CSV_XS 1.51
 
