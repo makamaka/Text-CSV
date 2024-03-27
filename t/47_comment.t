@@ -62,7 +62,8 @@ is_deeply (csv (
     sep_char         => "|",
     headers          => "auto",
     allow_whitespace => 1,
-    comment_str      => "#"
+    comment_str      => "#",
+    strict           => 1
     ), [{ id => 42, name => "foo" }], "Last record is comment");
 
 1;

@@ -2308,7 +2308,7 @@ LOOP:
                 }
                 $fnum++;
                 return unless $v_ref;
-                $ctx->{flag} = 0;    
+                $ctx->{flag} = 0;
                 $ctx->{fld_idx}++;
             }
 
@@ -2319,6 +2319,7 @@ LOOP:
                 if ($waitingForField) {
                     if (!$spl && $ctx->{comment_str} && $ctx->{tmp} =~ /\A\Q$ctx->{comment_str}/) {
                         $ctx->{used} = $ctx->{size};
+                        $v_ref = undef;
                         $ctx->{fld_idx} = 0;
                         $seenSomething = 0;
                         next LOOP;
