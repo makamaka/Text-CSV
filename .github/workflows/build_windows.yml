@@ -21,8 +21,8 @@ jobs:
       - name: perl -V
         run: perl -V
       - name: Install dependencies with develop
-        run: curl -sL https://cpanmin.us | perl - --installdeps .
+        run: curl -sL https://cpanmin.us | perl - --installdeps . -v
       - name: Run Makefile.PL
         run: perl Makefile.PL
       - name: Run tests
-        run: gmake test TEST_VERBOSE=1
+        run: gmake test
