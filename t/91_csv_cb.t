@@ -4,7 +4,7 @@ use strict;
 $^W = 1;
 
 #use Test::More "no_plan";
- use Test::More tests => 79;
+ use Test::More tests => 82;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
@@ -223,6 +223,13 @@ SKIP: {
 		    grep { defined && m/\S/ } @{$_[1]} }),
 		[[3,3,3],[5,7,9],[8,13,18]],
 		"filter => filled");
+    }
+
+{   my @err;
+    my $aoa = csv (in => $tfn, strict => 1, on_error => sub { @err = @_ });
+    is_deeply ($aoa, [[3,3,3]], "Bad CSV still returns ref");
+    is ($err[0], 2014, "ENF - Inconsistent number of fields");
+    is (0 + Text::CSV->error_diag, 2014, "Error is kept");
     }
 
 # Count rows in different ways

@@ -211,7 +211,7 @@ foreach my $eol ("!", "!!", "!\n", "!\n!") {
     }
 $/ = $def_rs;
 
-{   ok (my $csv = Text::CSV->new,	"new for say");
+{   ok (my $csv = Text::CSV->new, "new for say");
     my $foo;
     open my $fh, ">", \$foo or die "IO: $!\n";
     ok ($csv->say ($fh, [ 1, 2 ]),	"say");
@@ -242,7 +242,7 @@ $/ = $def_rs;
     is ($foo, "1,20", "content with eol 0");
     }
 
-{   ok (my $csv = Text::CSV->new,	"new for say");
+{   ok (my $csv = Text::CSV->new, "new for say");
     my $foo;
     my $dta = "x";
     ok ($csv->bind_columns (\$dta), "bind columns");
