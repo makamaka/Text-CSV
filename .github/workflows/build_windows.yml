@@ -25,4 +25,4 @@ jobs:
       - name: Run Makefile.PL
         run: perl Makefile.PL
       - name: Run tests
-        run: gmake test
+        run: gmake test TEST_VERBOSE=1
