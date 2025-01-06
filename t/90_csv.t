@@ -161,6 +161,7 @@ SKIP: {
     }
 
 # Some "out" checks
+my $crnl;
 open my $fh, ">", $tfn or die "$tfn: $!\n";
 csv (in => [{ a => 1 }], out => $fh);
 csv (in => [{ a => 1 }], out => $fh, headers => undef);
@@ -172,7 +173,10 @@ close $fh;
     my $dta = do {local $/; <$fh>};
     my @layers = eval { PerlIO::get_layers ($fh); };
     close $fh;
-    grep m/crlf/ => @layers and $dta =~ s/\n/\r\n/g;
+    if (grep m/crlf/ => @layers) {
+	$dta =~ s/\n/\r\n/g;
+	$crnl++;
+	}
     is ($dta, "a\r\n1\r\n" x 5, "AoH to out");
     }
 
@@ -345,7 +349,12 @@ eval {
 	local $SIG{__WARN__} = sub { push @w => @_ };
 	csv (in => $tfn, quote_always => 1, fragment => "row=1-2",
 	    on_in => sub { splice @{$_[1]}, 1; }, eol => "\n");
-	like ($w[0], qr/2016 - EOL/, "EOL mismatch");
+	if ($crnl) {
+	    is (scalar @w, 0, "CRNL layer found");
+	    }
+	else {
+	    like ($w[0], qr/2016 - EOL/, "EOL mismatch");
+	    }
 	}
     close STDOUT;
     my $dta = do { local (@ARGV, $/) = $ofn; <> };
