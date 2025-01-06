@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
-use Test::More tests => 1094;
+use Test::More tests => 1176;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
@@ -155,8 +155,12 @@ ok (1, "Specific \\r test from tfrayner");
 $/ = $def_rs;
 
 ok (1, "EOL undef");
-{   $/ = "\r";
-    ok (my $csv = Text::CSV->new ({ eol => undef }), "new csv with eol => undef");
+foreach my $se (0, 1) {
+    $/ = "\r";
+    ok (my $csv = Text::CSV->new ({
+	eol        => undef,
+	strict_eol => $se,
+	}), "new csv with eol => undef");
     open my $fh, ">", $tfn or die "$tfn: $!\n";
     ok ($csv->print ($fh, [1, 2, 3]), "print");
     ok ($csv->print ($fh, [4, 5, 6]), "print");
@@ -201,9 +205,17 @@ foreach my $eol ("!", "!!", "!\n", "!\n!", "!!!!!!!!", "!!!!!!!!!!",
     }
 $/ = $def_rs;
 
-{   open my $fh, "<", "files/macosx.csv" or die "files/macosx.csv: $!";
+
+foreach my $se (0, 1) {
+    my @w;
+    local $SIG{__WARN__} = sub { push @w => @_ };
+    open my $fh, "<", "files/macosx.csv" or die "files/macosx.csv: $!";
     ok (1, "MacOSX exported file");
-    ok (my $csv = Text::CSV->new ({ auto_diag => 1, binary => 1 }), "new csv");
+    ok (my $csv = Text::CSV->new ({
+	auto_diag  => 1,
+	binary     => 1,
+	strict_eol => $se,
+	}), "new csv");
     ok (my $row = $csv->getline ($fh),	"getline 1");
     is (scalar @$row, 15,		"field count");
     is ($row->[7], "",			"field 8");
@@ -253,6 +265,12 @@ $/ = $def_rs;
     is (scalar @$row, 15,		"field count");
     is ($row->[0], "",			"field 1");
     close $fh;
+    if ($se) {
+	like ($w[0], qr{2016 - EOL}, "Got EOL warning");
+	}
+    else {
+	is_deeply (\@w, [], "No warnings");
+	}
     }
 
 {   ok (my $csv = Text::CSV->new ({ auto_diag => 1, binary => 1 }), "new csv");
@@ -296,14 +314,17 @@ foreach my $eol ("\n", "\r\n", "\r") {
 	print   $fh qq{,$eol};	# -> [ "", "" ]
 	print   $fh     $eol;	# skipped
 	print   $fh qq{""$eol};	# -> [ "" ]
-	print   $fh qq{eol$eol};# -> [ "eol" ]
+	print   $fh qq{eol$eol};	# -> [ "eol" ]
 	close   $fh;
 
 	my @expect = ([ " " ], [ "", "" ], [ "" ], [ "eol" ]);
 	$before and unshift @expect => [ 1, 2 ];
 
 	open    $fh, "<", $tfn or die "$tfn: $!\n";
-	my $csv = Text::CSV->new ({ skip_empty_rows => 1, eol => $eol });
+	my $csv = Text::CSV->new ({
+	    skip_empty_rows => 1,
+	    eol             => $eol,
+	    });
 	my @csv;
 	while (my $row = $csv->getline ($fh)) {
 	    push @csv => $row;
@@ -319,6 +340,327 @@ foreach my $eol ("\n", "\r\n", "\r") {
 	    }
 	close   $fh;
 	is_deeply (\@csv, \@expect, "Empty lines skipped $s_eol\tauto-detect");
+	}
+    }
+
+my %ers = (
+    # For backward compat :( - on 2024-12-05 XS and PP acted identical
+    # some are not OK or at least do not DWIM in hindsight
+    # strict : skip : reset : quoted
+    '0:0:0:'  => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "",                    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "",                    ],
+                  [ "",                    ],
+                  [ "Crow",     "caw",     ],
+                  [ "",                    ],
+                  [ "",                    ],
+                  [ 2012,  0, 15,  0, "" ]], # EOF
+    '0:0:1:'  => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "",                    ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012,  0, 14,  0, "" ]], # EOF
+    '0:1:0:'  => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ 2012,  0, 11,  0, "" ]], # EOF
+    '0:1:1:'  => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012,  0, 12,  0, "" ]], # EOF
+    '0:0:0:"' => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "",                    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "",                    ],
+                  [ "",                    ],
+                  [ "Crow",     "caw",     ],
+                  [ "",                    ],
+                  [ "",                    ],
+                  [ 2012,  0, 15,  0, "" ]], # EOF
+    '0:0:1:"' => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                 #[ "Crow",     "caw",     ], WRONG
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012,  0, 12,  0, "" ]], # EOF
+    '0:1:0:"' => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],	# WRONG
+                  [ 2012,  0, 11,  0, "" ]], # EOF
+    '0:1:1:"' => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                 #[ "Crow",     "caw",     ], WRONG
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012,  0, 11,  0, "" ]], # EOF
+
+    # Strict EOL warn / strict : skip : reset : quoted
+    '1:0:0:'  => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "",                    ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012, 13, 14,  2, "2016 - EOL" ]],
+    '1:0:1:'  => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "",                    ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012,  0, 14,  0, "" ]], # EOF
+    '1:1:0:'  => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012, 13, 12,  2, "2016 - EOL" ]],
+    '1:1:1:'  => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012, 10, 12,  1, "2016 - EOL" ]],
+    '1:0:0:"' => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "",                    ],
+		  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012, 15, 14,  2, "2016 - EOL" ]],
+    '1:0:1:"' => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+		 #[ "Crow",     "caw",     ], WRONG: might change
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012, 13, 12,  2, "2016 - EOL" ]],
+    '1:1:0:"' => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012, 15, 12,  2, "2016 - EOL" ]],
+    '1:1:1:"' => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                 #[ "Crow",     "caw",     ], WRONG, might change
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012, 13, 11,  2, "2016 - EOL" ]],
+
+    # Strict EOL croak / strict : skip : reset : quoted
+    '2:0:0:'  => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ 2016, 13,  4,  2, "2016 - EOL" ]],
+    '2:0:1:'  => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ "",                    ],
+                  [ "Crow",     "caw",     ],
+                  [ "Deer",     "bellow",  ],
+                  [ "Dolphin",  "click",   ],
+                  [ 2012,  0, 14,  0, "" ]], # EOF
+    '2:1:0:'  => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ 2016, 13,  3,  2, "2016 - EOL" ]],
+    '2:1:1:'  => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ "Cobra",    "shh",     ],
+                  [ 2016, 10,  9,  1, "2016 - EOL" ]],
+    '2:0:0:"' => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ 2016, 15,  4,  2, "2016 - EOL" ]],
+    '2:0:1:"' => [[ "Aardvark", "snort",   ],
+                  [ "",                    ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                  [ 2016, 13,  9,  2, "2016 - EOL" ]],
+    '2:1:0:"' => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ 2016, 15,  3,  2, "2016 - EOL" ]],
+    '2:1:1:"' => [[ "Aardvark", "snort",   ],
+                  [ "Alpaca",   "spit",    ],
+                  [ "Badger",   "growl",   ],
+                  [ "Bat",      "screech", ],
+                  [ "Bear",     "roar",    ],
+                  [ "Bee",      "buzz",    ],
+                  [ "Camel",    "grunt",   ],
+                 #[ "Cobra",    "shh",     ], NOT stored, documented, might change
+                  [ 2016, 13,  8,  2, "2016 - EOL" ]],
+    );
+
+foreach my $q ('', '"') {
+    open my $fh, ">", $tfn or die "$tfn: $!\n";
+    print   $fh "Aardvark,${q}snort${q}\r\n";
+    print   $fh "\r\n"; # Empty line
+    print   $fh "Alpaca,${q}spit${q}\r\n";
+    print   $fh "Badger,${q}growl${q}\n"; # only newline
+    print   $fh "Bat,${q}screech${q}\r\n";
+    print   $fh "Bear,${q}roar${q}\r"; # only carriage return - no newline
+    print   $fh "Bee,${q}buzz${q}\r\n";
+    print   $fh "Camel,${q}grunt${q}\r\n";
+    print   $fh "Cobra,${q}shh${q}\r\r"; # two CR's
+    print   $fh "Crow,${q}caw${q}\r\n";
+    print   $fh "Deer,${q}bellow${q}\n"; # only newline
+    print   $fh "Dolphin,${q}click${q}\r\n";
+    close   $fh;
+
+    foreach my $se (0, 1, 2) {
+	foreach my $ser (0, 1) {
+	    foreach my $reset (0, 1) {
+		my $tag = join ":" => $se, $ser, $reset, $q;
+		open $fh, "<", $tfn or die "$tfn: $!\n";
+		my $csv = Text::CSV->new ({
+		    strict_eol      => $se,
+		    skip_empty_rows => $ser,
+		    auto_diag => 1, diag_verbose => 1,
+		    # Do NOT set binary!
+		    });
+
+		my (@r, @w);
+		eval {
+		    local $SIG{__WARN__} = sub { push @w => @_ };
+		    while (my $row = $csv->getline ($fh)) {
+			push @r => [ @$row ];
+			$reset and $csv->eol (undef);
+			}
+		    close $fh;
+		    };
+		my @diag = $csv->error_diag;
+		my $warn = join " | " => map { substr $_, 16, 10 } @w;
+		my $got = [ @r, [ @diag[0, 2, 3, 4], $warn ]];
+		my $exp = $ers{$tag};
+		unless (is_deeply ($got, $exp, $tag)) {
+		    # use Data::Peek;
+		    #diag DDumper { got => $got, tag => $tag };
+		    }
+		}
+	    }
 	}
     }
 

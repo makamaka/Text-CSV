@@ -5,7 +5,7 @@ $^W = 1;
 use Config;
 
 #use Test::More "no_plan";
- use Test::More tests => 128;
+ use Test::More tests => 127;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
@@ -161,6 +161,7 @@ SKIP: {
     }
 
 # Some "out" checks
+my $crnl;
 open my $fh, ">", $tfn or die "$tfn: $!\n";
 csv (in => [{ a => 1 }], out => $fh);
 csv (in => [{ a => 1 }], out => $fh, headers => undef);
@@ -172,7 +173,10 @@ close $fh;
     my $dta = do {local $/; <$fh>};
     my @layers = eval { PerlIO::get_layers ($fh); };
     close $fh;
-    grep m/crlf/ => @layers and $dta =~ s/\n/\r\n/g;
+    if (grep m/crlf/ => @layers) {
+	$dta =~ s/\n/\r\n/g;
+	$crnl++;
+	}
     is ($dta, "a\r\n1\r\n" x 5, "AoH to out");
     }
 
@@ -312,12 +316,6 @@ $] < 5.008 and unlink glob "SCALAR(*)";
     is ($r, undef, "Cannot add arrays to hashes");
     like ($err, qr{type mismatch}i, "ARRAY != HASH");
     $err = "";
-
-    $r = eval { csv (in => "in.csv", out => "out.csv"); };
-    $err =~ s{\s+at\s+\S+\s+line\s+\d+\.\r?\n?\Z}{};
-    is ($r, undef, "Cannot use strings for both");
-    like ($err, qr{^cannot}i, "Explicitely unsupported");
-    $err = "";
     }
 
 eval {
@@ -347,8 +345,17 @@ eval {
     my $ofn = "_STDOUT.csv";
 
     open STDOUT, ">", $ofn or die "$ofn: $!\n";
-    csv (in => $tfn, quote_always => 1, fragment => "row=1-2",
-	on_in => sub { splice @{$_[1]}, 1; }, eol => "\n");
+    {	my @w;
+	local $SIG{__WARN__} = sub { push @w => @_ };
+	csv (in => $tfn, quote_always => 1, fragment => "row=1-2",
+	    on_in => sub { splice @{$_[1]}, 1; }, eol => "\n");
+	if ($crnl) {
+	    is (scalar @w, 0, "CRNL layer found");
+	    }
+	else {
+	    like ($w[0], qr/2016 - EOL/, "EOL mismatch");
+	    }
+	}
     close STDOUT;
     my $dta = do { local (@ARGV, $/) = $ofn; <> };
     is ($dta, qq{"a"\n"1"\n}, "Chained csv call inherited attributes");

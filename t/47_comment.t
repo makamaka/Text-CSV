@@ -13,7 +13,7 @@ BEGIN {
 	}
     else {
 	require Encode;
-	plan tests => 61;
+	plan tests => 71;
 	}
     require "./t/util.pl";
     }
@@ -57,17 +57,82 @@ foreach my $cstr ("#", "//", "Comment", "\xe2\x98\x83") {
 	}
     }
 
-is_deeply (csv (
-    in               => *DATA,
-    sep_char         => "|",
-    headers          => "auto",
-    allow_whitespace => 1,
-    comment_str      => "#"
-    ), [{ id => 42, name => "foo" }], "Last record is comment");
-
-1;
-__END__
+my $data = <<"EOC";
 id | name
 #
 42 | foo
 #
+EOC
+
+is_deeply (csv (
+    in               => \$data,
+    sep_char         => "|",
+    headers          => "auto",
+    allow_whitespace => 1,
+    comment_str      => "#",
+    strict           => 0,
+    ), [{ id => 42, name => "foo" }], "Last record is comment");
+is_deeply (csv (
+    in               => \$data,
+    sep_char         => "|",
+    headers          => "auto",
+    allow_whitespace => 1,
+    comment_str      => "#",
+    strict           => 1,
+    ), [{ id => 42, name => "foo" }], "Last record is comment, under strict");
+
+$data .= "3\n";
+is_deeply (csv (
+    in               => \$data,
+    sep_char         => "|",
+    headers          => "auto",
+    allow_whitespace => 1,
+    comment_str      => "#",
+    strict           => 0,
+    ), [{ id => 42, name => "foo" },
+	{ id =>  3, name => undef },
+	], "Valid record past comment");
+is_deeply (csv (
+    in               => \$data,
+    sep_char         => "|",
+    headers          => "auto",
+    allow_whitespace => 1,
+    comment_str      => "#",
+    strict           => 1,
+    auto_diag        => 0,	# Suppress error 2014
+    ), [{ id => 42, name => "foo" }], "Invalid record past comment, under strict");
+is_deeply (csv (
+    in               => \"# comment\n42 | foo\n53 | bar\n",
+    sep_char         => "|",
+    allow_whitespace => 1,
+    comment_str      => "#",
+    strict           => 1,
+    auto_diag        => 1,
+    ), [[ 42, "foo" ], [ 53, "bar" ]], "Comment on first line, under strict");
+
+foreach my $io (1, 0) {
+    my $csv = Text::CSV->new ({
+	strict       => 1,
+	comment_str  => "#",
+	sep_char     => "|",
+	auto_diag    => 2,
+	diag_verbose => 1,
+	});
+
+    # Data line is required to set field count for strict
+    if ($io) {
+	is_deeply ($csv->getline (*DATA), [ "a", "b" ], "Comment on last line IO data");
+	is_deeply ($csv->getline (*DATA), undef,        "Comment on last line IO comment");
+	}
+    else {
+	ok ($csv->parse ("a|b"), "Parse data line");
+	is_deeply ([ $csv->fields ], [ "a", "b" ], "Data in parse");
+	ok ($csv->parse ("# some comment"), "Parse comment");
+	is_deeply ([ $csv->fields ], [ ], "Comment in parse");
+	}
+    }
+
+1;
+__END__
+a|b
+# some comment

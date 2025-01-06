@@ -15,10 +15,10 @@ jobs:
     strategy:
       matrix:
         perl-version:
-          - '5.8'
-          - '5.10'
-          - '5.18'
-          - '5.20'
+          - '5.8-buster'
+          - '5.10-buster'
+          - '5.18-buster'
+          - '5.20-buster'
           - '5.26'
           - 'latest'
 
@@ -34,6 +34,6 @@ jobs:
       - name: Run tests
         run: perl Makefile.PL && make && make test
       - name: Install XS
-        run: curl -sL https://cpanmin.us | perl - Text::CSV_XS@1.53
+        run: curl -sL https://cpanmin.us | perl - Text::CSV_XS@1.59
       - name: Run XS tests
         run: perl Makefile.PL && make && TEST_PERL_TEXT_CSV=2 make test
