@@ -12,7 +12,7 @@ use Exporter ();
 use vars     qw($VERSION @ISA @EXPORT_OK %EXPORT_TAGS);
 use Carp;
 
-$VERSION = '2.04';
+$VERSION = '2.05';
 @ISA     = qw(Exporter);
 
 sub PV { 0 }
