@@ -237,7 +237,7 @@ my %def_attr = (
     types                 => undef,
     callbacks             => undef,
 
-    _EOF           => 0,
+    _EOF           => "",
     _RECNO         => 0,
     _STATUS        => undef,
     _FIELDS        => undef,
@@ -264,7 +264,6 @@ my %attr_alias = (
 my $last_err = Text::CSV_PP->SetDiag(0);
 my $ebcdic   = ord("A") == 0xC1;        # Faster than $Config{'ebcdic'}
 my @internal_kh;
-my $last_error;
 
 # NOT a method: is also used before bless
 sub _unhealthy_whitespace {
@@ -322,7 +321,7 @@ sub known_attributes {
 
 sub new {
     $last_err = Text::CSV_PP->SetDiag(1000,
-        'usage: my $csv = Text::CSV_PP->new ([{ option => value, ... }]);');
+        "usage: my \$csv = Text::CSV_PP->new ([{ option => value, ... }]);");
 
     my $proto = shift;
     my $class = ref $proto || $proto	or  return;
@@ -332,7 +331,7 @@ sub new {
         my $k = m/^[a-zA-Z]\w+$/ ? lc $_ : $_;
         exists $attr_alias{$k} and $k = $attr_alias{$k};
         ($k => $attr->{$_});
-        } keys %$attr;
+        } keys %{$attr};
 
     my $sep_aliased = 0;
     if (exists $attr{sep}) {
@@ -387,7 +386,7 @@ sub new {
         return;
         }
     if (defined $self->{callbacks} && ref $self->{callbacks} ne "HASH") {
-        Carp::carp "The 'callbacks' attribute is set but is not a hash: ignored\n";
+        carp("The 'callbacks' attribute is set but is not a hash: ignored\n");
         $self->{callbacks} = undef;
         }
 
@@ -656,7 +655,7 @@ sub _supported_skip_empty_rows {
 sub _SetDiagInfo {
      my ($self, $err, $msg) = @_;
      $self->SetDiag ($err);
-     my $em  = $self->error_diag;
+     my $em  = $self->error_diag();
      $em =~ s/^\d+$// and $msg =~ s/^/# /;
      my $sep = $em =~ m/[;\n]$/ ? "\n\t" : ": ";
      join $sep => grep m/\S\S\S/ => $em, $msg;
@@ -803,11 +802,13 @@ sub diag_verbose {
 ################################################################################
 
 sub status {
-    $_[0]->{_STATUS};
+    my $self = shift;
+    return $self->{_STATUS};
 }
 
 sub eof {
-    $_[0]->{_EOF};
+    my $self = shift;
+    return $self->{_EOF};
 }
 
 sub types {
@@ -815,7 +816,7 @@ sub types {
 
     if (@_) {
         if (my $types = shift) {
-            $self->{'_types'} = join("", map{ chr($_) } @$types);
+            $self->{'_types'} = join "", map{ chr } @{$types};
             $self->{'types'} = $types;
             $self->_cache_set ($_cache_id{'types'}, $self->{'_types'});
         }
@@ -841,7 +842,7 @@ sub callbacks {
             $cb = @_ == 1 && ref $_[0] eq "HASH" ? shift
                 : @_ % 2 == 0                    ? { @_ }
                 : croak ($self->SetDiag (1004));
-            foreach my $cbk (keys %$cb) {
+            foreach my $cbk (keys %{$cb}) {
                 # A key cannot be a ref. That would be stored as the *string
                 # 'SCALAR(0x1f3e710)' or 'ARRAY(0x1a5ae18)'
                 $cbk =~ m/^[\w.]+$/ && ref $cb->{$cbk} eq "CODE" or
@@ -871,7 +872,7 @@ sub error_diag {
 
     # Docs state to NEVER use UNIVERSAL::isa, because it will *never* call an
     # overridden isa method in any class. Well, that is exacly what I want here
-    if ($self && ref $self && # Not a class method or direct call
+    if ($self && ref $self and # Not a class method or direct call
         UNIVERSAL::isa ($self, __PACKAGE__) && exists $self->{_ERROR_DIAG}) {
         $diag[0] = 0 + $self->{_ERROR_DIAG};
         $diag[1] =     $self->{_ERROR_DIAG};
@@ -898,8 +899,8 @@ sub error_diag {
                 return;
                 }
 
-            $self->{diag_verbose} and $self->{_ERROR_INPUT} and
-            $msg .= "$self->{_ERROR_INPUT}'\n".
+            $self->{diag_verbose} && $self->{_ERROR_INPUT} and
+            $msg .= $self->{_ERROR_INPUT} . "\n" .
                 (" " x ($diag[2] - 1))."^\n";
 
             my $lvl = $self->{auto_diag};
@@ -908,8 +909,8 @@ sub error_diag {
                 if (@c >= 11 && $c[10] && ref $c[10] eq "HASH") {
                     my $hints = $c[10];
                     (exists $hints->{autodie} && $hints->{autodie} or
-                     exists $hints->{"guard Fatal"} &&
-                    !exists $hints->{"no Fatal"}) and
+                     exists $hints->{'guard Fatal'} &&
+                    !exists $hints->{'no Fatal'}) and
                         $lvl++;
                     # Future releases of autodie will probably set $^H{autodie}
                     #  to "autodie @args", like "autodie :all" or "autodie open"
@@ -925,7 +926,8 @@ sub error_diag {
 }
 
 sub record_number {
-    return shift->{_RECNO};
+    my $self = shift;
+    return $self->{_RECNO};
 }
 
 ################################################################################
@@ -934,7 +936,8 @@ sub record_number {
 
 *string = \&_string;
 sub _string {
-    defined $_[0]->{_STRING} ? ${ $_[0]->{_STRING} } : undef;
+    my $self = shift;
+    return ref $self->{_STRING} ? ${ $self->{_STRING} } : undef;
 }
 
 ################################################################################
@@ -943,7 +946,8 @@ sub _string {
 
 *fields = \&_fields;
 sub _fields {
-    ref($_[0]->{_FIELDS}) ?  @{$_[0]->{_FIELDS}} : undef;
+    my $self = shift;
+    return ref $self->{_FIELDS} ? @{$self->{_FIELDS}} : undef;
 }
 
 ################################################################################
@@ -951,28 +955,29 @@ sub _fields {
 ################################################################################
 
 sub meta_info {
-    $_[0]->{_FFLAGS} ? @{ $_[0]->{_FFLAGS} } : undef;
+    my $self = shift;
+    return ref $self->{_FFLAGS} ? @{ $self->{_FFLAGS} } : undef;
 }
 
 sub is_quoted {
-    return unless (defined $_[0]->{_FFLAGS});
-    return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
-
-    $_[0]->{_FFLAGS}->[$_[1]] & IS_QUOTED ? 1 : 0;
+    my ($self, $idx) = @_;
+    ref $self->{_FFLAGS} &&
+        $idx >= 0 && $idx < @{$self->{_FFLAGS}} or return;
+    $self->{_FFLAGS}[$idx] & CSV_FLAGS_IS_QUOTED() ? 1 : 0;
 }
 
 sub is_binary {
-    return unless (defined $_[0]->{_FFLAGS});
-    return if( $_[1] =~ /\D/ or $_[1] < 0 or  $_[1] > $#{ $_[0]->{_FFLAGS} } );
-    $_[0]->{_FFLAGS}->[$_[1]] & IS_BINARY ? 1 : 0;
+    my ($self, $idx) = @_;
+    ref $self->{_FFLAGS} &&
+        $idx >= 0 && $idx < @{$self->{_FFLAGS}} or return;
+    $self->{_FFLAGS}[$idx] & CSV_FLAGS_IS_BINARY() ? 1 : 0;
 }
 
 sub is_missing {
-    my ($self, $idx, $val) = @_;
-    return unless $self->{keep_meta_info}; # FIXME
+    my ($self, $idx) = @_;
     $idx < 0 || !ref $self->{_FFLAGS} and return;
     $idx >= @{$self->{_FFLAGS}} and return 1;
-    $self->{_FFLAGS}[$idx] & IS_MISSING ? 1 : 0;
+    $self->{_FFLAGS}[$idx] & CSV_FLAGS_IS_MISSING() ? 1 : 0;
 }
 
 ################################################################################
@@ -980,10 +985,10 @@ sub is_missing {
 ################################################################################
 *combine = \&_combine;
 sub _combine {
-    my ($self, @fields) = @_;
+    my $self = shift;
     my $str  = "";
-    $self->{_FIELDS} = \@fields;
-    $self->{_STATUS} = (@fields > 0) && $self->__combine(\$str, \@fields, 0);
+    $self->{_FIELDS} = \@_;
+    $self->{_STATUS} = (@_ > 0) && $self->__combine(\$str, \@_, 0);
     $self->{_STRING} = \$str;
     $self->{_STATUS};
     }
@@ -1014,23 +1019,24 @@ sub _parse {
     }
 
 sub column_names {
-    my ( $self, @columns ) = @_;
+    my ( $self, @keys ) = @_;
 
-    @columns or return defined $self->{_COLUMN_NAMES} ? @{$self->{_COLUMN_NAMES}} : ();
-    @columns == 1 && ! defined $columns[0] and return $self->{_COLUMN_NAMES} = undef;
+    @keys or
+        return defined $self->{_COLUMN_NAMES} ? @{$self->{_COLUMN_NAMES}} : ();
+    @keys == 1 && ! defined $keys[0] and
+        return $self->{_COLUMN_NAMES} = undef;
 
-    if ( @columns == 1 && ref $columns[0] eq "ARRAY" ) {
-        @columns = @{ $columns[0] };
+    if ( @keys == 1 && ref $keys[0] eq "ARRAY" ) {
+        @keys = @{ $keys[0] };
     }
-    elsif ( join "", map { defined $_ ? ref $_ : "" } @columns ) {
-        croak $self->SetDiag( 3001 );
-    }
-
-    if ( $self->{_BOUND_COLUMNS} && @columns != @{$self->{_BOUND_COLUMNS}} ) {
-        croak $self->SetDiag( 3003 );
+    elsif ( join "", map { defined $_ ? ref $_ : "" } @keys ) {
+        croak($self->SetDiag( 3001 ));
     }
 
-    $self->{_COLUMN_NAMES} = [ map { defined $_ ? $_ : "\cAUNDEF\cA" } @columns ];
+    $self->{_BOUND_COLUMNS} && @keys != @{$self->{_BOUND_COLUMNS}} and
+        croak($self->SetDiag( 3003 ));
+
+    $self->{_COLUMN_NAMES} = [ map { defined $_ ? $_ : "\cAUNDEF\cA" } @keys ];
     @{ $self->{_COLUMN_NAMES} };
 }
 
@@ -1042,14 +1048,14 @@ sub header {
     my (@seps, %args);
     for (@args) {
         if (ref $_ eq "ARRAY") {
-            push @seps, @$_;
+            push @seps, @{$_};
             next;
             }
         if (ref $_ eq "HASH") {
-            %args = %$_;
+            %args = %{$_};
             next;
             }
-        croak (q{usage: $csv->header ($fh, [ seps ], { options })});
+        croak ('usage: $csv->header ($fh, [ seps ], { options })');
         }
 
     defined $args{munge} && !defined $args{munge_column_names} and
@@ -1135,7 +1141,7 @@ sub header {
     my $hr = \$hdr; # Will cause croak on perl-5.6.x
     open my $h, "<", $hr or croak ($self->SetDiag (1010));
 
-    my $row = $self->getline ($h) or croak;
+    my $row = $self->getline ($h) or croak();
     close $h;
 
     if (   $args{'munge_column_names'} eq "lc") {
@@ -1158,7 +1164,7 @@ sub header {
         $eol =~ m/^\r([^\n]|\z)/ and $self->eol ($eol);
         }
 
-    my @hdr = @$row;
+    my @hdr = @{$row};
     ref $args{munge_column_names} eq "CODE" and
         @hdr = map { $args{munge_column_names}->($_)       } @hdr;
     ref $args{munge_column_names} eq "HASH" and
@@ -1176,16 +1182,17 @@ sub header {
 sub bind_columns {
     my ( $self, @refs ) = @_;
 
-    @refs or return defined $self->{_BOUND_COLUMNS} ? @{$self->{_BOUND_COLUMNS}} : undef;
-    @refs == 1 && ! defined $refs[0] and return $self->{_BOUND_COLUMNS} = undef;
-
-    if ( $self->{_COLUMN_NAMES} && @refs != @{$self->{_COLUMN_NAMES}} ) {
-        croak $self->SetDiag( 3003 );
+    @refs or
+        return defined $self->{_BOUND_COLUMNS} ? @{$self->{_BOUND_COLUMNS}} : undef;
+    if (@refs == 1 && ! defined $refs[0]) {
+        $self->{_COLUMN_NAMES} = undef;
+        return $self->{_BOUND_COLUMNS} = undef;
     }
 
-    if ( grep { ref $_ ne "SCALAR" } @refs ) { # why don't use grep?
-        croak $self->SetDiag( 3004 );
-    }
+    $self->{_COLUMN_NAMES} && @refs != @{$self->{_COLUMN_NAMES}} and
+        croak($self->SetDiag( 3003 ));
+    join "", map { ref $_ eq "SCALAR" ? "" : "*" } @refs and
+        croak($self->SetDiag(3004));
 
     $self->_set_attr_N("_is_bound", scalar @refs);
     $self->{_BOUND_COLUMNS} = [ @refs ];
@@ -1197,30 +1204,28 @@ sub getline_hr {
     $self->{_COLUMN_NAMES} or croak ($self->SetDiag (3002));
     my $fr = $self->getline (@args) or return;
     if (ref $self->{_FFLAGS}) { # missing
-        $self->{_FFLAGS}[$_] = IS_MISSING
-            for (@$fr ? $#{$fr} + 1 : 0) .. $#{$self->{_COLUMN_NAMES}};
-        @$fr == 1 && (!defined $fr->[0] || $fr->[0] eq "") and
-            $self->{_FFLAGS}[0] ||= IS_MISSING;
+        $self->{_FFLAGS}[$_] = CSV_FLAGS_IS_MISSING()
+            for (@{$fr} ? $#{$fr} + 1 : 0) .. $#{$self->{_COLUMN_NAMES}};
+        @{$fr} == 1 && (!defined $fr->[0] || $fr->[0] eq "") and
+            $self->{_FFLAGS}[0] ||= CSV_FLAGS_IS_MISSING();
         }
-    @hr{@{$self->{_COLUMN_NAMES}}} = @$fr;
+    @hr{@{$self->{_COLUMN_NAMES}}} = @{$fr};
     \%hr;
 }
 
 sub getline_hr_all {
-    my ( $self, $io, @args ) = @_;
+    my ( $self, @args ) = @_;
 
-    unless ( $self->{_COLUMN_NAMES} ) {
-        croak $self->SetDiag( 3002 );
-    }
+    $self->{_COLUMN_NAMES} or croak($self->SetDiag( 3002 ));
 
     my @cn = @{$self->{_COLUMN_NAMES}};
 
-    return [ map { my %h; @h{ @cn } = @$_; \%h } @{ $self->getline_all( $io, @args ) } ];
+    [ map { my %h; @h{ @cn } = @{$_}; \%h } @{ $self->getline_all(@args) } ];
 }
 
 sub say {
     my ($self, $io, @f) = @_;
-    my $eol = $self->eol;
+    my $eol = $self->eol();
     # say ($fh, undef) does not propage actual undef to print ()
     my $state = $self->print ($io, @f == 1 && !defined $f[0] ? undef : @f);
     unless (length $eol) {
@@ -1234,7 +1239,7 @@ sub print_hr {
     my ($self, $io, $hr) = @_;
     $self->{_COLUMN_NAMES} or croak($self->SetDiag(3009));
     ref $hr eq "HASH"      or croak($self->SetDiag(3010));
-    $self->print ($io, [ map { $hr->{$_} } $self->column_names ]);
+    $self->print ($io, [ map { $hr->{$_} } $self->column_names() ]);
 }
 
 sub fragment {
@@ -1284,10 +1289,10 @@ sub fragment {
             my %row;
             my $lc;
             foreach my $s (@spec) {
-                my ($tlr, $tlc, $brr, $brc) = @$s;
+                my ($tlr, $tlc, $brr, $brc) = @{$s};
                 $r <  $tlr || ($brr ne "*" && $r > $brr) and next;
                 !defined $lc || $tlc < $lc and $lc = $tlc;
-                my $rr = $brc eq "*" ? $#$row : $brc;
+                my $rr = $brc eq "*" ? $#{$row} : $brc;
                 $row{$_} = $row->[$_] for $tlc .. $rr;
                 }
             push @c, [ @row{sort { $a <=> $b } keys %row } ];
@@ -1328,7 +1333,7 @@ sub fragment {
                 }
             next;
             }
-        push @c, [ map { ($_ > $#r && $eod) || $r[$_] ? $row->[$_] : () } 0..$#$row ];
+        push @c, [ map { ($_ > $#r && $eod) || $r[$_] ? $row->[$_] : () } 0..$#{$row} ];
         if (@h) {
             my %h; @h{@h} = @{$c[-1]};
             $c[-1] = \%h;
@@ -1341,7 +1346,7 @@ sub fragment {
 my $csv_usage = q{usage: my $aoa = csv (in => $file);};
 
 sub _csv_attr {
-    my %attr = (@_ == 1 && ref $_[0] eq "HASH" ? %{$_[0]} : @_) or croak;
+    my %attr = (@_ == 1 && ref $_[0] eq "HASH" ? %{$_[0]} : @_) or croak();
 
     $attr{binary}     = 1;
     $attr{strict_eol} = 1;
@@ -1382,7 +1387,7 @@ sub _csv_attr {
     my $fh;
     my $sink = 0;
     my $cls  = 0;  # If I open a file, I have to close it
-    my $in   = delete $attr{in}  || delete $attr{file} or croak $csv_usage;
+    my $in   = delete $attr{in}  || delete $attr{file} or croak($csv_usage);
     my $out  = exists $attr{out} && !$attr{out} ? \"skip"
         : delete $attr{out} || delete $attr{file};
 
@@ -1431,12 +1436,12 @@ sub _csv_attr {
         elsif ((ref $out and "SCALAR" ne ref $out) or "GLOB" eq ref \$out) {
             $fh = $out;
             }
-        elsif (ref $out and "SCALAR" eq ref $out and defined $$out and $$out eq "skip") {
+        elsif (ref $out and "SCALAR" eq ref $out and defined ${$out} and ${$out} eq "skip") {
             delete $attr{out};
             $sink = 1;
             }
         else {
-            open $fh, ">", $out or croak "$out: $!";
+            open $fh, ">", $out or croak("$out: $!");
             $cls = 1;
             }
         if ($fh) {
@@ -1457,28 +1462,28 @@ sub _csv_attr {
     elsif (ref $in eq "SCALAR") {
         # Strings with code points over 0xFF may not be mapped into in-memory file handles
         # "<$enc" does not change that :(
-        open $fh, "<", $in or croak "Cannot open from SCALAR using PerlIO";
+        open $fh, "<", $in or croak("Cannot open from SCALAR using PerlIO");
         $cls = 1;
         }
     elsif (ref $in or "GLOB" eq ref \$in) {
         if (!ref $in && $] < 5.008005) {
-            $fh = \*$in; # uncoverable statement ancient perl version required
+            $fh = \*{$in}; # uncoverable statement ancient perl version required
             }
         else {
             $fh = $in;
             }
         }
     else {
-        open $fh, "<$enc", $in or croak "$in: $!";
+        open $fh, "<$enc", $in or croak("$in: $!");
         $cls = 1;
         }
-    $fh || $sink or croak qq{No valid source passed. "in" is required};
+    $fh || $sink or croak(qq{No valid source passed. "in" is required});
 
     for ([ quo    => "quote"                ],
          [ esc    => "escape"                ],
          [ escape => "escape_char"        ],
          ) {
-        my ($f, $t) = @$_;
+        my ($f, $t) = @{$_};
         exists $attr{$f} and !exists $attr{$t} and $attr{$t} = delete $attr{$f};
         }
 
@@ -1498,7 +1503,7 @@ sub _csv_attr {
     defined $attr{auto_diag}   or $attr{auto_diag}   = 1;
     defined $attr{escape_null} or $attr{escape_null} = 0;
     my $csv = delete $attr{csv} || Text::CSV_PP->new (\%attr)
-        or croak $last_err;
+        or croak($last_err);
     defined $form and $csv->formula ($form);
     defined $cboe and $csv->callbacks (error => $cboe);
 
@@ -1534,14 +1539,14 @@ sub _csv_attr {
 
 sub csv {
     @_ && (ref $_[0] eq __PACKAGE__ or ref $_[0] eq 'Text::CSV') and splice @_, 0, 0, "csv";
-    @_ or croak $csv_usage;
+    @_ or croak($csv_usage);
 
     my $c = _csv_attr (@_);
 
     my ($csv, $in, $fh, $hdrs) = @{$c}{qw( csv in fh hdrs )};
     my %hdr;
     if (ref $hdrs eq "HASH") {
-        %hdr  = %$hdrs;
+        %hdr  = %{$hdrs};
         $hdrs = "auto";
         }
 
@@ -1558,11 +1563,11 @@ sub csv {
                     }
                 if (ref $row eq "HASH") {
                     if ($hdr) {
-                        $hdrs ||= [ map { $hdr{$_} || $_ } keys %$row ];
+                        $hdrs ||= [ map { $hdr{$_} || $_ } keys %{$row} ];
                         $csv->print ($fh, $hdrs);
                         $hdr = 0;
                         }
-                    $csv->print ($fh, [ @{$row}{@$hdrs} ]);
+                    $csv->print ($fh, [ @{$row}{@{$hdrs}} ]);
                     }
                 }
             }
@@ -1605,7 +1610,7 @@ sub csv {
         defined  $c->{'hd_m'} and $harg{'munge_column_names'} = $hdrs ? "none" : $c->{'hd_m'};
         defined  $c->{'hd_c'} and $harg{'set_column_names'}   = $hdrs ? 0      : $c->{'hd_c'};
         @row1 = $csv->header ($fh, \%harg);
-        my @hdr = $csv->column_names;
+        my @hdr = $csv->column_names();
         @hdr and $hdrs ||= \@hdr;
         }
 
@@ -1617,13 +1622,13 @@ sub csv {
 
     my $key = $c->{key};
     if ($key) {
-       !ref $key or ref $key eq "ARRAY" && @$key > 1 or croak ($csv->SetDiag (1501));
+       !ref $key or ref $key eq "ARRAY" && @{$key} > 1 or croak ($csv->SetDiag (1501));
         $hdrs ||= "auto";
         }
     my $val = $c->{val};
     if ($val) {
        $key                                          or croak ($csv->SetDiag (1502));
-       !ref $val or ref $val eq "ARRAY" && @$val > 0 or croak ($csv->SetDiag (1503));
+       !ref $val or ref $val eq "ARRAY" && @{$val} > 0 or croak ($csv->SetDiag (1503));
        }
 
     $c->{fltr} && grep m/\D/ => keys %{$c->{fltr}} and $hdrs ||= "auto";
@@ -1644,18 +1649,18 @@ sub csv {
                 }
             elsif ($hdrs eq "auto") {
                 $has_h or return;
-                $hdrs = [ map {      $hdr{$_} || $_ } @$h ];
+                $hdrs = [ map {      $hdr{$_} || $_ } @{$h} ];
                 }
             elsif ($hdrs eq "lc") {
                 $has_h or return;
-                $hdrs = [ map { lc ($hdr{$_} || $_) } @$h ];
+                $hdrs = [ map { lc ($hdr{$_} || $_) } @{$h} ];
                 }
             elsif ($hdrs eq "uc") {
                 $has_h or return;
-                $hdrs = [ map { uc ($hdr{$_} || $_) } @$h ];
+                $hdrs = [ map { uc ($hdr{$_} || $_) } @{$h} ];
                 }
             }
-        $c->{kh} and $hdrs and @{$c->{kh}} = @$hdrs;
+        $c->{kh} and $hdrs and @{$c->{kh}} = @{$hdrs};
         }
 
     if ($c->{fltr}) {
@@ -1673,7 +1678,7 @@ sub csv {
             foreach my $FLD (sort keys %f) {
                 local $_ = $ROW->[$FLD - 1];
                 local %_;
-                @hdr and @_{@hdr} = @$ROW;
+                @hdr and @_{@hdr} = @{$ROW};
                 $f{$FLD}->($CSV, $ROW) or return \"skip";
                 $ROW->[$FLD - 1] = $_;
                 }
@@ -1693,7 +1698,7 @@ sub csv {
                 }
             $frag ? $csv->fragment ($fh, $frag) :
             $key  ? do {
-                        my ($k, $j, @f) = ref $key ? (undef, @$key) : ($key);
+                        my ($k, $j, @f) = ref $key ? (undef, @{$key}) : ($key);
                         if (my @mk = grep { !exists $h{$_} } grep { defined } $k, @f) {
                             croak ($csv->_SetDiagInfo (4001, join ", " => @mk));
                             }
@@ -1703,7 +1708,7 @@ sub csv {
                             ( $K => (
                             $val
                                 ? ref $val
-                                    ? { map { $_ => $r->{$_} } @$val }
+                                    ? { map { $_ => $r->{$_} } @{$val} }
                                     : $r->{$val}
                                 : $r ));
                             } @{$csv->getline_hr_all ($fh)} }
@@ -1714,10 +1719,10 @@ sub csv {
             $frag ? $csv->fragment ($fh, $frag)
                   : $csv->getline_all ($fh);
     if ($ref) {
-        @row1 && !$c->{hd_c} && !ref $hdrs and unshift @$ref, \@row1;
+        @row1 && !$c->{hd_c} && !ref $hdrs and unshift @{$ref}, \@row1;
         }
     else {
-        Text::CSV_PP->auto_diag;
+        Text::CSV_PP->auto_diag();
         }
     $c->{cls} and close $fh;
     $c->{fho_cls} and close $c->{fho};
@@ -1776,6 +1781,7 @@ sub csv {
 #
 ################################################################################
 
+my $last_error;
 sub _setup_ctx {
     my $self = shift;
 
