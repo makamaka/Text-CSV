@@ -31,6 +31,7 @@ t/67_emptrow.t
 t/68_header.t
 t/70_rt.t
 t/71_pp.t
+t/71_strict.t
 t/75_hashref.t
 t/76_magic.t
 t/77_getall.t
@@ -41,6 +42,7 @@ t/81_subclass.t
 t/85_util.t
 t/90_csv.t
 t/91_csv_cb.t
+t/92_stream.t
 t/csv_method.t
 t/fields_containing_0.t
 t/rt99774.t
