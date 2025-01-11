@@ -1,6 +1,5 @@
 package Text::CSV;
 
-
 use strict;
 use Exporter;
 use Carp ();
@@ -24,17 +23,17 @@ my @PublicMethods = qw/
     known_attributes
     PV IV NV CSV_TYPE_PV CSV_TYPE_IV CSV_TYPE_NV
     CSV_FLAGS_IS_QUOTED CSV_FLAGS_IS_BINARY CSV_FLAGS_ERROR_IN_FIELD CSV_FLAGS_IS_MISSING
-/;
+    /;
 
 %EXPORT_TAGS = (
     CONSTANTS => [qw(
-        CSV_FLAGS_IS_QUOTED
-        CSV_FLAGS_IS_BINARY
-        CSV_FLAGS_ERROR_IN_FIELD
-        CSV_FLAGS_IS_MISSING
-        CSV_TYPE_PV
-        CSV_TYPE_IV
-        CSV_TYPE_NV
+            CSV_FLAGS_IS_QUOTED
+            CSV_FLAGS_IS_BINARY
+            CSV_FLAGS_ERROR_IN_FIELD
+            CSV_FLAGS_IS_MISSING
+            CSV_TYPE_PV
+            CSV_TYPE_IV
+            CSV_TYPE_NV
     )],
 );
 @EXPORT_OK = (qw(csv PV IV NV), @{$EXPORT_TAGS{CONSTANTS}});
@@ -44,9 +43,9 @@ my @PublicMethods = qw/
 # Check the environment variable to decide worker module.
 
 unless ($Text::CSV::Worker) {
-    $Text::CSV::DEBUG and  Carp::carp("Check used worker module...");
+    $Text::CSV::DEBUG and Carp::carp("Check used worker module...");
 
-    if ( exists $ENV{PERL_TEXT_CSV} ) {
+    if (exists $ENV{PERL_TEXT_CSV}) {
         if ($ENV{PERL_TEXT_CSV} eq '0' or $ENV{PERL_TEXT_CSV} eq 'Text::CSV_PP') {
             _load_pp() or Carp::croak $@;
         }
@@ -70,7 +69,7 @@ sub new { # normal mode
     my $proto = shift;
     my $class = ref($proto) || $proto;
 
-    unless ( $proto ) { # for Text::CSV_XS/PP::new(0);
+    unless ($proto) { # for Text::CSV_XS/PP::new(0);
         return eval qq| $Text::CSV::Worker\::new( \$proto ) |;
     }
 
@@ -78,7 +77,7 @@ sub new { # normal mode
     #    Carp::croak("Can't set 'module' in non dynamic mode.");
     #}
 
-    if ( my $obj = $Text::CSV::Worker->new(@_) ) {
+    if (my $obj = $Text::CSV::Worker->new(@_)) {
         $obj->{_MODULE} = $Text::CSV::Worker;
         bless $obj, $class;
         return $obj;
@@ -86,7 +85,6 @@ sub new { # normal mode
     else {
         return;
     }
-
 
 }
 
@@ -101,25 +99,21 @@ sub csv {
 
 sub require_xs_version { $XS_Version; }
 
-
 sub module {
     my $proto = shift;
-    return   !ref($proto)            ? $Text::CSV::Worker
-           :  ref($proto->{_MODULE}) ? ref($proto->{_MODULE}) : $proto->{_MODULE};
+    return !ref($proto)          ? $Text::CSV::Worker
+        : ref($proto->{_MODULE}) ? ref($proto->{_MODULE}) : $proto->{_MODULE};
 }
 
 *backend = *module;
-
 
 sub is_xs {
     return $_[0]->module eq $Module_XS;
 }
 
-
 sub is_pp {
     return $_[0]->module eq $Module_PP;
 }
-
 
 sub is_dynamic { $Is_Dynamic; }
 
@@ -148,8 +142,6 @@ sub _load {
     }
     return 1;
 }
-
-
 
 1;
 __END__
