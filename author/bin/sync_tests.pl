@@ -83,7 +83,7 @@ EOT
         if ($basename =~ /80_diag/) {
             $content =~ s!open my \$fh, "<", "CSV_XS.xs"!open my \$fh, "<", "lib/Text/CSV_PP.pm"!;
             $content =~ s!Cannot read error messages from XS!Cannot read error messages from PP!;
-            $content =~ s!^\tm/\^    \\\{ \(\[0\-9\]\{4\}\), "\(\[\^"\]\+\)"\\s\+\\\}/!        m/^        ([0-9]{4}) => "([^"]+)"/!m;
+            $content =~ s!^\tm/\^    \\\{ \(\[0\-9\]\{4\}\), "\(\[\^"\]\+\)"\\s\+\\\}/!        m/^\\s+([0-9]{4}) => "([^"]+)"/!m;
             $content =~ s!CSV_XS ERROR!CSV_(?:PP|XS) ERROR!g;
         }
 
