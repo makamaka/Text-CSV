@@ -2728,10 +2728,12 @@ LOOP:
             EOLX:
                 my $eolt = (($c eq "\012" || $c eq "\015") && $c0 eq "\015") ? EOL_TYPE_CRNL : _eol_type($c);
                 $c0 = '';
-                if ($ctx->{strict_eol} and $ctx->{eol_type} and $ctx->{eol_type} != $eolt) {
-                    $self->__error_eol($ctx) or return;
+                unless ($ctx->{flag} & CSV_FLAGS_IS_QUOTED) {
+                    if ($ctx->{strict_eol} and $ctx->{eol_type} and $ctx->{eol_type} != $eolt) {
+                        $self->__error_eol($ctx) or return;
+                    }
+                    $self->_set_eol_type($ctx, $eolt);
                 }
-                $self->_set_eol_type($ctx, $eolt);
                 if ($fnum == 1 && $ctx->{flag} == 0 && (!$v_ref || $$v_ref eq '') && $ctx->{skip_empty_rows}) {
                     ### SkipEmptyRow
                     my $ser = $ctx->{skip_empty_rows};
