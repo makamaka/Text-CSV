@@ -1,5 +1,8 @@
 Revision history for Perl extension Text::CSV.
 
+2.06  2025-03-03
+    - Imported tests/fixes from Text::CSV_XS 1.60
+
 2.05  2025-01-11
     - Imported tests/fixes from Text::CSV_XS 1.59
 
