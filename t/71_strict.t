@@ -3,7 +3,7 @@
 use strict;
 $^W = 1;
 
- use Test::More tests => 69;
+ use Test::More tests => 75;
 #use Test::More "no_plan";
 
 my %err;
@@ -209,6 +209,23 @@ foreach my $test (
     my @err = $csv->error_diag; # error-code, str, pos, rec, fld
     is ($err[0], 2014, "Error 2014");
     is ($err[4], 2,    "Just got 2");
+    }
+{   ok (my $csv = Text::CSV->new ({ strict => 1 }), "Issue#62 no data first");
+    my $tf = "issue-62-$$.csv";
+    END { -e $tf and unlink $tf }
+    open my $fh, ">", $tf;
+    print   $fh "A,B\n1,2\n";
+    close   $fh;
+    open    $fh, "<", $tf;
+    ok (my @col = @{$csv->getline ($fh)}, "Get header");
+    my $val = {};
+    ok ($csv->bind_columns (\@{$val}{@col}), "Bind columns");
+    ok ($csv->getline ($fh), "Values into bound hash entries");
+    my @err = $csv->error_diag; # error-code, str, pos, rec, fld
+    is ($err[0], 0, "No error 2014");
+    is_deeply ($val, { A => 1, B => 2 }, "Content");
+    close   $fh;
+    unlink  $tf;
     }
 __END__
 1,2,42
