@@ -23,6 +23,8 @@ sub CSV_TYPE_PV { PV }
 sub CSV_TYPE_IV { IV }
 sub CSV_TYPE_NV { NV }
 
+sub MAX_ATTR_LEN () { 16 }
+
 sub IS_QUOTED ()  { 0x0001; }
 sub IS_BINARY ()  { 0x0002; }
 sub IS_ERROR ()   { 0x0004; }
@@ -1799,6 +1801,7 @@ sub _setup_ctx {
             use bytes;
             $ctx->{sep} = $self->{sep};
             my $sep_len = length($ctx->{sep});
+            if ($sep_len > MAX_ATTR_LEN) { croak ("INI - SEP too long"); }  # 1006
             $ctx->{sep_len} = $sep_len if $sep_len > 1;
         }
 
@@ -1815,6 +1818,7 @@ sub _setup_ctx {
             use bytes;
             $ctx->{quo} = $self->{quote};
             my $quote_len = length($ctx->{quo});
+            if ($quote_len > MAX_ATTR_LEN) { croak ("INI - QUOTE too long"); }  # 1007
             $ctx->{quo_len} = $quote_len if $quote_len > 1;
         }
 
@@ -1831,6 +1835,7 @@ sub _setup_ctx {
         if (defined $self->{eol}) {
             my $eol     = $self->{eol};
             my $eol_len = length($eol);
+            if ($eol_len > MAX_ATTR_LEN) { croak ("INI - EOL too long"); }  # 1005
             $ctx->{eol}     = $eol;
             $ctx->{eol_len} = $eol_len;
             if ($eol_len == 1 and $eol eq "\015") {
@@ -1987,16 +1992,21 @@ sub _cache_set {
     elsif ($key eq 'sep') {
         use bytes;
         my $len = bytes::length($value);
+        if ($len > MAX_ATTR_LEN) { croak ("INI - SEP too long"); } # 1006
         $cache->{sep}     = $value if $len;
         $cache->{sep_len} = $len == 1 ? 0 : $len;
     }
     elsif ($key eq 'quote') {
         use bytes;
         my $len = bytes::length($value);
+        if ($len > MAX_ATTR_LEN) { croak ("INI - QUOTE too long"); } # 1007
         $cache->{quo}     = $value if $len;
         $cache->{quo_len} = $len == 1 ? 0 : $len;
     }
     elsif ($key eq 'eol') {
+        use bytes;
+        my $len = bytes::length($value);
+        if ($len > MAX_ATTR_LEN) { croak ("INI - EOL too long"); } # 1005
         $cache->{eol}      = $value;
         $cache->{eol_len}  = my $len = defined $value ? length($value) : 0;
         $cache->{eol_type} = $len == 0                ? EOL_TYPE_UNDEF
