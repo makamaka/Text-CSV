@@ -9,7 +9,6 @@ use Test::More;
 BEGIN {
     unless (exists  $Config{useperlio} &&
 	    defined $Config{useperlio} &&
-	    $] >= 5.008                && # perlio was experimental in 5.6.2, but not reliable
 	    $Config{useperlio} eq "define") {
 	plan skip_all => "No reliable perlIO available";
 	}
@@ -101,30 +100,27 @@ $/ = $def_rs;
     ok ($csv->parse (qq{"x" \r}),  "Trailing \\r with no escape char");
     }
 
-SKIP: {
-    $] < 5.008 and skip "\$\\ tests don't work in perl 5.6.x and older", 2;
-    {   local $\ = "#\r\n";
-	my $csv = Text::CSV->new ();
-	$file = "";
-	open my $fh, ">", \$file or die "IO: $!\n";
-	$csv->print ($fh, [ "a", 1 ]);
-	close   $fh;
-	open    $fh, "<", \$file or die "IO: $!\n";
-	local $/;
-	is (<$fh>, "a,1#\r\n", "Strange \$\\");
-	close   $fh;
-	}
-    {   local $\ = "#\r\n";
-	my $csv = Text::CSV->new ({ eol => $\ });
-	$file = "";
-	open my $fh, ">", \$file or die "IO: $!\n";
-	$csv->print ($fh, [ "a", 1 ]);
-	close   $fh;
-	open    $fh, "<", \$file or die "IO: $!\n";
-	local $/;
-	is (<$fh>, "a,1#\r\n", "Strange \$\\ + eol");
-	close   $fh;
-	}
+{   local $\ = "#\r\n";
+    my $csv = Text::CSV->new ();
+    $file = "";
+    open my $fh, ">", \$file or die "IO: $!\n";
+    $csv->print ($fh, [ "a", 1 ]);
+    close   $fh;
+    open    $fh, "<", \$file or die "IO: $!\n";
+    local $/;
+    is (<$fh>, "a,1#\r\n", "Strange \$\\");
+    close   $fh;
+    }
+{   local $\ = "#\r\n";
+    my $csv = Text::CSV->new ({ eol => $\ });
+    $file = "";
+    open my $fh, ">", \$file or die "IO: $!\n";
+    $csv->print ($fh, [ "a", 1 ]);
+    close   $fh;
+    open    $fh, "<", \$file or die "IO: $!\n";
+    local $/;
+    is (<$fh>, "a,1#\r\n", "Strange \$\\ + eol");
+    close   $fh;
     }
 $/ = $def_rs;
 

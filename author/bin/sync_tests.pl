@@ -67,7 +67,7 @@ ok (1, "Testing quote_char as undef");
 EOT
         }
 
-        if ($basename =~ /(?:41_null|47_comment|78_fragment)/) {
+        if ($basename =~ /(?:41_null|47_comment|78_fragment|99_mem)/) {
             $content =~ s/(use Text::CSV)/BEGIN { \$ENV{PERL_TEXT_CSV} = \$ENV{TEST_PERL_TEXT_CSV} || 0; }\n$1/;
         }
 

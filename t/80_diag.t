@@ -270,41 +270,38 @@ unlink $diag_file;
 	}
     }
 
-SKIP: {
-    $] < 5.008 and skip qq{$] does not support ScalarIO}, 24;
-    foreach my $key ({}, sub {}, []) {
-	my $csv = Text::CSV->new;
-	my $x = eval { $csv->csv (in => \"a,b", key => $key) };
-	is ($x, undef, "Invalid key");
-	my @diag = $csv->error_diag;
-	is ($diag[0], 1501, "Invalid key type");
-	}
+foreach my $key ({}, sub {}, []) {
+    my $csv = Text::CSV->new;
+    my $x = eval { $csv->csv (in => \"a,b", key => $key) };
+    is ($x, undef, "Invalid key");
+    my @diag = $csv->error_diag;
+    is ($diag[0], 1501, "Invalid key type");
+    }
 
-    {   my $csv = Text::CSV->new;
-	my $x = eval { $csv->csv (in => \"a,b", value => "b") };
-	is ($x, undef, "Value without key");
-	my @diag = $csv->error_diag;
-	is ($diag[0], 1502, "No key");
-	}
+{   my $csv = Text::CSV->new;
+    my $x = eval { $csv->csv (in => \"a,b", value => "b") };
+    is ($x, undef, "Value without key");
+    my @diag = $csv->error_diag;
+    is ($diag[0], 1502, "No key");
+    }
 
-    foreach my $val ({}, sub {}, []) {
-	my $csv = Text::CSV->new;
-	my $x = eval { $csv->csv (in => \"a,b", key => "a", value => $val) };
-	is ($x, undef, "Invalid value");
-	my @diag = $csv->error_diag;
-	is ($diag[0], 1503, "Invalid value type");
-	}
+foreach my $val ({}, sub {}, []) {
+    my $csv = Text::CSV->new;
+    my $x = eval { $csv->csv (in => \"a,b", key => "a", value => $val) };
+    is ($x, undef, "Invalid value");
+    my @diag = $csv->error_diag;
+    is ($diag[0], 1503, "Invalid value type");
+    }
 
-    foreach my $ser ("die", 4) {
-	ok (my $csv = Text::CSV->new ({ skip_empty_rows => $ser }),
-						"New CSV for SER $ser");
-	is (eval { $csv->csv (in => \"\n") }, undef,
-						"Parse empty line for SER $ser");
-	like ($@, qr{^Empty row},		"Message");
-	my @diag = $csv->error_diag;
-	is   ($diag[0], 2015,			"Empty row");
-	like ($diag[1], qr{^ERW - Empty row},	"Error description");
-	}
+foreach my $ser ("die", 4) {
+    ok (my $csv = Text::CSV->new ({ skip_empty_rows => $ser }),
+					    "New CSV for SER $ser");
+    is (eval { $csv->csv (in => \"\n") }, undef,
+					    "Parse empty line for SER $ser");
+    like ($@, qr{^Empty row},		"Message");
+    my @diag = $csv->error_diag;
+    is   ($diag[0], 2015,			"Empty row");
+    like ($diag[1], qr{^ERW - Empty row},	"Error description");
     }
 
 # Issue 19: auto_diag > 1 does not die if ->header () is used

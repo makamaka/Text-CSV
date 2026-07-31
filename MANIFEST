@@ -43,6 +43,7 @@ t/85_util.t
 t/90_csv.t
 t/91_csv_cb.t
 t/92_stream.t
+t/99_mem.t
 t/csv_method.t
 t/fields_containing_0.t
 t/rt99774.t

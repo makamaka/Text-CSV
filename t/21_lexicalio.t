@@ -144,13 +144,12 @@ for ([  1, 1,    0, "\n"		],
      [ 24, 0, 2026, qq{"\b"}		],
      ) {
     my ($tst, $valid, $err, $str) = @$_;
-    my $raw = $] < 5.008 ? "" : ":raw";
-    open  my $io, ">$raw", $tfn or die "$tfn: $!";
+    open  my $io, ">:raw", $tfn or die "$tfn: $!";
     print $io $str;
     close $io;
 
     $csv = Text::CSV->new ({ escape_char => "+" });
-    open     $io, "<$raw", $tfn or die "$tfn: $!";
+    open     $io, "<:raw", $tfn or die "$tfn: $!";
     my $row = $csv->getline ($io);
     close $io;
     my @err  = $csv->error_diag;

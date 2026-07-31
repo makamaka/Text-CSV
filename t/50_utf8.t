@@ -118,9 +118,7 @@ open  $fh, "<:encoding(utf-8)", $tfn or die "$tfn: $!\n";
 
 SKIP: {
     my $out = "";
-    my $isutf8 = $] < 5.008001 ?
-	sub { !$_[0]; } :	# utf8::is_utf8 () not available in 5.8.0
-	sub { utf8::is_utf8 ($out); };
+    my $isutf8 = sub { utf8::is_utf8 ($out); };
     ok ($csv->auto_diag (1),			"auto diag");
     ok ($csv->binary (1),   			"set binary");
     ok ($csv->bind_columns (\$out),		"bind");

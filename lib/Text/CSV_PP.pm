@@ -23,6 +23,8 @@ sub CSV_TYPE_PV { PV }
 sub CSV_TYPE_IV { IV }
 sub CSV_TYPE_NV { NV }
 
+sub MAX_ATTR_LEN () { 16 }
+
 sub IS_QUOTED ()  { 0x0001; }
 sub IS_BINARY ()  { 0x0002; }
 sub IS_ERROR ()   { 0x0004; }
@@ -326,7 +328,7 @@ sub new {
     my $proto = shift;
     my $class = ref $proto || $proto or return;
     @_ > 0 && ref $_[0] ne "HASH" and return;
-    my $attr = shift || {};
+    my $attr = shift || +{};
     my %attr = map {
         my $k = m/^[a-zA-Z]\w+$/ ? lc $_ : $_;
         exists $attr_alias{$k} and $k = $attr_alias{$k};
@@ -1346,7 +1348,16 @@ sub fragment {
 my $csv_usage = q{usage: my $aoa = csv (in => $file);};
 
 sub _csv_attr {
-    my %attr = (@_ == 1 && ref $_[0] eq "HASH" ? %{$_[0]} : @_) or croak();
+    my %attr;
+    if (@_ == 1 && ref $_[0] eq "HASH") {
+       %attr = %{$_[0]};
+       }
+    elsif (scalar @_ % 2) {
+       croak (Text::CSV_PP->SetDiag(1502));
+       }
+    else {
+       %attr = @_;
+       }
 
     $attr{binary}     = 1;
     $attr{strict_eol} = 1;
@@ -1799,6 +1810,7 @@ sub _setup_ctx {
             use bytes;
             $ctx->{sep} = $self->{sep};
             my $sep_len = length($ctx->{sep});
+            if ($sep_len > MAX_ATTR_LEN) { croak ("INI - SEP too long"); }  # 1006
             $ctx->{sep_len} = $sep_len if $sep_len > 1;
         }
 
@@ -1815,6 +1827,7 @@ sub _setup_ctx {
             use bytes;
             $ctx->{quo} = $self->{quote};
             my $quote_len = length($ctx->{quo});
+            if ($quote_len > MAX_ATTR_LEN) { croak ("INI - QUOTE too long"); }  # 1007
             $ctx->{quo_len} = $quote_len if $quote_len > 1;
         }
 
@@ -1831,6 +1844,7 @@ sub _setup_ctx {
         if (defined $self->{eol}) {
             my $eol     = $self->{eol};
             my $eol_len = length($eol);
+            if ($eol_len > MAX_ATTR_LEN) { croak ("INI - EOL too long"); }  # 1005
             $ctx->{eol}     = $eol;
             $ctx->{eol_len} = $eol_len;
             if ($eol_len == 1 and $eol eq "\015") {
@@ -1987,16 +2001,21 @@ sub _cache_set {
     elsif ($key eq 'sep') {
         use bytes;
         my $len = bytes::length($value);
+        if ($len > MAX_ATTR_LEN) { croak ("INI - SEP too long"); } # 1006
         $cache->{sep}     = $value if $len;
         $cache->{sep_len} = $len == 1 ? 0 : $len;
     }
     elsif ($key eq 'quote') {
         use bytes;
         my $len = bytes::length($value);
+        if ($len > MAX_ATTR_LEN) { croak ("INI - QUOTE too long"); } # 1007
         $cache->{quo}     = $value if $len;
         $cache->{quo_len} = $len == 1 ? 0 : $len;
     }
     elsif ($key eq 'eol') {
+        use bytes;
+        my $len = bytes::length($value);
+        if ($len > MAX_ATTR_LEN) { croak ("INI - EOL too long"); } # 1005
         $cache->{eol}      = $value;
         $cache->{eol_len}  = my $len = defined $value ? length($value) : 0;
         $cache->{eol_type} = $len == 0                ? EOL_TYPE_UNDEF
@@ -4698,8 +4717,6 @@ L</column_names> croaks on invalid arguments.
 
 =head2 header
 
-This method does NOT work in perl-5.6.x
-
 Parse the CSV header and set L<C<sep>|/sep>, column_names and encoding.
 
  my @hdr = $csv->header ($fh);
@@ -5387,9 +5404,8 @@ Note that this is work in progress and things might change.
 =head3 encoding
 
 If passed,  it should be an encoding accepted by the  C<:encoding()> option
-to C<open>. There is no default value. This attribute does not work in perl
-5.6.x.  C<encoding> can be abbreviated to C<enc> for ease of use in command
-line invocations.
+to C<open>.  There is no default value.   C<encoding> can be abbreviated to
+C<enc> for ease of use in command line invocations.
 
 If C<encoding> is set to the literal value C<"auto">, the method L</header>
 will be invoked on the opened stream to check if there is a BOM and set the
@@ -5415,14 +5431,13 @@ Encodings can be stacked, as supported by C<binmode>:
 =head3 detect_bom
 
 If  C<detect_bom>  is given, the method  L</header>  will be invoked on the
-opened stream to check if there is a BOM and set the encoding accordingly.
+opened stream to check if there is a  BOM and set the encoding accordingly.
+Note that the attribute L<C<headers>|/headers>  can be used to overrule the
+default behavior of how that method automatically sets the attribute.
 
 C<detect_bom> can be abbreviated to C<bom>.
 
 This is the same as setting L<C<encoding>|/encoding> to C<"auto">.
-
-Note that as the method  L</header> is invoked,  its default is to also set
-the headers.
 
 =head3 headers
 
@@ -6247,7 +6262,7 @@ separator character out of the allowed set of separators.
 The header line parsed in the L</header> contains an empty field.
 
 =item *
-1013 "INI - the header contains nun-unique fields"
+1013 "INI - the header contains non-unique fields"
 
 The header line parsed in the  L</header>  contains at least  two identical
 fields.

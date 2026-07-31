@@ -6,12 +6,7 @@ $^W = 1;
 use Test::More;
 
 BEGIN {
-    if ($] < 5.008001) {
-        plan skip_all => "This test unit requires perl-5.8.1 or higher";
-	}
-    else {
-	plan tests => 56;
-	}
+    plan tests => 58;
 
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
 
@@ -40,6 +35,13 @@ is ($csv->skip_empty_rows ("CROAK"),	"croak",	"CROAK");
 is ($csv->skip_empty_rows (5),		"error",	"+5");
 is ($csv->skip_empty_rows ("error"),	"error",	"error");
 is ($csv->skip_empty_rows ("ERROR"),	"error",	"ERROR");
+
+{   is (eval {
+	$csv->skip_empty_rows ("schedule");
+	}, undef, "schedule");
+    my @ed = $csv->error_diag;
+    is ($ed[0], 1500, "Unsupported parameter");
+    }
 
 sub cba { [      3,      42,      undef,      3 ] }
 sub cbh { { a => 3, b => 42, c => undef, d => 3 } }

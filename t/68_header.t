@@ -6,12 +6,7 @@ $^W = 1;
 use Test::More;
 
 BEGIN {
-    if ($] < 5.008001) {
-        plan skip_all => "This test unit requires perl-5.8.1 or higher";
-	}
-    else {
-	plan tests => 32;
-	}
+    plan tests => 32;
 
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
 

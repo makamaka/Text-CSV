@@ -87,30 +87,27 @@ $/ = $def_rs;
     ok ($csv->parse (qq{"x" \r}),  "Trailing \\r with no escape char");
     }
 
-SKIP: {
-    $] < 5.008 and skip "\$\\ tests don't work in perl 5.6.x and older", 2;
-    {   local $\ = "#\r\n";
-	my $csv = Text::CSV->new ();
-	open my $fh, ">", $tfn or die "$tfn: $!\n";
-	$csv->print ($fh, [ "a", 1 ]);
-	close   $fh;
-	open    $fh, "<", $tfn or die "$tfn: $!\n";
-	local $/;
-	is (<$fh>, "a,1#\r\n", "Strange \$\\");
-	close   $fh;
-	unlink  $tfn;
-	}
-    {   local $\ = "#\r\n";
-	my $csv = Text::CSV->new ({ eol => $\ });
-	open my $fh, ">", $tfn or die "$tfn: $!\n";
-	$csv->print ($fh, [ "a", 1 ]);
-	close   $fh;
-	open    $fh, "<", $tfn or die "$tfn: $!\n";
-	local $/;
-	is (<$fh>, "a,1#\r\n", "Strange \$\\ + eol");
-	close   $fh;
-	unlink  $tfn;
-	}
+{   local $\ = "#\r\n";
+    my $csv = Text::CSV->new ();
+    open my $fh, ">", $tfn or die "$tfn: $!\n";
+    $csv->print ($fh, [ "a", 1 ]);
+    close   $fh;
+    open    $fh, "<", $tfn or die "$tfn: $!\n";
+    local $/;
+    is (<$fh>, "a,1#\r\n", "Strange \$\\");
+    close   $fh;
+    unlink  $tfn;
+    }
+{   local $\ = "#\r\n";
+    my $csv = Text::CSV->new ({ eol => $\ });
+    open my $fh, ">", $tfn or die "$tfn: $!\n";
+    $csv->print ($fh, [ "a", 1 ]);
+    close   $fh;
+    open    $fh, "<", $tfn or die "$tfn: $!\n";
+    local $/;
+    is (<$fh>, "a,1#\r\n", "Strange \$\\ + eol");
+    close   $fh;
+    unlink  $tfn;
     }
 $/ = $def_rs;
 
