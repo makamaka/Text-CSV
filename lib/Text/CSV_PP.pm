@@ -2017,7 +2017,7 @@ sub _cache_set {
         my $len = bytes::length($value);
         if ($len > MAX_ATTR_LEN) { croak ("INI - EOL too long"); } # 1005
         $cache->{eol}      = $value;
-        $cache->{eol_len}  = my $len = defined $value ? length($value) : 0;
+        $cache->{eol_len}  = $len = defined $value ? length($value) : 0;
         $cache->{eol_type} = $len == 0                ? EOL_TYPE_UNDEF
             : $len == 1 && $value eq "\012"     ? EOL_TYPE_NL
             : $len == 1 && $value eq "\015"     ? EOL_TYPE_CR
