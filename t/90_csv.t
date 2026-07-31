@@ -5,7 +5,7 @@ $^W = 1;
 use Config;
 
 #use Test::More "no_plan";
- use Test::More tests => 127;
+ use Test::More tests => 128;
 
 BEGIN {
     $ENV{PERL_TEXT_CSV} = $ENV{TEST_PERL_TEXT_CSV} || 0;
@@ -34,15 +34,13 @@ my $aoh = [
     { foo => 2, bar => "a b", baz => "" },
     ];
 
-SKIP: for my $io ([ $tfn, "file" ], [ \*FH, "globref" ], [ *FH, "glob" ], [ \$data, "ScalarIO"] ) {
-    $] < 5.008 && ref $io->[0] eq "SCALAR" and skip "No ScalarIO support for $]", 1;
+for my $io ([ $tfn, "file" ], [ \*FH, "globref" ], [ *FH, "glob" ], [ \$data, "ScalarIO"] ) {
     open FH, "<", $tfn or die "$tfn: $!\n";
     is_deeply (csv ({ in => $io->[0] }), $aoa, "AOA $io->[1]");
     close FH;
     }
 
-SKIP: for my $io ([ $tfn, "file" ], [ \*FH, "globref" ], [ *FH, "glob" ], [ \$data, "ScalarIO"] ) {
-    $] < 5.008 && ref $io->[0] eq "SCALAR" and skip "No ScalarIO support for $]", 1;
+for my $io ([ $tfn, "file" ], [ \*FH, "globref" ], [ *FH, "glob" ], [ \$data, "ScalarIO"] ) {
     open FH, "<", $tfn or die "$tfn: $!\n";
     is_deeply (csv (in => $io->[0], headers => "auto"), $aoh, "AOH $io->[1]");
     close FH;
@@ -57,8 +55,7 @@ my @aoa = @{$aoa}[1,2];
 is_deeply (csv (file => $tfn, headers  => "skip"),    \@aoa, "AOA skip");
 is_deeply (csv (file => $tfn, fragment => "row=2-3"), \@aoa, "AOA fragment");
 
-if ($] >= 5.008001) {
-    my @hdr;
+{   my @hdr;
     ok (my $ref = csv (in => $tfn, bom => 1), "csv (-- not keeping header)");
     is_deeply (\@hdr, [], "Should still be empty");
     foreach my $alias (qw( keep_headers keep_column_names kh )) {
@@ -78,21 +75,13 @@ if ($] >= 5.008001) {
 	is ($buf, $data, "Headers kept for $alias");
 	}
     }
-else {
-    ok (1, q{This perl cannot do scalar IO}) for 1..26;
-    }
 
-if ($] >= 5.008001) {
-    is_deeply (csv (in => $tfn, encoding => "utf-8", headers => ["a", "b", "c"],
+{   is_deeply (csv (in => $tfn, encoding => "utf-8", headers => ["a", "b", "c"],
 		    fragment => "row=2", sep_char => ","),
 	   [{ a => 1, b => 2, c => 3 }], "AOH headers fragment");
     is_deeply (csv (in => $tfn, enc      => "utf-8", headers => ["a", "b", "c"],
 		    fragment => "row=2", sep_char => ","),
 	   [{ a => 1, b => 2, c => 3 }], "AOH headers fragment");
-    }
-else {
-    ok (1, q{This perl does not support open with "<:encoding(...)"});
-    ok (1, q{This perl does not support open with "<:encoding(...)"});
     }
 
 ok (csv (in => $aoa, out => $tfn), "AOA out file");
@@ -128,9 +117,7 @@ is_deeply (csv (in => $tfn, headers => "auto"), $aoh, "data from CODE/HR");
 unlink $tfn;
 
 # Basic "key" checks
-SKIP: {
-    $] < 5.008 and skip "No ScalarIO support for $]", 4;
-    # Simple key
+{   # Simple key
     is_deeply (csv (in => \"key,value\n1,2\n", key => "key"),
 		    { 1 => { key => 1, value => 2 }}, "key");
     is_deeply (csv (in => \"1,2\n", key => "key", headers => [qw( key value )]),
@@ -142,9 +129,7 @@ SKIP: {
 		    { "2:3" => { a => 2, b => 3, value => 2 }}, "key list");
     }
 # Basic "value" checks
-SKIP: {
-    $] < 5.008001 and skip "No ScalarIO support for 'value's in $]", 5;
-    # Simple key simple value
+{   # Simple key simple value
     is_deeply (csv (in => \"key,value\n1,2\n", key => "key", value => "value"),
 		    { 1 => 2 }, "key:value");
     is_deeply (csv (in => \"1,2\n", key => "key", headers => [qw( key value )], value => "value"),
@@ -192,7 +177,6 @@ close $fh;
 	is ($csv->eol,		"\r\n",	"default eol");
 	} # check
 
-    # Note that 5.6.x writes to a *file* named SCALAR(0x50414A10)
     open my $fh, ">", \my $out or die "IO: $!\n";
     csv (in => [[1,2]], out => $fh, on_in => \&check);
 
@@ -201,7 +185,6 @@ close $fh;
     csv (in => [[1,2]], out => $fh, on_in => \&check, auto_diag => 0,
 	($] >= 5.008004 ? (encoding => "utf-8") : ()));
     }
-$] < 5.008 and unlink glob "SCALAR(*)";
 
 # errors
 {   my $err = "";
@@ -300,15 +283,12 @@ $] < 5.008 and unlink glob "SCALAR(*)";
     like ($err, qr{Not a GLOB}i, "Not a GLOB");
     $err = "";
 
-    SKIP: {
-	$] < 5.008 and skip "$] does not support bom here", 2;
-	$x = [[ 1, 2 ]]; # Add hashes to arrays
-	$r = eval { csv (in => $tfn, out => $x, bom => 1); };
-	$err =~ s{\s+at\s+\S+\s+line\s+\d+\.\r?\n?\Z}{};
-	is ($r, undef, "Cannot add hashes to arrays");
-	like ($err, qr{type mismatch}, "HASH != ARRAY");
-	$err = "";
-	}
+    $x = [[ 1, 2 ]]; # Add hashes to arrays
+    $r = eval { csv (in => $tfn, out => $x, bom => 1); };
+    $err =~ s{\s+at\s+\S+\s+line\s+\d+\.\r?\n?\Z}{};
+    is ($r, undef, "Cannot add hashes to arrays");
+    like ($err, qr{type mismatch}, "HASH != ARRAY");
+    $err = "";
 
     $x = [{ a => 1, b => 2 }]; # Add arrays to hashes
     $r = eval { csv (in => $tfn, out => $x); };
@@ -321,7 +301,6 @@ $] < 5.008 and unlink glob "SCALAR(*)";
 eval {
     exists  $Config{useperlio} &&
     defined $Config{useperlio} &&
-    $] >= 5.008                &&
     $Config{useperlio} eq "define" or skip "No scalar ref in this perl", 5;
     my $out = "";
     open my $fh, ">", \$out or die "IO: $!\n";
@@ -339,6 +318,12 @@ eval {
     my $expect = [["a"],[1],["a"],[1],["a"],[1],["a"],[1],["a"],[1]];
     is_deeply ($csv->csv (in => $tfn),        $expect, "csv from object");
     is_deeply (csv (in => $tfn, csv => $csv), $expect, "csv from attribute");
+    }
+
+{   my @e;
+    local $SIG{__DIE__} = sub { push @e => @_ };
+    eval { csv ("in"); };
+    like ($@, qr{^PRM - The value attribute is passed without the key attribute}, "Key without value");
     }
 
 {   local *STDOUT;
@@ -381,9 +366,7 @@ eval {
     is (-s $ofn, 0, "No data results in an empty file");
     unlink $ofn;
 
-    SKIP: {
-	$] <= 5.008 and skip qq{$] does not support ScalarIO}, 6;
-	my $aoa = [[ 1, 2 ]];
+    {   my $aoa = [[ 1, 2 ]];
 	is (csv (in => \"3,4", out => $aoa), $aoa, "return AOA");
 	is_deeply ($aoa, [[ 1, 2 ], [ 3, 4 ]], "Add to AOA");
 

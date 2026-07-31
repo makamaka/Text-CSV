@@ -10,7 +10,6 @@ use Test::More;
 BEGIN {
     unless (exists  $Config{useperlio} &&
 	    defined $Config{useperlio} &&
-	    $] >= 5.008                && # perlio was experimental in 5.6.2, but not reliable
 	    $Config{useperlio} eq "define") {
 	plan skip_all => "No reliable perlIO available";
 	}
