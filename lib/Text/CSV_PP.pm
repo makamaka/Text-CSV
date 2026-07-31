@@ -328,7 +328,7 @@ sub new {
     my $proto = shift;
     my $class = ref $proto || $proto or return;
     @_ > 0 && ref $_[0] ne "HASH" and return;
-    my $attr = shift || {};
+    my $attr = shift || +{};
     my %attr = map {
         my $k = m/^[a-zA-Z]\w+$/ ? lc $_ : $_;
         exists $attr_alias{$k} and $k = $attr_alias{$k};
