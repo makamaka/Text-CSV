@@ -1348,7 +1348,16 @@ sub fragment {
 my $csv_usage = q{usage: my $aoa = csv (in => $file);};
 
 sub _csv_attr {
-    my %attr = (@_ == 1 && ref $_[0] eq "HASH" ? %{$_[0]} : @_) or croak();
+    my %attr;
+    if (@_ == 1 && ref $_[0] eq "HASH") {
+       %attr = %{$_[0]};
+       }
+    elsif (scalar @_ % 2) {
+       croak (Text::CSV_PP->SetDiag(1502));
+       }
+    else {
+       %attr = @_;
+       }
 
     $attr{binary}     = 1;
     $attr{strict_eol} = 1;
