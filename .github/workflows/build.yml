@@ -29,6 +29,9 @@ jobs:
       - uses: actions/checkout@v1
       - name: perl -V
         run: perl -V
+      - name: Install dependencies for old perl
+        if: ${{ matrix.perl-version == '5.8-buster' }}
+        run: curl -sL https://cpanmin.us | perl - Test::More@0.96
       - name: Install dependencies
         run: curl -sL https://cpanmin.us | perl - --installdeps .
       - name: Run tests
