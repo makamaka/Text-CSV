@@ -210,7 +210,17 @@ on your environment):
 
   > export PERL_TEXT_CSV=Text::CSV_XS
 
-If you prefer Text::CSV_XS to Text::CSV_PP (default), then:
+However, note that recent Text::CSV (since 2.01) only loads Text::CSV_XS
+that works the same as (or better than) the bundled Text::CSV_PP.
+This shouldn't be a problem if you install Text::CSV via a CPAN client,
+because it will update what you have installed anyway. If not, especially
+when you use only the modules your operating system provides, setting
+PERL_TEXT_CSV to Text::CSV_XS may break your application in an unexpected way.
+
+If you do need to use Text::CSV_XS only, please use it directly. Text::CSV
+will never be better than Text::CSV_XS.
+
+If you still prefer Text::CSV_XS to Text::CSV_PP (default), then:
 
   > export PERL_TEXT_CSV=Text::CSV_XS,Text::CSV_PP
 
